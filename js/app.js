@@ -6,18 +6,18 @@
 
 /* ─── DATA ─── */
 const SERVICES = [
-  { id:'w1', cat:'wash', icon:'\ud83e\udee7', name:'Regular Wash (1)',  desc:'3\u20135 kg', price:160 },
-  { id:'w2', cat:'wash', icon:'\ud83e\udee7', name:'Regular Wash (2)',  desc:'6\u20137 kg', price:180 },
-  { id:'w3', cat:'wash', icon:'\ud83d\udecf\ufe0f', name:'Heavy Wash',    desc:'Clothes / Towels / Bedsheets, 4\u20135 kg', price:190 },
-  { id:'w4', cat:'wash', icon:'\ud83c\udf28\ufe0f', name:'Wash Comforter',desc:'Per load', price:230 },
+  { id:'w1', cat:'wash', icon:'\ud83e\udee7', name:'Regular Wash (1)',  desc:' 38 mins wash 1 wash 2 rinse (3\u20135 kg) ', price:160 },
+  { id:'w2', cat:'wash', icon:'\ud83e\udee7', name:'Regular Wash (2)',  desc:'38 mins wash 1 wash 2 rinse (6\u20137 kg)', price:180 },
+  { id:'w3', cat:'wash', icon:'\ud83d\udecf\ufe0f', name:'Premium Wash (1)',    desc:'48 mins wash 1 wash 3 rinse (6\u20137 kg)', price:200 },
+  { id:'w4', cat:'wash', icon:'\ud83c\udf28\ufe0f', name:'Premium Wash (2)',desc:'Per load', price:230 },
   { id:'d1', cat:'dry',  icon:'\u2600\ufe0f', name:'Regular Dry',   desc:'Max 7 kgs / load', price:60 },
   { id:'d2', cat:'dry',  icon:'\ud83c\udf24\ufe0f', name:'Dry Heavy',     desc:'Max 8 kgs / load', price:70 },
-  { id:'d3', cat:'dry',  icon:'\u23f1\ufe0f', name:'Add Dry',       desc:'+10 minutes dry only', price:30 },
-  { id:'a1', cat:'addon', icon:'\ud83c\udf38', name:'Downy Fabric Conditioner', desc:'Added to final rinse', price:20 },
-  { id:'a2', cat:'addon', icon:'\ud83e\uddfc', name:'Ariel Detergent Boost',    desc:'Extra detergent scoop', price:15 },
-  { id:'a3', cat:'addon', icon:'\u2728', name:'Surf Fabric Softener',    desc:'Added to final rinse', price:20 },
-  { id:'a4', cat:'addon', icon:'\ud83c\udf0a', name:'Breeze Detergent Boost',  desc:'Extra detergent scoop', price:15 },
-  { id:'a5', cat:'addon', icon:'\ud83c\udf43', name:'Extra Fragrance Rinse',   desc:'Long-lasting scent booster', price:25 },
+  { id:'d3', cat:'addon',  icon:'\u23f1\ufe0f', name:'Add Dry',       desc:'+10 minutes dry only', price:30 },
+  { id:'a1', cat:'addon', icon:'\ud83c\udf38', name:'Downy Fabric Conditioner', desc:'Added to final rinse', price:10 },
+  { id:'a2', cat:'addon', icon:'\u2728', name:'Surf Fabric Softener',    desc:'Added to final rinse', price:10 },
+  { id:'a3', cat:'addon', icon:'\u2728', name:'Del Fabric Softener',    desc:'Added to final rinse', price:10 },
+  { id:'a4', cat:'addon', icon:'\ud83e\uddfc', name:'Ariel Liquid Detergent',    desc:'Extra detergent scoop', price:15 },
+  { id:'a5', cat:'addon', icon:'\ud83c\udf0a', name:'Wings Liquid Detergent',  desc:'Extra detergent scoop', price:15 },
 ];
 
 const ORDERS_PREFIX = 'sudsup_orders_';
