@@ -301,24 +301,33 @@ async function handleLogin(e){
 function handleLogout(){
   clearSession();
   document.getElementById('userMenu')?.classList.remove('show');
-  showAuthScreen();
+  document.getElementById('mobileMoreOverlay')?.classList.remove('show');
+  const shellEl = document.getElementById('shell');
+  shellEl.classList.add('leaving');
+  setTimeout(() => {
+    shellEl.classList.remove('active');
+    shellEl.classList.remove('leaving');
+    showAuthScreen();
+  }, 190);
   toast('Signed out');
 }
 
 /* ─── SCREEN SWITCHING ─── */
 function showAuthScreen(){
-  document.getElementById('authScreen').classList.remove('hidden');
+  const authEl = document.getElementById('authScreen');
+  authEl.classList.remove('hidden');
+  authEl.classList.remove('leaving');
   document.getElementById('shell').classList.remove('active');
   document.getElementById('authForm-login')?.reset();
   document.getElementById('authForm-register')?.reset();
 }
 
-function enterApp(){
+function enterApp(immediate){
   const session = getSession();
   if (!session) { showAuthScreen(); return; }
 
-  document.getElementById('authScreen').classList.add('hidden');
-  document.getElementById('shell').classList.add('active');
+  const authEl = document.getElementById('authScreen');
+  const shellEl = document.getElementById('shell');
 
   const initials = session.name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
   document.getElementById('topbarAvatar').textContent = initials || 'U';
@@ -333,6 +342,20 @@ function enterApp(){
   if(mBiz) mBiz.textContent = session.business;
 
   if (typeof initAppForUser === 'function') initAppForUser(session);
+
+  if (immediate){
+    authEl.classList.add('hidden');
+    shellEl.classList.add('active');
+  } else {
+    // Smooth cross-fade: let the login screen fade out first, then
+    // swap it for the app shell (which fades in via its own animation).
+    authEl.classList.add('leaving');
+    setTimeout(() => {
+      authEl.classList.add('hidden');
+      authEl.classList.remove('leaving');
+      shellEl.classList.add('active');
+    }, 200);
+  }
 }
 
 /* ─── USER MENU DROPDOWN ─── */
@@ -355,7 +378,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const session = getSession();
   if (session && getUsers().some(u => u.id === session.userId)){
-    enterApp();
+    enterApp(true);
   } else {
     clearSession();
     showAuthScreen();
