@@ -8,7 +8,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>Laundry Shop</title>
 <meta name="description" content="SudsUp POS — a point-of-sale and order tracker for laundry shops."/>
-<link rel="icon" type="image/png" href="my_logo.png" />
+<link rel="icon" type="image/png" href="my_logo.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet"/>
@@ -31,9 +31,9 @@
   <div class="auth-card">
     <div class="auth-brand">
       <div class="logo-dot">🫧</div>
-      <div class="auth-brand-name">Suds<em>Up</em></div>
+      <div class="auth-brand-name">Wash<em>Hub</em></div>
     </div>
-    <div class="auth-tagline">POS for your laundry shop</div>
+    <div class="auth-tagline">Point of Sale for Laundry Shop</div>
 
     <div id="googleBtnWrap" class="google-btn-wrap"></div>
     <button type="button" class="btn-google-fallback" id="googleBtnFallback" onclick="handleGoogleNotConfigured()">
@@ -72,7 +72,7 @@
     <form class="auth-form" id="authForm-register" novalidate>
       <div class="field-group">
         <label class="field-label" for="regName">Full name</label>
-        <input class="field-input" type="text" id="regName" placeholder="Juan Dela Cruz" autocomplete="name" required/>
+        <input class="field-input" type="text" id="regName" placeholder="Your Full Name" autocomplete="name" required/>
         <div class="field-error" id="regNameErr"></div>
       </div>
       <div class="field-group">
@@ -99,11 +99,6 @@
       <button type="submit" class="btn-auth-submit" id="regSubmitBtn">Create account</button>
     </form>
 
-    <div class="auth-demo-note">
-      Accounts on this demo are stored only in this browser (no server). <br><br>
-      Each account gets its own private order history. <br><br>
-      Don't use real customer payment data here without adding a real backend see README.md.
-    </div>
   </div>
 </div>
 
@@ -114,7 +109,7 @@
   <header class="topbar">
     <div class="logo">
       <div class="logo-dot">🫧</div>
-      <span id="shopName">POS . Laundry Shop</span> <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:2px">POS</span>
+      <span id="shopName">Laundry Shop</span> <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:2px">POS</span>
     </div>
     <div class="topbar-divider"></div>
     <div class="topbar-date" id="topbarDate"></div>
@@ -173,7 +168,7 @@
     <div class="view active" id="view-pos">
       <div class="section-head">
         <div class="section-title-group">
-          <div class="section-eyebrow">Point of Sale</div>
+          <div class="section-eyebrow">Point of Sales</div>
           <div class="section-title">New Order</div>
         </div>
       </div>
@@ -357,7 +352,7 @@
           </label>
           <div class="field-group">
             <label class="field-label" for="gcashNumber">Account name / number</label>
-            <input class="field-input" type="text" id="gcashNumber" placeholder="Juana Dela Cruz · 0917 123 4567"/>
+            <input class="field-input" type="text" id="gcashNumber" placeholder="Your Name · Your GCash Number"/>
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="savePaySettings('gcash')">Save</button>
@@ -377,12 +372,23 @@
           </label>
           <div class="field-group">
             <label class="field-label" for="mayaNumber">Account name / number</label>
-            <input class="field-input" type="text" id="mayaNumber" placeholder="Juana Dela Cruz · 0917 123 4567"/>
+            <input class="field-input" type="text" id="mayaNumber" placeholder="Your Name · Your Maya Number"/>
           </div>
           <div style="display:flex;gap:8px">
             <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="savePaySettings('maya')">Save</button>
             <button class="btn btn-ghost btn-sm" style="color:var(--red)" onclick="clearPaySettings('maya')">Remove</button>
           </div>
+        </div>
+      </div>
+
+      <div class="paysettings-note" style="margin-top:24px">
+        📲 <b>SMS pickup notifications.</b> Customize the message sent when you tap "Send SMS" on a Ready order (in the Orders tab). It opens your phone's own Messages app with the text prefilled — no SMS gateway or API key needed. Placeholders: <code>{name}</code>, <code>{orderId}</code>, <code>{shop}</code>, <code>{total}</code>.
+      </div>
+      <div class="sms-template-card">
+        <textarea class="field-input sms-template-textarea" id="smsTemplateInput" rows="4" placeholder="Hi {name}! Your order {orderId} is ready for pickup."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="saveSmsTemplate()">Save template</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetSmsTemplate()">Reset to default</button>
         </div>
       </div>
     </div>
