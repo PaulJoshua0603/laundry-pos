@@ -18,11 +18,16 @@ const SERVICES = [
   { id:'a3', cat:'addon', icon:'\u2728', name:'Del Fabric Softener',    desc:'Added to final rinse', price:10 },
   { id:'a4', cat:'addon', icon:'\ud83e\uddfc', name:'Ariel Liquid Detergent',    desc:'Extra detergent scoop', price:15 },
   { id:'a5', cat:'addon', icon:'\ud83c\udf0a', name:'Wings Liquid Detergent',  desc:'Extra detergent scoop', price:15 },
+
 ];
 
 const ORDERS_PREFIX = 'sudsup_orders_';
 const PAYSETTINGS_PREFIX = 'sudsup_paysettings_';
+const SMSTEMPLATE_PREFIX = 'sudsup_smstemplate_';
 const PRINTWIDTH_KEY = 'sudsup_printer_mm';
+const AUTO_READY_MS = 60 * 60 * 1000; // 1 hour
+const DEFAULT_SMS_TEMPLATE =
+  'Hi {name}! Your laundry order {orderId} at {shop} is now ready for pickup. Total: {total}. See you soon! \ud83e\udee7';
 
 /* Order status workflow — shown as an editable dropdown per order. */
 const STATUS_OPTIONS = [
@@ -47,6 +52,7 @@ let payment    = 'cash';
 let activeView = 'pos';
 let currentUser = null;
 let clockStarted = false;
+let autoStatusStarted = false;
 let paySettings = { gcash:{qr:null,number:''}, maya:{qr:null,number:''} };
 
 /* sales tracking state */
@@ -103,6 +109,7 @@ function initAppForUser(session){
   updateCart();
   updateSidebarStats();
   renderPaySettingsForm();
+  renderSmsTemplateForm();
   applySavedPrinterWidth();
   switchView('pos');
 
@@ -110,6 +117,13 @@ function initAppForUser(session){
     updateClock();
     setInterval(updateClock, 1000);
     clockStarted = true;
+  }
+  if (!autoStatusStarted){
+    autoAdvanceOrderStatuses();
+    setInterval(autoAdvanceOrderStatuses, 60 * 1000);
+    autoStatusStarted = true;
+  } else {
+    autoAdvanceOrderStatuses();
   }
 }
 
@@ -527,6 +541,7 @@ function renderOrderTable(){
       <td class="mono" style="font-size:11px">${o.time.toLocaleTimeString('en-PH',{hour:'2-digit',minute:'2-digit'})}</td>
       <td style="display:flex;gap:6px;justify-content:flex-end">
         <button class="btn btn-ghost btn-sm" onclick="showReceipt(orders.find(x=>x.id==='${o.id}'))" title="View receipt">\ud83e\uddfe</button>
+        ${(o.status==='ready' && o.phone)?`<button class="btn btn-sms btn-sm" onclick="sendPickupSms('${o.id}')" title="Send pickup SMS to ${o.phone}">\ud83d\udcf2 SMS</button>`:''}
         ${(o.status!=='completed' && o.status!=='cancelled')?`<button class="btn btn-success btn-sm" onclick="updateOrderStatus('${o.id}','completed')" title="Mark as completed">\u2713 Done</button>`:''}
         ${o.status!=='cancelled'?`<button class="btn btn-danger btn-sm" onclick="cancelOrder('${o.id}')" title="Cancel order">\u2715</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="deleteOrder('${o.id}')" title="Delete order permanently">\ud83d\uddd1\ufe0f</button>
@@ -559,6 +574,33 @@ function updateOrderStatus(id, newStatus){
   if(activeView === 'summary') renderSummary();
   if(activeView === 'sales') renderSales();
   toast(`${o.id} marked as ${STATUS_MAP[newStatus].label}`);
+}
+
+/* Auto-promote orders that have been Washing/Drying for over an hour
+   to "Ready for Pickup". Runs on login and every 60s afterward. */
+function autoAdvanceOrderStatuses(){
+  if(!orders || orders.length === 0) return;
+  const now = Date.now();
+  const promoted = [];
+  orders.forEach(o => {
+    if((o.status === 'washing' || o.status === 'drying')){
+      const elapsed = now - new Date(o.time).getTime();
+      if(elapsed >= AUTO_READY_MS){
+        o.status = 'ready';
+        o.autoReady = true;
+        promoted.push(o.id);
+      }
+    }
+  });
+  if(promoted.length){
+    saveOrdersToStorage();
+    if(activeView === 'orders') renderOrderTable();
+    updateSidebarStats();
+    if(activeView === 'summary') renderSummary();
+    toast(promoted.length === 1
+      ? `\u2705 ${promoted[0]} auto-marked Ready for Pickup (1 hr elapsed)`
+      : `\u2705 ${promoted.length} orders auto-marked Ready for Pickup`, 'success');
+  }
 }
 
 function cancelOrder(id){
@@ -893,4 +935,59 @@ function toast(msg, type=''){
   el.className = 'show' + (type ? ' '+type : '');
   clearTimeout(el._t);
   el._t = setTimeout(()=>el.className='', 2200);
+}
+
+/* ══════════════════════════════════════════
+   SMS PICKUP NOTIFICATIONS
+   No SMS gateway/API is wired up here (that needs a paid backend
+   service like Twilio). Instead, "Send SMS" builds the message from
+   your template and opens it in the device's own Messages app via
+   the sms: link scheme \u2014 works out of the box on phones, no
+   account or API key required, and the shop still sends the text
+   from their own number for free.
+══════════════════════════════════════════ */
+function smsTemplateKey(){
+  return SMSTEMPLATE_PREFIX + (currentUser ? currentUser.userId : 'anon');
+}
+function loadSmsTemplate(){
+  try { return localStorage.getItem(smsTemplateKey()) || DEFAULT_SMS_TEMPLATE; }
+  catch { return DEFAULT_SMS_TEMPLATE; }
+}
+function saveSmsTemplate(){
+  const ta = document.getElementById('smsTemplateInput');
+  const text = (ta?.value || '').trim() || DEFAULT_SMS_TEMPLATE;
+  localStorage.setItem(smsTemplateKey(), text);
+  toast('SMS template saved', 'success');
+}
+function resetSmsTemplate(){
+  localStorage.removeItem(smsTemplateKey());
+  renderSmsTemplateForm();
+  toast('SMS template reset to default');
+}
+function renderSmsTemplateForm(){
+  const ta = document.getElementById('smsTemplateInput');
+  if(ta && document.activeElement !== ta) ta.value = loadSmsTemplate();
+}
+function buildSmsMessage(order){
+  const template = loadSmsTemplate();
+  return template
+    .replace(/\{name\}/g, order.name || 'there')
+    .replace(/\{orderId\}/g, order.id)
+    .replace(/\{shop\}/g, (currentUser && currentUser.business) || 'SudsUp Laundry')
+    .replace(/\{total\}/g, '\u20b1' + order.total.toLocaleString());
+}
+function sendPickupSms(id){
+  const o = orders.find(x => x.id === id);
+  if(!o) return;
+  if(!o.phone){
+    toast('No phone number on file for this order', 'error');
+    return;
+  }
+  const message = buildSmsMessage(o);
+  const digits = o.phone.replace(/[^\d+]/g, '');
+  const isIOS = /iPad|iPhone|iPod|Macintosh/.test(navigator.userAgent) && 'ontouchend' in document;
+  const sep = isIOS ? '&' : '?';
+  const url = `sms:${digits}${sep}body=${encodeURIComponent(message)}`;
+  window.location.href = url;
+  toast(`\ud83d\udcf2 Opening Messages for ${o.name}\u2026`);
 }
