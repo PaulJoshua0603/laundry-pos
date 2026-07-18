@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════
-   SudsUp POS · stylesheet
+   WashHub POS · stylesheet
    Sections: tokens → base → auth screen → shell/topbar/sidebar
    → pos/products → cart → orders/summary → modal/toast → mobile
 ══════════════════════════════════════════════════════════ */
@@ -121,8 +121,15 @@ button, input{ color-scheme: inherit; }
   display:flex;align-items:center;justify-content:center;
   padding:calc(20px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(20px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   overflow-y:auto;
+  opacity:1;transition:opacity .22s ease;
 }
+.auth-screen.leaving{opacity:0}
 .auth-screen.hidden{display:none}
+@keyframes cardPopIn{
+  from{opacity:0;transform:translateY(16px) scale(.97)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.auth-card{animation:cardPopIn .4s cubic-bezier(.34,1.4,.64,1)}
 .auth-bg-glow{
   position:absolute;top:-20%;left:50%;transform:translateX(-50%);
   width:600px;height:600px;border-radius:50%;
@@ -209,6 +216,51 @@ button, input{ color-scheme: inherit; }
 .btn-auth-submit:hover{box-shadow:0 0 20px var(--blue-glow);transform:translateY(-1px)}
 .btn-auth-submit:active{transform:scale(.98)}
 
+/* ── FIELD PASSWORD WRAP (reveal toggle) ── */
+.field-password-wrap{position:relative;display:flex;align-items:center}
+.field-password-wrap .field-input{padding-right:40px;width:100%}
+.reveal-btn{
+  position:absolute;right:0;top:0;bottom:0;
+  width:38px;background:none;border:none;cursor:pointer;
+  color:var(--text3);display:flex;align-items:center;justify-content:center;
+  transition:color var(--transition);
+}
+.reveal-btn:hover{color:var(--text2)}
+.reveal-btn svg{width:16px;height:16px;pointer-events:none}
+
+/* ── FIELD LABEL ROW (label + forgot link) ── */
+.field-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.forgot-link{
+  background:none;border:none;cursor:pointer;
+  font-size:11px;font-weight:600;color:var(--blue);
+  padding:0;font-family:var(--font);letter-spacing:.01em;
+  transition:opacity var(--transition);
+}
+.forgot-link:hover{opacity:.75}
+
+/* ── FORGOT PASSWORD MODAL ── */
+.auth-modal-overlay{z-index:400}
+.auth-modal{
+  width:min(380px,calc(100vw - 32px));
+  padding:28px 24px 24px;
+  border-radius:var(--radius);
+  background:var(--surface);
+  border:1px solid var(--border);
+  box-shadow:0 24px 64px rgba(0,0,0,.45);
+  display:flex;flex-direction:column;gap:14px;
+  max-height:90vh;overflow-y:auto;
+}
+.forgot-header{text-align:center;margin-bottom:4px}
+.forgot-icon{font-size:32px;margin-bottom:8px}
+.forgot-title{font-size:18px;font-weight:700;color:var(--text);font-family:var(--font-display)}
+.forgot-sub{font-size:12px;color:var(--text3);margin-top:4px}
+.forgot-success{
+  background:rgba(34,197,94,.12);border:1px solid rgba(34,197,94,.3);
+  color:#22c55e;font-size:12px;font-weight:500;
+  border-radius:var(--radius-sm);padding:10px 12px;
+  text-align:center;
+}
+
 .auth-hint{text-align:center;font-size:11px;color:var(--text3);margin-top:16px}
 .auth-demo-note{
   margin-top:18px;padding:10px 12px;background:var(--surface2);
@@ -229,7 +281,12 @@ button, input{ color-scheme: inherit; }
     "topbar topbar topbar"
     "sidebar main cart";
 }
-.shell.active{display:grid}
+@keyframes shellFadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+.shell.active{display:grid;animation:shellFadeIn .35s ease}
+.shell.leaving{opacity:0;transition:opacity .2s ease}
 
 /* ── TOPBAR ── */
 .topbar{
@@ -256,9 +313,10 @@ button, input{ color-scheme: inherit; }
   width:28px;height:28px;border-radius:8px;
   background:linear-gradient(135deg,var(--blue),var(--blue-2));
   display:flex;align-items:center;justify-content:center;
-  font-size:14px;flex-shrink:0;
+  font-size:14px;flex-shrink:0;overflow:hidden;
   box-shadow:0 0 12px var(--blue-glow);
 }
+.logo-dot img{width:100%;height:100%;object-fit:cover;display:block}
 .logo em{color:var(--blue);font-style:italic}
 .topbar-divider{width:1px;height:24px;background:var(--border);margin:0 4px;flex-shrink:0}
 .topbar-date{
@@ -399,7 +457,14 @@ button, input{ color-scheme: inherit; }
    MAIN CONTENT — VIEWS
 ══════════════════════════════════════════ */
 .view{display:none}
-.view.active{display:flex;flex-direction:column;gap:16px;width:100%;max-width:1600px;margin:0 auto}
+@keyframes viewFadeIn{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:translateY(0)}
+}
+.view.active{
+  display:flex;flex-direction:column;gap:16px;width:100%;max-width:1600px;margin:0 auto;
+  animation:viewFadeIn .3s cubic-bezier(.4,0,.2,1);
+}
 
 .section-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
 .section-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);opacity:.85;margin-bottom:3px}
@@ -450,6 +515,8 @@ button, input{ color-scheme: inherit; }
 .btn-danger:hover{background:rgba(239,68,68,.2)}
 .btn-success{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.2)}
 .btn-success:hover{background:rgba(16,185,129,.2)}
+.btn-sms{background:var(--blue-muted);color:var(--blue);border:1px solid var(--blue-glow)}
+.btn-sms:hover{background:var(--blue-glow)}
 .btn-sm{padding:5px 10px;font-size:12px}
 
 .pills{display:flex;gap:6px;flex-wrap:wrap}
@@ -702,6 +769,19 @@ tbody td:first-child{color:var(--text);font-weight:600}
   color:var(--text2);font-size:12px;line-height:1.6;
   border-radius:var(--radius);padding:12px 14px;
 }
+.paysettings-note code{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:11px;color:var(--blue);
+}
+.sms-template-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;margin-top:10px;
+}
+.sms-template-label{margin-bottom:10px}
+.sms-template-textarea{
+  width:100%;resize:vertical;min-height:80px;
+  font-family:var(--font);line-height:1.5;
+}
 .paysettings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .paysettings-card{
   background:var(--surface);border:1px solid var(--border);
@@ -829,6 +909,11 @@ tbody td:first-child{color:var(--text);font-weight:600}
   padding:14px 20px 0;
 }
 .printer-size-label{font-size:11px;font-weight:600;color:var(--text3)}
+.printer-size-hint{
+  font-size:11px;line-height:1.5;color:var(--text3);
+  padding:8px 20px 0;
+}
+.printer-size-hint b{color:var(--text2)}
 .receipt{padding:24px;font-family:var(--mono);position:relative}
 .receipt::before{
   content:'';position:absolute;top:0;left:0;right:0;height:10px;
@@ -852,15 +937,17 @@ tbody td:first-child{color:var(--text);font-weight:600}
 ══════════════════════════════════════════ */
 #toast{
   position:fixed;bottom:20px;left:50%;
-  transform:translateX(-50%) translateY(60px);
+  transform:translateX(-50%) translateY(60px) scale(.95);
   background:var(--surface2);border:1px solid var(--border2);
   color:var(--text);padding:10px 18px;border-radius:999px;
   font-size:13px;font-weight:500;
-  z-index:300;transition:transform .3s cubic-bezier(.4,0,.2,1),opacity .3s;
-  opacity:0;pointer-events:none;white-space:nowrap;
-  box-shadow:var(--shadow);
+  z-index:300;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;
+  opacity:0;pointer-events:none;
+  max-width:min(420px, calc(100vw - 32px));
+  white-space:normal;text-align:center;line-height:1.4;
+  box-shadow:var(--shadow-lg);
 }
-#toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+#toast.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
 #toast.success{border-color:rgba(16,185,129,.4);color:var(--green)}
 #toast.error{border-color:rgba(239,68,68,.4);color:var(--red)}
 
@@ -1016,81 +1103,134 @@ a:focus-visible, button:focus-visible, input:focus-visible,
 /* ══════════════════════════════════════════
    PRINT RECEIPT — thermal receipt printer layout
    Most receipt printers (58mm or 80mm rolls) render a page as a
-   narrow, continuous rectangle. @page below pins the paper to an
-   80mm roll (the most common shop size) with auto height and zero
-   margins; everything is pure black-on-white monospace so it stays
-   legible on 1-bit thermal heads, and every non-receipt element on
-   the page is hidden so only the rectangle prints.
+   narrow, continuous rectangle. The @page rule below is only a
+   fallback for the very first print before any JS has run — the
+   real, authoritative paper size is written into a <style id=
+   "dynamicPageSize"> tag by setPageSize() in app.js, kept in sync
+   with whichever paper-width pill (58mm/80mm) is selected, so the
+   physical @page size always matches the receipt's rendered width.
+   Zero margins; everything is pure black-on-white monospace so it
+   stays legible on 1-bit thermal heads, and every non-receipt
+   element on the page is hidden so only the rectangle prints.
 ══════════════════════════════════════════ */
 @page{
-  size: 80mm auto;
+  size: 48mm 210mm;
   margin: 0;
 }
 @media print{
-  html,body{height:auto !important;overflow:visible !important;background:#fff !important}
-  body *{visibility:hidden}
-
-  .auth-screen,.shell > *:not(.main),.mobile-bar,.mobile-more-overlay,#toast,
-  .modal-actions,.printer-size-row{display:none !important}
-
-  .modal-overlay{
-    position:static !important;inset:auto;background:none !important;
-    padding:0 !important;backdrop-filter:none !important;
-    display:block !important;opacity:1 !important;pointer-events:auto !important;
+  /* Hide everything, then surgically show only the receipt */
+  html,body{
+    height:auto !important;overflow:visible !important;
+    background:#fff !important;margin:0 !important;padding:0 !important;
   }
-  .modal{
+  body > *{display:none !important}
+
+  /* Show the receipt modal — locked to 48mm */
+  #receiptModal{
+    display:block !important;
+    position:fixed !important;top:0 !important;left:0 !important;
+    width:48mm !important;max-width:48mm !important;
+    background:#fff !important;
+    padding:0 !important;margin:0 !important;
+    border:none !important;box-shadow:none !important;
+    overflow:visible !important;
+  }
+  #receiptModalInner{
+    display:block !important;
+    width:48mm !important;max-width:48mm !important;
     box-shadow:none !important;border:none !important;border-radius:0 !important;
-    width:var(--receipt-w,80mm) !important;max-width:var(--receipt-w,80mm) !important;margin:0 !important;
-    transform:none !important;
+    margin:0 !important;padding:0 !important;
+    background:#fff !important;overflow:visible !important;
+    transform:none !important;max-height:none !important;
   }
-  #receiptModal, #receiptModal *,
-  #receiptBody, #receiptBody *{visibility:visible}
+  .printer-size-row,.printer-size-hint,.modal-actions{display:none !important}
+
+  /* Receipt body — compact for 48mm roll */
   #receiptBody{
-    position:relative;
-    width:var(--receipt-w,80mm);max-width:var(--receipt-w,80mm);margin:0;
-    padding:3mm 4mm;
-    font-family:'Courier New', var(--mono), monospace !important;
+    display:block !important;
+    width:48mm !important;max-width:48mm !important;
+    box-sizing:border-box !important;
+    margin:0 !important;padding:1.5mm 2mm !important;
+    font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
-    font-size:11px;line-height:1.45;
-    page-break-inside:avoid;
+    font-size:8.5px !important;line-height:1.3 !important;
+    overflow:hidden !important;
+    page-break-inside:avoid !important;
+    word-break:break-word !important;
   }
+  /* Make every element inside box-sizing and clipped to width */
+  #receiptBody *{
+    box-sizing:border-box !important;
+    max-width:100% !important;
+    overflow-wrap:break-word !important;
+    word-break:break-word !important;
+  }
+  .receipt{padding:0 !important}
   .receipt::before{display:none !important}
-  .receipt-header{page-break-inside:avoid;page-break-after:avoid}
-  .receipt-row{page-break-inside:avoid}
-  .receipt-divider{page-break-after:avoid}
-  .receipt-footer{page-break-inside:avoid}
-  .receipt-logo{font-size:18px}
-  .receipt-biz,.receipt-row,.receipt-row.total,.receipt-row.customer,
-  .receipt-sub,.receipt-footer{color:#000 !important;font-family:'Courier New', var(--mono), monospace !important}
-  .receipt-row.total{font-weight:800;font-size:13px}
-  .receipt-divider{border-top:1px solid #000 !important;margin:8px 0}
+  .receipt-header{
+    text-align:center !important;
+    margin-bottom:3px !important;padding-top:0 !important;
+  }
+  .receipt-logo{font-size:12px !important;margin-bottom:1px !important}
+  .receipt-biz{
+    font-size:9px !important;font-weight:700 !important;
+    font-family:'Courier New',monospace !important;
+    color:#000 !important;line-height:1.2 !important;
+  }
+  .receipt-sub{
+    font-size:7.5px !important;color:#000 !important;margin-top:0 !important;
+    font-family:'Courier New',monospace !important;
+  }
+  .receipt-divider{
+    border-top:1px solid #000 !important;
+    margin:3px 0 !important;border-bottom:none !important;
+  }
+  .receipt-row{
+    display:flex !important;justify-content:space-between !important;
+    margin-bottom:1.5px !important;font-size:8px !important;
+    color:#000 !important;font-family:'Courier New',monospace !important;
+    gap:2px !important;
+  }
+  .receipt-row span:first-child{
+    flex:1 1 auto !important;
+    overflow:hidden !important;
+    white-space:nowrap !important;
+    text-overflow:ellipsis !important;
+  }
+  .receipt-row span:last-child{
+    flex:0 0 auto !important;
+    white-space:nowrap !important;
+    text-align:right !important;
+  }
+  .receipt-row.customer{font-size:8px !important;color:#000 !important}
+  .receipt-row.total{
+    font-weight:800 !important;font-size:9.5px !important;
+    color:#000 !important;margin-top:3px !important;
+  }
+  .receipt-footer{
+    text-align:center !important;font-size:7.5px !important;
+    color:#000 !important;margin-top:5px !important;
+    font-family:'Courier New',monospace !important;
+    line-height:1.4 !important;
+  }
 
-  /* ── BASKET TAG — small ID-sized customer name label, printed as a
-     second page so it can be cut off and tucked into the customer's
-     laundry basket on arrival. ── */
+  /* Basket tag — inline on same page, no page break */
   .basket-tag{
-    display:block !important;visibility:visible !important;
-    page-break-before:always;break-before:page;
-    width:var(--receipt-w,80mm) !important;max-width:var(--receipt-w,80mm) !important;
-    margin:0;padding:5mm 3mm;
-    border:2px dashed #000;box-sizing:border-box;
-    text-align:center;
-    font-family:'Courier New', var(--mono), monospace !important;
+    display:block !important;
+    page-break-before:avoid !important;break-before:avoid !important;
+    page-break-after:avoid !important;page-break-inside:avoid !important;
+    width:48mm !important;max-width:48mm !important;
+    box-sizing:border-box !important;
+    margin:3mm 0 0 0 !important;padding:2mm !important;
+    border:1.5px dashed #000 !important;
+    text-align:center !important;
+    font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
   }
-  .basket-tag *{visibility:visible !important;color:#000 !important}
-  .tag-label{font-size:9px;letter-spacing:.15em;font-weight:700;margin-bottom:6px}
-  .tag-name{font-size:22px;font-weight:800;line-height:1.2;word-break:break-word;margin-bottom:2px}
-  .tag-phone{font-size:11px;margin-bottom:6px}
-  .tag-divider{border-top:1px dashed #000;margin:6px 0}
-  .tag-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px}
-
-  /* If the destination printer ignores the 80mm @page size (e.g. a
-     virtual "print to Letter/PDF" driver instead of a real thermal
-     printer), this keeps the receipt legible as a left-aligned narrow
-     column instead of being stretched by "Fit to page width". */
-  @media print and (min-width: 150mm){
-    #receiptModal{display:flex !important;justify-content:flex-start !important}
-    #receiptBody{border-right:1px dashed #999}
-  }
+  .basket-tag,.basket-tag *{color:#000 !important;box-sizing:border-box !important}
+  .tag-label{font-size:7px;letter-spacing:.1em;font-weight:700;margin-bottom:2px}
+  .tag-name{font-size:13px;font-weight:800;line-height:1.2;word-break:break-word;margin-bottom:1px}
+  .tag-phone{font-size:8px;margin-bottom:2px}
+  .tag-divider{border-top:1px dashed #000;margin:2px 0}
+  .tag-row{display:flex;justify-content:space-between;font-size:7.5px;margin-bottom:1.5px}
 }
