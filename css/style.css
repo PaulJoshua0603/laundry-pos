@@ -511,6 +511,8 @@ button, input{ color-scheme: inherit; }
 .btn-primary:hover{background:var(--blue-dim);box-shadow:0 0 16px var(--blue-glow)}
 .btn-ghost{background:var(--surface2);color:var(--text2);border:1px solid var(--border)}
 .btn-ghost:hover{background:var(--border);color:var(--text)}
+.btn-secondary{background:var(--surface2);color:var(--blue);border:1px solid var(--blue);font-weight:700}
+.btn-secondary:hover{background:rgba(99,102,241,.12);box-shadow:0 0 10px var(--blue-glow)}
 .btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .btn-danger:hover{background:rgba(239,68,68,.2)}
 .btn-success{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.2)}
