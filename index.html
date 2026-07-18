@@ -22,6 +22,7 @@
     document.documentElement.setAttribute('data-theme', theme);
   })();
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -440,8 +441,8 @@
 
     <div class="customer-strip">
       <div class="customer-row">
-        <input class="customer-field" type="text" id="custName" placeholder="Customer name"/>
-        <input class="customer-field" type="tel" id="custPhone" placeholder="Phone"/>
+        <input class="customer-field" type="text" id="custName" placeholder="Customer name *" required/>
+        <input class="customer-field" type="tel" id="custPhone" placeholder="Phone *" required/>
       </div>
       <input class="customer-field" type="text" id="custAddr" placeholder="Address (optional)"/>
       <div class="customer-row">
@@ -567,6 +568,7 @@
     <div class="basket-tag" id="basketTag"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeReceipt()">Close</button>
+      <button class="btn btn-secondary" style="flex:1" onclick="saveReceiptPDF()" id="savePdfBtn">📄 Save PDF</button>
       <button class="btn btn-primary" style="flex:1" onclick="printReceipt()">🖨️ Print</button>
     </div>
   </div>
