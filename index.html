@@ -7,7 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <title>Laundry Shop</title>
-<meta name="description" content="SudsUp POS — a point-of-sale and order tracker for laundry shops."/>
+<meta name="description" content="WashHub POS — a point-of-sale and order tracker for laundry shops."/>
 <link rel="icon" type="image/png" href="my_logo.png"/>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
@@ -30,7 +30,7 @@
   <div class="auth-bg-glow"></div>
   <div class="auth-card">
     <div class="auth-brand">
-      <div class="logo-dot">🫧</div>
+      <div class="logo-dot"><img src="my_logo.png" alt="Logo"/></div>
       <div class="auth-brand-name">Wash<em>Hub</em></div>
     </div>
     <div class="auth-tagline">Point of Sale for Laundry Shop</div>
@@ -62,39 +62,60 @@
         <input class="field-input" type="email" id="loginEmail" placeholder="you@example.com" autocomplete="email" required/>
       </div>
       <div class="field-group">
-        <label class="field-label" for="loginPassword">Password</label>
-        <input class="field-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required/>
+        <div class="field-label-row">
+          <label class="field-label" for="loginPassword">Password</label>
+          <button type="button" class="forgot-link" onclick="showForgotPassword()">Forgot password?</button>
+        </div>
+        <div class="field-password-wrap">
+          <input class="field-input" type="password" id="loginPassword" placeholder="••••••••" autocomplete="current-password" required/>
+          <button type="button" class="reveal-btn" aria-label="Show password" onclick="toggleReveal('loginPassword',this)">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn-auth-submit" id="loginSubmitBtn">Sign in</button>
     </form>
 
     <!-- REGISTER -->
     <form class="auth-form" id="authForm-register" novalidate>
-      <div class="field-group">
-        <label class="field-label" for="regName">Full name</label>
-        <input class="field-input" type="text" id="regName" placeholder="Your Full Name" autocomplete="name" required/>
-        <div class="field-error" id="regNameErr"></div>
-      </div>
-      <div class="field-group">
-        <label class="field-label" for="regBusiness">Shop name <span style="color:var(--text3);font-weight:400">(optional)</span></label>
-        <input class="field-input" type="text" id="regBusiness" placeholder="SudsUp Laundry" autocomplete="organization"/>
+      <div class="field-row">
+        <div class="field-group">
+          <label class="field-label" for="regName">Full name</label>
+          <input class="field-input" type="text" id="regName" placeholder="Juan Dela Cruz" autocomplete="name" required/>
+          <div class="field-error" id="regNameErr"></div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="regBusiness">Shop name <span style="color:var(--text3);font-weight:400">(optional)</span></label>
+          <input class="field-input" type="text" id="regBusiness" placeholder="WashHub Laundry" autocomplete="organization"/>
+        </div>
       </div>
       <div class="field-group">
         <label class="field-label" for="regEmail">Email</label>
-        <input class="field-input" type="email" id="regEmail" placeholder="email123@example.com" autocomplete="email" required/>
+        <input class="field-input" type="email" id="regEmail" placeholder="you@example.com" autocomplete="email" required/>
         <div class="field-error" id="regEmailErr"></div>
       </div>
-      <div class="field-row">
-        <div class="field-group">
-          <label class="field-label" for="regPassword">Password</label>
+      <div class="field-group">
+        <label class="field-label" for="regPassword">Password</label>
+        <div class="field-password-wrap">
           <input class="field-input" type="password" id="regPassword" placeholder="8+ characters" autocomplete="new-password" required/>
-          <div class="field-error" id="regPassErr"></div>
+          <button type="button" class="reveal-btn" aria-label="Show password" onclick="toggleReveal('regPassword',this)">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
         </div>
-        <div class="field-group">
-          <label class="field-label" for="regPassword2">Confirm</label>
+        <div class="field-error" id="regPassErr"></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="regPassword2">Confirm password</label>
+        <div class="field-password-wrap">
           <input class="field-input" type="password" id="regPassword2" placeholder="Repeat password" autocomplete="new-password" required/>
-          <div class="field-error" id="regPass2Err"></div>
+          <button type="button" class="reveal-btn" aria-label="Show password" onclick="toggleReveal('regPassword2',this)">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
         </div>
+        <div class="field-error" id="regPass2Err"></div>
       </div>
       <button type="submit" class="btn-auth-submit" id="regSubmitBtn">Create account</button>
     </form>
@@ -108,7 +129,7 @@
   <!-- TOPBAR -->
   <header class="topbar">
     <div class="logo">
-      <div class="logo-dot">🫧</div>
+      <div class="logo-dot"><img src="my_logo.png" alt="Logo"/></div>
       <span id="shopName">Laundry Shop</span> <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:2px">POS</span>
     </div>
     <div class="topbar-divider"></div>
@@ -382,13 +403,28 @@
       </div>
 
       <div class="paysettings-note" style="margin-top:24px">
-        📲 <b>SMS pickup notifications.</b> Customize the message sent when you tap "Send SMS" on a Ready order (in the Orders tab). It opens your phone's own Messages app with the text prefilled — no SMS gateway or API key needed. Placeholders: <code>{name}</code>, <code>{orderId}</code>, <code>{shop}</code>, <code>{total}</code>.
+        📲 <b>SMS pickup notifications.</b> When you tap "Send SMS" on a Ready order (in the Orders tab), the app automatically uses the <b>Paid</b> template if the order is fully paid, or the <b>Unpaid</b> template if there's still a balance due — no manual selection needed. It opens your phone's own Messages app with the text prefilled — no SMS gateway or API key needed. Placeholders: <code>{name}</code>, <code>{orderId}</code>, <code>{shop}</code>, <code>{total}</code>.
       </div>
+
       <div class="sms-template-card">
-        <textarea class="field-input sms-template-textarea" id="smsTemplateInput" rows="4" placeholder="Hi {name}! Your order {orderId} is ready for pickup."></textarea>
+        <div class="sms-template-label">
+          <span class="pay-badge pay-badge-paid">✓ Paid orders</span>
+        </div>
+        <textarea class="field-input sms-template-textarea" id="smsTemplatePaidInput" rows="3" placeholder="Hi {name}! Your order {orderId} is ready for pickup."></textarea>
         <div style="display:flex;gap:8px;margin-top:10px">
-          <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="saveSmsTemplate()">Save template</button>
-          <button class="btn btn-ghost btn-sm" onclick="resetSmsTemplate()">Reset to default</button>
+          <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="saveSmsTemplate('paid')">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetSmsTemplate('paid')">Reset</button>
+        </div>
+      </div>
+
+      <div class="sms-template-card">
+        <div class="sms-template-label">
+          <span class="pay-badge pay-badge-unpaid">⏳ Unpaid orders</span>
+        </div>
+        <textarea class="field-input sms-template-textarea" id="smsTemplateUnpaidInput" rows="3" placeholder="Hi {name}! Your order {orderId} is ready for pickup. Balance due: {total}."></textarea>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn btn-primary btn-sm" style="flex:1;justify-content:center" onclick="saveSmsTemplate('unpaid')">Save</button>
+          <button class="btn btn-ghost btn-sm" onclick="resetSmsTemplate('unpaid')">Reset</button>
         </div>
       </div>
     </div>
@@ -522,15 +558,64 @@
     <div class="printer-size-row">
       <span class="printer-size-label">Printer paper</span>
       <div class="pills">
-        <div class="pill active" data-mm="80" onclick="setPrinterWidth(80,this)">80mm</div>
-        <div class="pill" data-mm="58" onclick="setPrinterWidth(58,this)">58mm</div>
+        <div class="pill" data-mm="80" onclick="setPrinterWidth(80,this)">80mm</div>
+        <div class="pill active" data-mm="48" data-h="210" onclick="setPrinterWidth(48,this,210)">48mm (ZPrinter)</div>
       </div>
     </div>
+    <div class="printer-size-hint">Using <b>Printer 58 (48mm×210mm)</b>? Select <b>48mm (ZPrinter)</b> above, then choose <b>Printer 58 (48mmx210mm)</b> in the print dialog. Prints as 1 page.</div>
     <div class="receipt" id="receiptBody"></div>
     <div class="basket-tag" id="basketTag"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeReceipt()">Close</button>
       <button class="btn btn-primary" style="flex:1" onclick="printReceipt()">🖨️ Print</button>
+    </div>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div class="modal-overlay auth-modal-overlay" id="forgotModal" onclick="if(event.target===this)closeForgotPassword()">
+  <div class="modal auth-modal" id="forgotModalInner">
+    <div class="forgot-header">
+      <div class="forgot-icon">🔑</div>
+      <div class="forgot-title">Reset Password</div>
+      <div class="forgot-sub">Enter your email and a new password.</div>
+    </div>
+    <div class="auth-error-banner" id="forgotErrorBanner"></div>
+    <div class="forgot-success" id="forgotSuccess" style="display:none">
+      ✅ Password updated! You can now sign in with your new password.
+    </div>
+    <div id="forgotFormWrap">
+      <div class="field-group">
+        <label class="field-label" for="forgotEmail">Email address</label>
+        <input class="field-input" type="email" id="forgotEmail" placeholder="you@example.com" autocomplete="email"/>
+        <div class="field-error" id="forgotEmailErr"></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="forgotNewPass">New password</label>
+        <div class="field-password-wrap">
+          <input class="field-input" type="password" id="forgotNewPass" placeholder="8+ characters"/>
+          <button type="button" class="reveal-btn" onclick="toggleReveal('forgotNewPass',this)">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+        <div class="field-error" id="forgotPassErr"></div>
+      </div>
+      <div class="field-group">
+        <label class="field-label" for="forgotNewPass2">Confirm new password</label>
+        <div class="field-password-wrap">
+          <input class="field-input" type="password" id="forgotNewPass2" placeholder="Repeat password"/>
+          <button type="button" class="reveal-btn" onclick="toggleReveal('forgotNewPass2',this)">
+            <svg class="eye-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            <svg class="eye-off-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+          </button>
+        </div>
+        <div class="field-error" id="forgotPass2Err"></div>
+      </div>
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="btn btn-ghost" style="flex:1" onclick="closeForgotPassword()">Cancel</button>
+        <button class="btn btn-primary" style="flex:1" id="forgotSubmitBtn" onclick="handleForgotPassword()">Reset password</button>
+      </div>
     </div>
   </div>
 </div>
