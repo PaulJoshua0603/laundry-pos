@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════
-   SudsUp POS · auth.js
+   WashHub POS · auth.js
    Client-side account system backed by localStorage.
 
    IMPORTANT — READ THIS BEFORE GOING LIVE WITH REAL CUSTOMERS:
@@ -171,6 +171,89 @@ function hexToBytes(hex){
 /* ─── VALIDATION ─── */
 function isValidEmail(email){
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+/* ─── REVEAL PASSWORD TOGGLE ─── */
+function toggleReveal(inputId, btn){
+  const input = document.getElementById(inputId);
+  if(!input) return;
+  const isHidden = input.type === 'password';
+  input.type = isHidden ? 'text' : 'password';
+  const eyeOn  = btn.querySelector('.eye-icon');
+  const eyeOff = btn.querySelector('.eye-off-icon');
+  if(eyeOn)  eyeOn.style.display  = isHidden ? 'none' : '';
+  if(eyeOff) eyeOff.style.display = isHidden ? ''     : 'none';
+  btn.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+}
+
+/* ─── FORGOT PASSWORD ─── */
+function showForgotPassword(){
+  const modal = document.getElementById('forgotModal');
+  if(!modal) return;
+  // Pre-fill email from login form if present
+  const loginEmail = document.getElementById('loginEmail')?.value?.trim();
+  if(loginEmail) document.getElementById('forgotEmail').value = loginEmail;
+  document.getElementById('forgotErrorBanner').classList.remove('show');
+  document.getElementById('forgotErrorBanner').textContent = '';
+  document.getElementById('forgotSuccess').style.display = 'none';
+  document.getElementById('forgotFormWrap').style.display = '';
+  document.getElementById('forgotEmailErr').textContent = '';
+  document.getElementById('forgotPassErr').textContent = '';
+  document.getElementById('forgotPass2Err').textContent = '';
+  modal.classList.add('show');
+}
+function closeForgotPassword(){
+  document.getElementById('forgotModal')?.classList.remove('show');
+}
+async function handleForgotPassword(){
+  const emailEl   = document.getElementById('forgotEmail');
+  const passEl    = document.getElementById('forgotNewPass');
+  const pass2El   = document.getElementById('forgotNewPass2');
+  const email     = emailEl.value.trim().toLowerCase();
+  const pass      = passEl.value;
+  const pass2     = pass2El.value;
+  const errBanner = document.getElementById('forgotErrorBanner');
+  errBanner.classList.remove('show'); errBanner.textContent = '';
+  document.getElementById('forgotEmailErr').textContent = '';
+  document.getElementById('forgotPassErr').textContent  = '';
+  document.getElementById('forgotPass2Err').textContent = '';
+
+  let valid = true;
+  if(!isValidEmail(email)){ document.getElementById('forgotEmailErr').textContent = 'Enter a valid email address.'; valid = false; }
+  if(pass.length < 8){ document.getElementById('forgotPassErr').textContent = 'At least 8 characters.'; valid = false; }
+  if(pass !== pass2){ document.getElementById('forgotPass2Err').textContent = "Passwords don\u2019t match."; valid = false; }
+  if(!valid) return;
+
+  const users = getUsers();
+  const idx   = users.findIndex(u => u.email === email);
+  if(idx === -1){
+    errBanner.textContent = 'No account found with that email.';
+    errBanner.classList.add('show');
+    return;
+  }
+  if(users[idx].provider === 'google' && !users[idx].hash){
+    errBanner.textContent = 'This account uses Google Sign-In and has no password to reset.';
+    errBanner.classList.add('show');
+    return;
+  }
+
+  const btn = document.getElementById('forgotSubmitBtn');
+  btn.disabled = true; btn.textContent = 'Saving\u2026';
+  try {
+    const { hash, salt } = await hashPassword(pass);
+    users[idx].hash = hash;
+    users[idx].salt = salt;
+    saveUsers(users);
+    document.getElementById('forgotFormWrap').style.display = 'none';
+    document.getElementById('forgotSuccess').style.display  = '';
+    setTimeout(closeForgotPassword, 2200);
+    toast('Password updated \u2014 you can now sign in.', 'success');
+  } catch(err){
+    errBanner.textContent = 'Something went wrong. Please try again.';
+    errBanner.classList.add('show');
+  } finally {
+    btn.disabled = false; btn.textContent = 'Reset password';
+  }
 }
 
 /* ─── UI: TAB SWITCHING ─── */
