@@ -1,5 +1,5 @@
 /* ══════════════════════════════════════════════════════════
-   SudsUp POS · app.js
+   WashHub POS · app.js
    Point-of-sale logic. Runs once a user is logged in
    (see auth.js → enterApp() → initAppForUser()).
 ══════════════════════════════════════════════════════════ */
@@ -26,8 +26,10 @@ const PAYSETTINGS_PREFIX = 'sudsup_paysettings_';
 const SMSTEMPLATE_PREFIX = 'sudsup_smstemplate_';
 const PRINTWIDTH_KEY = 'sudsup_printer_mm';
 const AUTO_READY_MS = 60 * 60 * 1000; // 1 hour
-const DEFAULT_SMS_TEMPLATE =
-  'Hi {name}! Your laundry order {orderId} at {shop} is now ready for pickup. Total: {total}. See you soon! \ud83e\udee7';
+const DEFAULT_SMS_TEMPLATE_PAID =
+  'Hi {name}! Your laundry order {orderId} at {shop} is now ready for pickup. Total: {total} (paid). See you soon! \ud83e\udee7';
+const DEFAULT_SMS_TEMPLATE_UNPAID =
+  'Hi {name}! Your laundry order {orderId} at {shop} is ready for pickup. Balance due: {total} \u2014 please settle upon pickup. Thank you! \ud83e\udee7';
 
 /* Order status workflow — shown as an editable dropdown per order. */
 const STATUS_OPTIONS = [
@@ -437,7 +439,7 @@ function showReceipt(order){
   document.getElementById('receiptBody').innerHTML = `
     <div class="receipt-header">
       <div class="receipt-logo">\ud83e\udee7</div>
-      <div class="receipt-biz">${(currentUser && currentUser.business) || 'SudsUp Laundry'}</div>
+      <div class="receipt-biz">${(currentUser && currentUser.business) || 'WashHub Laundry'}</div>
       <div class="receipt-sub">Official Receipt</div>
     </div>
     <hr class="receipt-divider"/>
@@ -456,7 +458,7 @@ function showReceipt(order){
     ${payRefLine}
     ${!order.paid ? `<div class="receipt-row" style="margin-top:2px;font-weight:700"><span>Balance due</span><span>\u20b1${order.total.toLocaleString()}</span></div>` : ''}
     <div class="receipt-footer">
-      Thank you for choosing ${(currentUser && currentUser.business) || 'SudsUp'}! \ud83e\udee7<br/>
+      Thank you for choosing ${(currentUser && currentUser.business) || 'WashHub'}! \ud83e\udee7<br/>
       <span style="font-size:10px">Keep this receipt for reference.</span>
     </div>`;
 
@@ -473,22 +475,43 @@ function showReceipt(order){
 }
 
 /* ─── PRINTER PAPER WIDTH (58mm / 80mm) ─── */
-function setPrinterWidth(mm, el){
+function setPageSize(mm, h){
+  let tag = document.getElementById('dynamicPageSize');
+  if(!tag){
+    tag = document.createElement('style');
+    tag.id = 'dynamicPageSize';
+    document.head.appendChild(tag);
+  }
+  // If height provided (e.g. ZPrinter 58x210mm), use fixed size; otherwise auto.
+  const size = h ? `${mm}mm ${h}mm` : `${mm}mm auto`;
+  tag.textContent = `@page{ size: ${size}; margin: 0; }`;
+}
+function setPrinterWidth(mm, el, h){
   document.querySelectorAll('.printer-size-row .pill').forEach(p => p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('receiptModal').style.setProperty('--receipt-w', mm + 'mm');
+  setPageSize(mm, h || null);
   localStorage.setItem(PRINTWIDTH_KEY, mm);
+  localStorage.setItem(PRINTWIDTH_KEY + '_h', h || '');
 }
 function applySavedPrinterWidth(){
-  const saved = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 80;
+  const saved = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 48;
+  const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + '_h'), 10) || 210;
   const pill = document.querySelector(`.printer-size-row .pill[data-mm="${saved}"]`);
-  if(pill) setPrinterWidth(saved, pill);
+  if(pill) setPrinterWidth(saved, pill, savedH);
+  else setPageSize(saved, savedH);
 }
 
 function closeReceipt(){
   document.getElementById('receiptModal').classList.remove('show');
 }
 function printReceipt(){
+  // Defensive re-sync right before printing, in case the paper-width
+  // pill was never clicked this session (e.g. straight from a fresh
+  // load) — makes sure @page always matches the receipt's own width.
+  const saved = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 48;
+  const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + '_h'), 10) || 210;
+  setPageSize(saved, savedH);
   window.print();
 }
 
@@ -699,7 +722,7 @@ function switchView(v){
   if(v==='summary') renderSummary();
   if(v==='orders') renderOrderTable();
   if(v==='sales') renderSales();
-  if(v==='payments') renderPaySettingsForm();
+  if(v==='payments'){ renderPaySettingsForm(); renderSmsTemplateForm(); }
 
   if(v !== 'cart'){
     document.getElementById('cartPanel').classList.remove('mobile-open');
@@ -728,7 +751,7 @@ function switchViewMainOnly(v){
   if(v==='summary') renderSummary();
   if(v==='orders') renderOrderTable();
   if(v==='sales') renderSales();
-  if(v==='payments') renderPaySettingsForm();
+  if(v==='payments'){ renderPaySettingsForm(); renderSmsTemplateForm(); }
 }
 
 /* ─── MOBILE "MORE" SHEET ─── */
@@ -945,35 +968,57 @@ function toast(msg, type=''){
    the sms: link scheme \u2014 works out of the box on phones, no
    account or API key required, and the shop still sends the text
    from their own number for free.
+
+   Two templates are kept \u2014 one for orders that are already paid,
+   one for orders that still have a balance due \u2014 and the correct
+   one is picked automatically based on the order's payment status,
+   no manual selection needed at send time.
 ══════════════════════════════════════════ */
 function smsTemplateKey(){
   return SMSTEMPLATE_PREFIX + (currentUser ? currentUser.userId : 'anon');
 }
-function loadSmsTemplate(){
-  try { return localStorage.getItem(smsTemplateKey()) || DEFAULT_SMS_TEMPLATE; }
-  catch { return DEFAULT_SMS_TEMPLATE; }
+function loadSmsTemplates(){
+  try {
+    const raw = JSON.parse(localStorage.getItem(smsTemplateKey()) || '{}');
+    return {
+      paid:   raw.paid   || DEFAULT_SMS_TEMPLATE_PAID,
+      unpaid: raw.unpaid || DEFAULT_SMS_TEMPLATE_UNPAID,
+    };
+  } catch {
+    return { paid: DEFAULT_SMS_TEMPLATE_PAID, unpaid: DEFAULT_SMS_TEMPLATE_UNPAID };
+  }
 }
-function saveSmsTemplate(){
-  const ta = document.getElementById('smsTemplateInput');
-  const text = (ta?.value || '').trim() || DEFAULT_SMS_TEMPLATE;
-  localStorage.setItem(smsTemplateKey(), text);
-  toast('SMS template saved', 'success');
+function saveSmsTemplate(which){
+  const ta = document.getElementById(which === 'paid' ? 'smsTemplatePaidInput' : 'smsTemplateUnpaidInput');
+  const templates = loadSmsTemplates();
+  const fallback = which === 'paid' ? DEFAULT_SMS_TEMPLATE_PAID : DEFAULT_SMS_TEMPLATE_UNPAID;
+  templates[which] = (ta?.value || '').trim() || fallback;
+  localStorage.setItem(smsTemplateKey(), JSON.stringify(templates));
+  toast(`${which === 'paid' ? 'Paid' : 'Unpaid'} SMS template saved`, 'success');
 }
-function resetSmsTemplate(){
-  localStorage.removeItem(smsTemplateKey());
+function resetSmsTemplate(which){
+  const templates = loadSmsTemplates();
+  templates[which] = which === 'paid' ? DEFAULT_SMS_TEMPLATE_PAID : DEFAULT_SMS_TEMPLATE_UNPAID;
+  localStorage.setItem(smsTemplateKey(), JSON.stringify(templates));
   renderSmsTemplateForm();
-  toast('SMS template reset to default');
+  toast(`${which === 'paid' ? 'Paid' : 'Unpaid'} SMS template reset to default`);
 }
 function renderSmsTemplateForm(){
-  const ta = document.getElementById('smsTemplateInput');
-  if(ta && document.activeElement !== ta) ta.value = loadSmsTemplate();
+  const templates = loadSmsTemplates();
+  const paidTa = document.getElementById('smsTemplatePaidInput');
+  const unpaidTa = document.getElementById('smsTemplateUnpaidInput');
+  if(paidTa && document.activeElement !== paidTa) paidTa.value = templates.paid;
+  if(unpaidTa && document.activeElement !== unpaidTa) unpaidTa.value = templates.unpaid;
 }
 function buildSmsMessage(order){
-  const template = loadSmsTemplate();
+  const templates = loadSmsTemplates();
+  // Automatically picks the paid vs. unpaid template based on the
+  // order's actual payment status \u2014 no manual choice needed.
+  const template = order.paid ? templates.paid : templates.unpaid;
   return template
     .replace(/\{name\}/g, order.name || 'there')
     .replace(/\{orderId\}/g, order.id)
-    .replace(/\{shop\}/g, (currentUser && currentUser.business) || 'SudsUp Laundry')
+    .replace(/\{shop\}/g, (currentUser && currentUser.business) || 'WashHub Laundry')
     .replace(/\{total\}/g, '\u20b1' + order.total.toLocaleString());
 }
 function sendPickupSms(id){
@@ -989,5 +1034,5 @@ function sendPickupSms(id){
   const sep = isIOS ? '&' : '?';
   const url = `sms:${digits}${sep}body=${encodeURIComponent(message)}`;
   window.location.href = url;
-  toast(`\ud83d\udcf2 Opening Messages for ${o.name}\u2026`);
+  toast(`\ud83d\udcf2 Opening Messages for ${o.name} \u00b7 ${o.paid ? 'paid' : 'unpaid'} template`);
 }
