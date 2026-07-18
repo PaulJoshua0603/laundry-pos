@@ -1,4 +1,4 @@
-# SudsUp POS — Laundry Point of Sale
+# WashUp — Laundry Point of Sale
 
 A single-shop point-of-sale app for a laundry business: take orders, track
 payments, print receipts, and see daily revenue — with accounts, dark/light
