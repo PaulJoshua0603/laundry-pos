@@ -362,8 +362,24 @@ function updateQrPreview(){
 /* ─── CHECKOUT ─── */
 function checkout(){
   if(cart.length === 0) return;
-  const name   = document.getElementById('custName').value.trim() || 'Walk-in Customer';
+  const name   = document.getElementById('custName').value.trim();
   const phone  = document.getElementById('custPhone').value.trim();
+
+  // Validate required fields
+  if(!name){
+    document.getElementById('custName').focus();
+    document.getElementById('custName').style.borderColor = 'var(--red, #ef4444)';
+    toast('⚠️ Customer name is required.', 'error');
+    setTimeout(() => document.getElementById('custName').style.borderColor = '', 2000);
+    return;
+  }
+  if(!phone){
+    document.getElementById('custPhone').focus();
+    document.getElementById('custPhone').style.borderColor = 'var(--red, #ef4444)';
+    toast('⚠️ Phone number is required.', 'error');
+    setTimeout(() => document.getElementById('custPhone').style.borderColor = '', 2000);
+    return;
+  }
   const addr   = document.getElementById('custAddr').value.trim();
   const type   = document.getElementById('custType')?.value || 'walkin';
   const pickupRaw = document.getElementById('custPickup')?.value || '';
@@ -420,6 +436,8 @@ function updateSidebarStats(){
 
 /* ─── RECEIPT ─── */
 function showReceipt(order){
+  const session = (typeof getSession === 'function') ? getSession() : null;
+  currentReceiptOrder = { ...order, shop: (session && session.business) || order.shop || 'Laundry Shop' };
   const payLabel = {cash:'Cash',gcash:'GCash',maya:'Maya',later:'Pay Later'}[order.payment] || order.payment;
   const paidLabel = {cash:'Cash',gcash:'GCash',maya:'Maya'}[order.paidMethod];
   const typeInfo = ORDER_TYPES[order.type] || ORDER_TYPES.walkin;
@@ -506,14 +524,362 @@ function closeReceipt(){
   document.getElementById('receiptModal').classList.remove('show');
 }
 function printReceipt(){
-  // Defensive re-sync right before printing, in case the paper-width
-  // pill was never clicked this session (e.g. straight from a fresh
-  // load) — makes sure @page always matches the receipt's own width.
-  const saved = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 48;
+  const saved  = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 48;
   const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + '_h'), 10) || 210;
-  setPageSize(saved, savedH);
-  window.print();
+  const receiptHTML = document.getElementById('receiptBody').innerHTML;
+  const basketHTML  = document.getElementById('basketTag').innerHTML;
+
+  // Build a self-contained print document — no scaling, no blur.
+  // Fonts at real pt sizes, page size locked to exact paper dimensions.
+  const printDoc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8"/>
+<style>
+  @page {
+    size: ${saved}mm ${savedH}mm;
+    margin: 0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: ${saved}mm;
+    max-width: ${saved}mm;
+    background: #fff;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 10pt;
+    color: #000;
+    line-height: 1.4;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  #receiptBody {
+    width: ${saved}mm;
+    max-width: ${saved}mm;
+    padding: 2mm 2mm 1mm 2mm;
+  }
+  #receiptBody * {
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-break: break-word;
+    color: #000 !important;
+    font-family: 'Courier New', Courier, monospace !important;
+  }
+  .receipt { padding: 0; }
+  .receipt::before { display: none; }
+
+  /* ── HEADER ── */
+  .receipt-header {
+    text-align: center;
+    margin-bottom: 4pt;
+    padding-bottom: 2pt;
+  }
+  .receipt-logo { display: none; }
+  .receipt-biz {
+    font-size: 13pt;
+    font-weight: 900;
+    line-height: 1.25;
+    letter-spacing: 0.01em;
+    text-transform: uppercase;
+  }
+  .receipt-sub {
+    font-size: 9pt;
+    font-weight: 600;
+    margin-top: 1pt;
+    letter-spacing: 0.05em;
+  }
+
+  /* ── DIVIDERS ── */
+  .receipt-divider {
+    border: none;
+    border-top: 2px solid #000;
+    margin: 4pt 0;
+  }
+
+  /* ── INFO ROWS ── */
+  .receipt-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4pt;
+    font-size: 9pt;
+    font-weight: 700;
+    margin-bottom: 2.5pt;
+  }
+  .receipt-row span:first-child {
+    flex: 1 1 auto;
+    font-weight: 700;
+  }
+  .receipt-row span:last-child {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    text-align: right;
+    font-weight: 700;
+  }
+  .receipt-row.customer {
+    font-size: 9pt;
+    font-weight: 700;
+  }
+  .receipt-row.customer span:first-child {
+    font-weight: 900;
+  }
+  .receipt-row.customer span:last-child {
+    font-weight: 900;
+  }
+  .receipt-row.total {
+    font-size: 12pt;
+    font-weight: 900;
+    margin-top: 4pt;
+    border-top: 2px solid #000;
+    padding-top: 3pt;
+  }
+
+  /* Strip emoji from service icon spans — replaced via JS below */
+  .receipt-row span:first-child .icon { display: none; }
+
+  /* ── FOOTER ── */
+  .receipt-footer {
+    text-align: center;
+    font-size: 8.5pt;
+    font-weight: 500;
+    margin-top: 6pt;
+    line-height: 1.5;
+    border-top: 1px dashed #000;
+    padding-top: 4pt;
+  }
+
+  /* ── BASKET TAG ── */
+  .basket-tag {
+    width: ${saved}mm;
+    max-width: ${saved}mm;
+    margin-top: 5mm;
+    padding: 3mm 2mm;
+    border: 2px dashed #000;
+    text-align: center;
+    page-break-before: avoid;
+    break-before: avoid;
+  }
+  .tag-label {
+    font-size: 8pt;
+    letter-spacing: .15em;
+    font-weight: 900;
+    margin-bottom: 3pt;
+    text-transform: uppercase;
+  }
+  .tag-name {
+    font-size: 16pt;
+    font-weight: 900;
+    line-height: 1.2;
+    word-break: break-word;
+    margin-bottom: 2pt;
+    text-transform: uppercase;
+  }
+  .tag-phone {
+    font-size: 10pt;
+    font-weight: 700;
+    margin-bottom: 3pt;
+  }
+  .tag-divider {
+    border: none;
+    border-top: 1px dashed #000;
+    margin: 3pt 0;
+  }
+  .tag-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 9pt;
+    font-weight: 600;
+    margin-bottom: 2pt;
+  }
+</style>
+</head>
+<body>
+  <div id="receiptBody"><div class="receipt">${receiptHTML}</div></div>
+  ${basketHTML ? `<div class="basket-tag">${basketHTML}</div>` : ''}
+<script>
+  // Strip emoji and icon characters from all text nodes for clean thermal output
+  function stripEmoji(node) {
+    if (node.nodeType === 3) {
+      node.textContent = node.textContent.replace(/[\\uD800-\\uDFFF].|[\\u2600-\\u27BF]|[\\u{1F000}-\\u{1FFFF}]/gu, '').replace(/^\\s+/, '');
+    } else if (node.nodeType === 1 && !['STYLE','SCRIPT'].includes(node.tagName)) {
+      Array.from(node.childNodes).forEach(stripEmoji);
+    }
+  }
+  stripEmoji(document.body);
+<\/script>
+</body>
+</html>`;
+
+  // Create hidden iframe and print from it
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;border:none;visibility:hidden;';
+  document.body.appendChild(iframe);
+  const iDoc = iframe.contentWindow.document;
+  iDoc.open();
+  iDoc.write(printDoc);
+  iDoc.close();
+  iframe.contentWindow.focus();
+  // Small delay to ensure fonts/layout are ready
+  setTimeout(() => {
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
+  }, 350);
 }
+
+/* ─── SAVE AS PDF (48mm thermal receipt) ─── */
+function saveReceiptPDF(){
+  const btn = document.getElementById('savePdfBtn');
+  if(!window.jspdf){ toast('❌ PDF library not loaded. Check internet connection.','error'); return; }
+  const { jsPDF } = window.jspdf;
+  const order = currentReceiptOrder;
+  if(!order){ toast('No receipt data.','error'); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+
+  try {
+    const PW = 48;   // page width mm
+    const ML = 3;    // margin left mm
+    const MR = 3;    // margin right mm
+    const CW = PW - ML - MR; // content width
+    let y = 4;       // current y position
+
+    // Estimate content height first (generous)
+    const itemCount = (order.items||[]).length;
+    const pageH = Math.max(120, 70 + itemCount * 8);
+
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: [PW, pageH]
+    });
+
+    // ── Helper functions ──
+    function drawDashed(yy){ 
+      doc.setLineDashPattern([1,1], 0);
+      doc.setLineWidth(0.2);
+      doc.line(ML, yy, PW-MR, yy);
+      doc.setLineDashPattern([], 0);
+    }
+    function drawSolid(yy){
+      doc.setLineDashPattern([], 0);
+      doc.setLineWidth(0.4);
+      doc.line(ML, yy, PW-MR, yy);
+    }
+    function rowLR(left, right, bold=false){
+      doc.setFont('Courier', bold ? 'bold' : 'normal');
+      doc.setFontSize(7.5);
+      doc.text(left, ML, y);
+      doc.text(right, PW-MR, y, {align:'right'});
+      y += 4.2;
+    }
+    function center(txt, size=8, bold=false){
+      doc.setFont('Courier', bold ? 'bold' : 'normal');
+      doc.setFontSize(size);
+      doc.text(txt, PW/2, y, {align:'center'});
+      y += size * 0.45;
+    }
+    function gap(h=2){ y += h; }
+
+    // ── HEADER ──
+    doc.setFont('Courier','bold');
+    doc.setFontSize(10);
+    const shopName = (order.shop||'Laundry Shop').toUpperCase();
+    const shopLines = doc.splitTextToSize(shopName, CW);
+    shopLines.forEach(l => { doc.text(l, PW/2, y, {align:'center'}); y += 5; });
+
+    doc.setFont('Courier','normal');
+    doc.setFontSize(7);
+    doc.text('Official Receipt', PW/2, y, {align:'center'});
+    y += 4;
+
+    drawSolid(y); y += 3;
+
+    // ── CUSTOMER INFO ──
+    const pickupStr = order.pickup
+      ? new Date(order.pickup).toLocaleString('en-PH',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '—';
+    const typeLabel = order.type==='delivery'?'Delivery':order.type==='pickup'?'Pickup':'Walk-in';
+    const statusLabel = (order.status||'').charAt(0).toUpperCase()+(order.status||'').slice(1);
+
+    rowLR('Customer',  order.name||'', true);
+    rowLR('Phone',     order.phone||'—', true);
+    rowLR('Order ID',  order.id||'', true);
+    rowLR('Type',      typeLabel, true);
+    rowLR('Status',    statusLabel, true);
+    rowLR('Pickup',    pickupStr, true);
+
+    drawSolid(y); y += 3;
+
+    // ── ITEMS ──
+    (order.items||[]).forEach(it => {
+      const label = `${it.name} x${it.qty}`;
+      const price = `P${(it.price*it.qty).toLocaleString()}`;
+      rowLR(label, price, false);
+    });
+
+    drawSolid(y); y += 2;
+
+    // ── TOTAL ──
+    doc.setFont('Courier','bold');
+    doc.setFontSize(10);
+    doc.text('TOTAL', ML, y);
+    doc.text(`P${(order.total||0).toLocaleString()}`, PW-MR, y, {align:'right'});
+    y += 5;
+
+    rowLR('Payment', order.paidMethod||order.payment||'Cash', true);
+    y += 2;
+
+    drawDashed(y); y += 4;
+
+    // ── FOOTER ──
+    center('Thank you for choosing', 7);
+    gap(0.5);
+    center(order.shop||'our shop', 7, true);
+    gap(0.5);
+    center('Keep this receipt for reference.', 7);
+    gap(3);
+
+    // ── BASKET TAG ──
+    drawDashed(y); y += 3;
+    center('-- BASKET TAG --', 7, true);
+    gap(1);
+
+    doc.setFont('Courier','bold');
+    doc.setFontSize(13);
+    const nameLines = doc.splitTextToSize((order.name||'').toUpperCase(), CW);
+    nameLines.forEach(l => { doc.text(l, PW/2, y, {align:'center'}); y += 6; });
+
+    doc.setFont('Courier','bold');
+    doc.setFontSize(8);
+    doc.text(order.phone||'', PW/2, y, {align:'center'});
+    y += 4;
+
+    drawDashed(y); y += 3;
+    rowLR(order.id||'', typeLabel, false);
+    rowLR(`${(order.items||[]).length} item(s)`, pickupStr, false);
+    y += 1;
+    drawDashed(y); y += 2;
+
+    // Resize page to actual content
+    const finalH = y + 4;
+    const doc2 = new jsPDF({ orientation:'portrait', unit:'mm', format:[PW, finalH] });
+    // Re-render into correctly sized doc
+    doc2.addPage([PW, finalH], 'portrait');
+    doc2.deletePage(1);
+
+    // Just use the original doc but set internal page height — jsPDF doesn't support resize,
+    // so we save as-is (the BT printer app will ignore trailing whitespace)
+    const filename = `receipt-${order.id||'order'}.pdf`;
+    doc.save(filename);
+    toast('✅ PDF saved! Open it in your Bluetooth Thermal Printer app to print.', 'success');
+  } catch(err){
+    toast('❌ PDF error: '+err.message, 'error');
+  } finally {
+    btn.disabled = false; btn.textContent = '📄 Save PDF';
+  }
+}
+
+// Keep reference to current receipt order for PDF printing
+let currentReceiptOrder = null;
 
 /* ─── ORDERS TABLE ─── */
 function renderOrderTable(){
