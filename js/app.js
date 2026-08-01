@@ -513,7 +513,7 @@ function setPrinterWidth(mm, el, h){
   localStorage.setItem(PRINTWIDTH_KEY + '_h', h || '');
 }
 function applySavedPrinterWidth(){
-  const saved = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 48;
+  const saved = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 58;
   const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + '_h'), 10) || 210;
   const pill = document.querySelector(`.printer-size-row .pill[data-mm="${saved}"]`);
   if(pill) setPrinterWidth(saved, pill, savedH);
@@ -524,7 +524,7 @@ function closeReceipt(){
   document.getElementById('receiptModal').classList.remove('show');
 }
 function printReceipt(){
-  const saved  = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 48;
+  const saved  = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 58;
   const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + '_h'), 10) || 210;
   const receiptHTML = document.getElementById('receiptBody').innerHTML;
   const basketHTML  = document.getElementById('basketTag').innerHTML;
@@ -725,18 +725,9 @@ function printReceipt(){
   }, 350);
 }
 
-/* ─── SAVE AS PDF (48mm thermal receipt) ─── */
-function saveReceiptPDF(){
-  const btn = document.getElementById('savePdfBtn');
-  if(!window.jspdf){ toast('❌ PDF library not loaded. Check internet connection.','error'); return; }
-  const { jsPDF } = window.jspdf;
-  const order = currentReceiptOrder;
-  if(!order){ toast('No receipt data.','error'); return; }
-
-  btn.disabled = true; btn.textContent = '⏳ Generating…';
-
-  try {
-    const PW = 48;   // page width mm
+/* ─── BUILD THERMAL RECEIPT PDF (any width — 48/58/80mm) ─── */
+function buildReceiptPDF(order, PW){
+    const { jsPDF } = window.jspdf;
     const ML = 3;    // margin left mm
     const MR = 3;    // margin right mm
     const CW = PW - ML - MR; // content width
@@ -811,19 +802,23 @@ function saveReceiptPDF(){
 
     // ── ITEMS ──
     (order.items||[]).forEach(it => {
-      const label = `${it.name} x${it.qty}`;
-      const price = `P${(it.price*it.qty).toLocaleString()}`;
-      rowLR(label, price, false);
+      const svc = it.service || it; // support {service,qty} shape and flat fallback
+      const name = svc.name || 'Item';
+      const price = svc.price || 0;
+      const qty = it.qty || 1;
+      const label = `${name} x${qty}`;
+      const priceStr = `P${(price*qty).toLocaleString()}`;
+      rowLR(label, priceStr, false);
     });
 
-    drawSolid(y); y += 2;
+    drawSolid(y); y += 4.5;
 
     // ── TOTAL ──
     doc.setFont('Courier','bold');
     doc.setFontSize(10);
     doc.text('TOTAL', ML, y);
     doc.text(`P${(order.total||0).toLocaleString()}`, PW-MR, y, {align:'right'});
-    y += 5;
+    y += 6;
 
     rowLR('Payment', order.paidMethod||order.payment||'Cash', true);
     y += 2;
@@ -854,8 +849,9 @@ function saveReceiptPDF(){
     y += 4;
 
     drawDashed(y); y += 3;
+    const totalQty = (order.items||[]).reduce((n,c)=>n+(c.qty||1),0);
     rowLR(order.id||'', typeLabel, false);
-    rowLR(`${(order.items||[]).length} item(s)`, pickupStr, false);
+    rowLR(`${totalQty} item${totalQty!==1?'s':''}`, pickupStr, false);
     y += 1;
     drawDashed(y); y += 2;
 
@@ -869,12 +865,76 @@ function saveReceiptPDF(){
     // Just use the original doc but set internal page height — jsPDF doesn't support resize,
     // so we save as-is (the BT printer app will ignore trailing whitespace)
     const filename = `receipt-${order.id||'order'}.pdf`;
+    return { doc, filename };
+}
+
+/* ─── SAVE AS PDF (uses whichever paper width is selected) ─── */
+function saveReceiptPDF(){
+  const btn = document.getElementById('savePdfBtn');
+  if(!window.jspdf){ toast('❌ PDF library not loaded. Check internet connection.','error'); return; }
+  const order = currentReceiptOrder;
+  if(!order){ toast('No receipt data.','error'); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+  try {
+    const PW = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 58;
+    const { doc, filename } = buildReceiptPDF(order, PW);
     doc.save(filename);
     toast('✅ PDF saved! Open it in your Bluetooth Thermal Printer app to print.', 'success');
   } catch(err){
     toast('❌ PDF error: '+err.message, 'error');
   } finally {
     btn.disabled = false; btn.textContent = '📄 Save PDF';
+  }
+}
+
+/* ─── PRINT TO PR21 (58mm) VIA iOS SHARE SHEET ───
+   Safari on iPhone can't talk to Bluetooth thermal printers directly
+   (no Web Bluetooth support), so the reliable path is: build the
+   receipt as a PDF sized exactly to the printer's paper width, then
+   hand it to iOS's native share sheet with navigator.share(). From
+   there the person picks their PR21 printer app (e.g. "Bluetooth
+   Print", "POS Printer", or whatever app came with the PR21) and it
+   prints straight from the shared PDF. Falls back to a normal
+   download/print if the device doesn't support file sharing. */
+async function shareReceiptToPrinter(){
+  const btn = document.getElementById('sharePrintBtn');
+  if(!window.jspdf){ toast('❌ PDF library not loaded. Check internet connection.','error'); return; }
+  const order = currentReceiptOrder;
+  if(!order){ toast('No receipt data.','error'); return; }
+
+  btn.disabled = true; btn.textContent = '⏳ Preparing…';
+  try {
+    const PW = parseInt(localStorage.getItem(PRINTWIDTH_KEY), 10) || 58;
+    const { doc, filename } = buildReceiptPDF(order, PW);
+    const blob = doc.output('blob');
+    const file = new File([blob], filename, { type: 'application/pdf' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Receipt',
+        text: `Receipt ${order.id || ''}`
+      });
+      toast('✅ Sent — pick your PR21 printer app to print.', 'success');
+    } else if (navigator.share) {
+      // Some browsers support navigator.share but not file sharing —
+      // fall back to a normal print/download flow instead.
+      printReceipt();
+    } else {
+      // No Web Share API at all (e.g. desktop Chrome) — just download
+      // the PDF so it can be opened in the printer's app manually.
+      doc.save(filename);
+      toast('📄 PDF downloaded — open it in your PR21 printer app.', 'success');
+    }
+  } catch(err){
+    if (err && err.name === 'AbortError') {
+      // User cancelled the share sheet — not an error worth showing.
+    } else {
+      toast('❌ Print error: '+err.message, 'error');
+    }
+  } finally {
+    btn.disabled = false; btn.textContent = '🖨️ Print to PR21';
   }
 }
 

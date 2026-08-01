@@ -1,4 +1,4 @@
-# WashUp — Laundry Point of Sale
+# WashHub POS — Laundry Point of Sale
 
 A single-shop point-of-sale app for a laundry business: take orders, track
 payments, print receipts, and see daily revenue — with accounts, dark/light
@@ -119,6 +119,25 @@ new Google users get an account created automatically on first sign-in
   `[data-theme="light"]` in `css/style.css`
 - **Shop name shown at checkout** — set at registration ("Shop name"
   field); shown in the top bar and on printed receipts
-  
-## GOOGLE AUTH
-- [**google** — edit the `SERVICES` array at the top of `js/app.js`](https://console.cloud.google.com/apis/credentials?authuser=1&project=laundry-shop-pos&supportedpurview=project)
+
+## "Continue with Google"
+
+This deployment already has a Google OAuth Client ID configured in
+`js/auth.js` (`GOOGLE_CLIENT_ID` near the top of the file), so the
+button on the login screen works as-is.
+
+If you ever need to reconfigure it (e.g. moving to a new domain, or
+the client ID gets revoked):
+
+1. Go to [console.cloud.google.com/apis/credentials](https://console.cloud.google.com/apis/credentials)
+2. Open the existing OAuth client (or create a new one, type **Web application**)
+3. Under **Authorized JavaScript origins**, make sure your live domain
+   is listed (e.g. `https://yourshop.netlify.app`, or `http://localhost:PORT`
+   while testing locally)
+4. Copy the Client ID and paste it into the `GOOGLE_CLIENT_ID` constant
+   in `js/auth.js`
+
+Existing users can sign in with Google if their Google email matches
+an account they already made with a password, and brand new Google
+users get an account created automatically on first sign-in (no
+password needed — they just keep using "Continue with Google").

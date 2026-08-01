@@ -559,17 +559,18 @@
     <div class="printer-size-row">
       <span class="printer-size-label">Printer paper</span>
       <div class="pills">
+        <div class="pill active" data-mm="58" data-h="210" onclick="setPrinterWidth(58,this,210)">58mm (PR21)</div>
         <div class="pill" data-mm="80" onclick="setPrinterWidth(80,this)">80mm</div>
-        <div class="pill active" data-mm="48" data-h="210" onclick="setPrinterWidth(48,this,210)">48mm (ZPrinter)</div>
+        <div class="pill" data-mm="48" data-h="210" onclick="setPrinterWidth(48,this,210)">48mm (ZPrinter)</div>
       </div>
     </div>
-    <div class="printer-size-hint">Using <b>Printer 58 (48mm×210mm)</b>? Select <b>48mm (ZPrinter)</b> above, then choose <b>Printer 58 (48mmx210mm)</b> in the print dialog. Prints as 1 page.</div>
+    <div class="printer-size-hint">Using the <b>PR21 58mm</b> printer? Keep <b>58mm (PR21)</b> selected, then tap <b>🖨️ Print to PR21</b> below and pick the PR21 app from the iOS share sheet.</div>
     <div class="receipt" id="receiptBody"></div>
     <div class="basket-tag" id="basketTag"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" style="flex:1" onclick="closeReceipt()">Close</button>
       <button class="btn btn-secondary" style="flex:1" onclick="saveReceiptPDF()" id="savePdfBtn">📄 Save PDF</button>
-      <button class="btn btn-primary" style="flex:1" onclick="printReceipt()">🖨️ Print</button>
+      <button class="btn btn-primary" style="flex:1" onclick="shareReceiptToPrinter()" id="sharePrintBtn">🖨️ Print to PR21</button>
     </div>
   </div>
 </div>
