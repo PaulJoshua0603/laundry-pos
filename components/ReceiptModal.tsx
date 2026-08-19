@@ -111,9 +111,10 @@ export default function ReceiptModal() {
           </div>
         </div>
         <div className="printer-size-hint">
-          Using the <b>PR21 58mm</b> printer? Keep <b>58mm (PR21)</b> selected, then tap <b>🖨️ Print to PR21</b> below —
-          it prints directly over USB or Bluetooth (pair once in Payment Methods → Thermal Printer), or opens the iOS
-          share sheet to your PR21 app on iPhone.
+          Using the <b>PR21 / POS58 58mm</b> printer? Keep <b>58mm (PR21)</b> selected. If you installed a Windows
+          driver for it (shows up as &quot;POS58 Printer&quot;), Windows now owns that USB port — use{" "}
+          <b>🖨️ Print (Windows)</b> below and pick it from the print dialog. USB/Bluetooth direct-print only works if{" "}
+          <b>no</b> Windows printer driver is installed for it.
         </div>
 
         <div className="receipt" id="receiptBody">
@@ -228,8 +229,11 @@ export default function ReceiptModal() {
           <button className="btn btn-secondary" style={{ flex: 1 }} onClick={saveReceiptPDF} disabled={pdfBusy}>
             {pdfBusy ? "⏳ Generating…" : "📄 Save PDF"}
           </button>
+          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => window.print()} title="Prints via the Windows printer driver (POS58/PR21 shows here once installed)">
+            🖨️ Print (Windows)
+          </button>
           <button className="btn btn-primary" style={{ flex: 1 }} onClick={printToPr21} disabled={printBusy}>
-            {printBusy ? "⏳ Printing…" : "🖨️ Print to PR21"}
+            {printBusy ? "⏳ Printing…" : "🖨️ Print to PR21 (USB/BT)"}
           </button>
         </div>
       </div>

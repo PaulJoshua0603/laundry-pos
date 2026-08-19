@@ -116,6 +116,9 @@ button, input{ color-scheme: inherit; }
    NOTIFICATION BELL + HISTORY PANEL
 ══════════════════════════════════════════ */
 .notif-wrap{position:relative}
+#notifBellBtn{position:relative;transition:all var(--transition), transform .15s ease}
+#notifBellBtn:hover{border-color:var(--blue);color:var(--blue);box-shadow:0 0 0 4px var(--blue-glow);transform:translateY(-1px) scale(1.05)}
+#notifBellBtn:active{transform:scale(.92)}
 .notif-dot{
   position:absolute;top:-4px;right:-4px;
   min-width:16px;height:16px;padding:0 3px;border-radius:999px;
@@ -123,6 +126,11 @@ button, input{ color-scheme: inherit; }
   font-size:9.5px;font-weight:800;font-family:var(--mono);
   display:flex;align-items:center;justify-content:center;
   border:2px solid var(--bg);
+  animation:notifPulse 1.8s ease-in-out infinite;
+}
+@keyframes notifPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.5)}
+  50%{box-shadow:0 0 0 5px rgba(239,68,68,0)}
 }
 .notif-panel{
   position:absolute;top:calc(100% + 10px);right:0;
@@ -154,7 +162,10 @@ button, input{ color-scheme: inherit; }
 .notif-item{
   display:flex;gap:9px;align-items:flex-start;
   padding:11px 14px;border-bottom:1px solid var(--border);
+  transition:background var(--transition);
+  cursor:default;
 }
+.notif-item:hover{background:var(--surface2)}
 .notif-item:last-child{border-bottom:none}
 .notif-item-dot{
   width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;
@@ -1014,27 +1025,33 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .receipt-row.total{color:var(--yellow);font-size:14px;font-weight:700;margin-top:8px}
 .receipt-row.customer{color:var(--text);font-size:12px;margin-bottom:2px}
 .receipt-footer{text-align:center;font-size:11px;color:var(--text3);margin-top:20px;font-family:var(--font)}
-.modal-actions{padding:0 16px 16px;display:flex;gap:8px}
+.modal-actions{padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:8px}
+.modal-actions .btn{flex:1 1 130px;justify-content:center}
 .basket-tag{display:none}
 
 /* ══════════════════════════════════════════
-   TOAST
+   TOAST — bottom-right slide-in
 ══════════════════════════════════════════ */
 #toast{
-  position:fixed;bottom:20px;left:50%;
-  transform:translateX(-50%) translateY(60px) scale(.95);
+  position:fixed;bottom:24px;right:24px;left:auto;
+  transform:translateX(24px) translateY(8px) scale(.96);
   background:var(--surface2);border:1px solid var(--border2);
-  color:var(--text);padding:10px 18px;border-radius:999px;
+  color:var(--text);padding:12px 20px;border-radius:12px;
   font-size:13px;font-weight:500;
-  z-index:300;transition:transform .3s cubic-bezier(.34,1.56,.64,1),opacity .3s;
+  z-index:400;transition:transform .32s cubic-bezier(.34,1.56,.64,1),opacity .28s;
   opacity:0;pointer-events:none;
-  max-width:min(420px, calc(100vw - 32px));
-  white-space:normal;text-align:center;line-height:1.4;
-  box-shadow:var(--shadow-lg);
+  max-width:min(360px, calc(100vw - 32px));
+  white-space:normal;text-align:left;line-height:1.4;
+  box-shadow:0 12px 32px rgba(0,0,0,.32);
+  border-left:3px solid var(--border2);
 }
-#toast.show{transform:translateX(-50%) translateY(0) scale(1);opacity:1}
-#toast.success{border-color:rgba(16,185,129,.4);color:var(--green)}
-#toast.error{border-color:rgba(239,68,68,.4);color:var(--red)}
+#toast.show{transform:translateX(0) translateY(0) scale(1);opacity:1}
+#toast.success{border-color:rgba(16,185,129,.4);border-left-color:var(--green);color:var(--green)}
+#toast.error{border-color:rgba(239,68,68,.4);border-left-color:var(--red);color:var(--red)}
+@media(max-width:640px){
+  #toast{bottom:calc(72px + env(safe-area-inset-bottom));right:12px;left:12px;max-width:none}
+  #toast.show{transform:translateY(0) scale(1)}
+}
 
 /* ══════════════════════════════════════════
    MOBILE BOTTOM NAV BAR (base — always defined,
@@ -1203,6 +1220,8 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   margin: 0;
 }
 @media print{
+  @page{ size: var(--receipt-w, 58mm) auto; margin: 0; }
+
   /* Hide everything, then surgically show only the receipt */
   html,body{
     height:auto !important;overflow:visible !important;
@@ -1210,11 +1229,11 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   }
   body > *{display:none !important}
 
-  /* Show the receipt modal — locked to 48mm */
+  /* Show the receipt modal — matches the paper width chosen in-app */
   #receiptModal{
     display:block !important;
     position:fixed !important;top:0 !important;left:0 !important;
-    width:48mm !important;max-width:48mm !important;
+    width:var(--receipt-w, 58mm) !important;max-width:var(--receipt-w, 58mm) !important;
     background:#fff !important;
     padding:0 !important;margin:0 !important;
     border:none !important;box-shadow:none !important;
@@ -1222,7 +1241,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   }
   #receiptModalInner{
     display:block !important;
-    width:48mm !important;max-width:48mm !important;
+    width:var(--receipt-w, 58mm) !important;max-width:var(--receipt-w, 58mm) !important;
     box-shadow:none !important;border:none !important;border-radius:0 !important;
     margin:0 !important;padding:0 !important;
     background:#fff !important;overflow:visible !important;
@@ -1230,10 +1249,10 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   }
   .printer-size-row,.printer-size-hint,.modal-actions{display:none !important}
 
-  /* Receipt body — compact for 48mm roll */
+  /* Receipt body — compact for narrow thermal rolls */
   #receiptBody{
     display:block !important;
-    width:48mm !important;max-width:48mm !important;
+    width:var(--receipt-w, 58mm) !important;max-width:var(--receipt-w, 58mm) !important;
     box-sizing:border-box !important;
     margin:0 !important;padding:1.5mm 2mm !important;
     font-family:'Courier New',monospace !important;

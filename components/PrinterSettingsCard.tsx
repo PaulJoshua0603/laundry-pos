@@ -90,10 +90,13 @@ export default function PrinterSettingsCard() {
       <div className="paysettings-head">🖨️ Thermal Printer — PR21 (58mm)</div>
 
       <div className="paysettings-note" style={{ margin: "10px 0" }}>
-        <b>USB (recommended)</b> — plug the PR21 into this laptop with its USB cable, then pair it once below. Works
-        in Chrome/Edge on Windows, Mac, Linux, and Android. <b>Bluetooth</b> is also available as a cable-free
-        backup. Safari on iPhone/iPad supports neither — use <b>Save PDF</b> or <b>Share to PR21 app</b> on the
-        receipt instead.
+        <b>USB (recommended)</b> — plug the PR21/POS58 into this laptop, then pair it once below. This only works if{" "}
+        <b>no Windows printer driver is installed for it</b> — an installed driver makes Windows claim the USB port
+        exclusively, so the browser can no longer see the device here. If you already installed a driver (it shows
+        up as &quot;POS58 Printer&quot; in Windows), skip this section — use <b>🖨️ Print (Windows)</b> on the receipt
+        screen instead, which prints through that driver via the normal print dialog. <b>Bluetooth</b> is a
+        cable-free backup with the same limitation. Safari on iPhone/iPad supports neither — use{" "}
+        <b>Save PDF</b> or <b>Share to PR21 app</b> instead.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

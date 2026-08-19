@@ -24,7 +24,7 @@ function timeAgo(iso: string): string {
 }
 
 export default function Topbar() {
-  const { session, theme, toggleTheme, logout, notifications, unreadCount, markNotificationsRead, clearNotifications } = useApp();
+  const { session, theme, toggleTheme, logout, notifications, unreadCount, markNotificationsRead, clearNotifications, showToast } = useApp();
   const [now, setNow] = useState<Date | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -52,7 +52,10 @@ export default function Topbar() {
   function handleToggleBell() {
     setBellOpen((v) => {
       const next = !v;
-      if (next) markNotificationsRead();
+      if (next) {
+        showToast("🔔 Notification history opened");
+        markNotificationsRead();
+      }
       return next;
     });
   }
