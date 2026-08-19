@@ -12,6 +12,59 @@ const CATS = [
   { id: "addon", label: "➕ Add-ons" },
 ];
 
+const QUICK_AMOUNTS = [10, 20, 30, 40, 50];
+
+function AdditionalFeeCard() {
+  const { addCustomFee } = useApp();
+  const [amount, setAmount] = useState("");
+
+  function addAmount(n: number) {
+    addCustomFee(n);
+  }
+
+  function addTyped() {
+    const n = parseFloat(amount);
+    if (!n || n <= 0) return;
+    addCustomFee(n);
+    setAmount("");
+  }
+
+  return (
+    <div className="fee-card">
+      <div className="fee-card-head">
+        <span className="fee-card-icon">🧮</span>
+        <div>
+          <div className="fee-card-title">Additional Fee</div>
+          <div className="fee-card-sub">Manual amount — stains, rush, extra kg, etc.</div>
+        </div>
+      </div>
+      <div className="fee-quick-row">
+        {QUICK_AMOUNTS.map((n) => (
+          <button key={n} type="button" className="fee-quick-btn" onClick={() => addAmount(n)}>
+            ₱{n}
+          </button>
+        ))}
+      </div>
+      <div className="fee-input-row">
+        <span className="fee-input-peso">₱</span>
+        <input
+          className="fee-input"
+          type="number"
+          inputMode="decimal"
+          min={0}
+          placeholder="Custom amount"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && addTyped()}
+        />
+        <button type="button" className="fee-add-btn" onClick={addTyped} disabled={!amount || parseFloat(amount) <= 0}>
+          + Add
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function PosView() {
   const { cart, addToCart } = useApp();
   const [cat, setCat] = useState("all");
@@ -34,6 +87,8 @@ export default function PosView() {
           </div>
         ))}
       </div>
+
+      {(cat === "all" || cat === "wash") && <AdditionalFeeCard />}
 
       <div className="product-grid" id="productGrid">
         {filtered.map((s) => {

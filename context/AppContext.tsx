@@ -74,6 +74,7 @@ interface AppContextValue {
   // catalog / cart
   cart: CartLine[];
   addToCart: (id: string) => void;
+  addCustomFee: (amount: number, label?: string) => void;
   changeQty: (id: string, delta: number) => void;
   removeFromCart: (id: string) => void;
   clearCart: (silent?: boolean) => void;
@@ -332,6 +333,23 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [showToast]
   );
 
+  const addCustomFee = useCallback(
+    (amount: number, label?: string) => {
+      if (!amount || amount <= 0) return;
+      const service = {
+        id: `fee-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        cat: "addon" as const,
+        icon: "➕",
+        name: label?.trim() || "Additional Fee",
+        desc: "Manual entry",
+        price: amount,
+      };
+      setCart((prev) => [...prev, { service, qty: 1 }]);
+      showToast(`➕ Additional Fee ₱${amount.toLocaleString()} added`, "success");
+    },
+    [showToast]
+  );
+
   const changeQty = useCallback((id: string, delta: number) => {
     setCart((prev) => {
       const next = prev
@@ -553,6 +571,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     switchView,
     cart,
     addToCart,
+    addCustomFee,
     changeQty,
     removeFromCart,
     clearCart,

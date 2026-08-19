@@ -14,7 +14,6 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
   const [type, setType] = useState<"walkin" | "delivery">("walkin");
   const [pickup, setPickup] = useState("");
   const [nameErr, setNameErr] = useState(false);
-  const [phoneErr, setPhoneErr] = useState(false);
 
   function resetCustomerFields() {
     setName("");
@@ -35,12 +34,6 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
       setNameErr(true);
       showToast("⚠️ Customer name is required.", "error");
       setTimeout(() => setNameErr(false), 2000);
-      return;
-    }
-    if (!phone.trim()) {
-      setPhoneErr(true);
-      showToast("⚠️ Phone number is required.", "error");
-      setTimeout(() => setPhoneErr(false), 2000);
       return;
     }
     const order = checkout({ name: name.trim(), phone: phone.trim(), addr: addr.trim(), type, pickup });
@@ -83,11 +76,9 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
           <input
             className="customer-field"
             type="tel"
-            placeholder="Phone *"
+            placeholder="Phone (optional)"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            style={phoneErr ? { borderColor: "var(--red)" } : undefined}
-            required
           />
         </div>
         <input className="customer-field" type="text" placeholder="Address (optional)" value={addr} onChange={(e) => setAddr(e.target.value)} />
@@ -96,7 +87,16 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
             <option value="walkin">🚶 Walk-in</option>
             <option value="delivery">🛵 Delivery</option>
           </select>
-          <input className="customer-field" type="datetime-local" title="Pickup time (optional)" value={pickup} onChange={(e) => setPickup(e.target.value)} />
+          <div className="pickup-field-wrap">
+            <input
+              className={`customer-field pickup-field${pickup ? " has-value" : ""}`}
+              type="datetime-local"
+              title="Pickup time (optional)"
+              value={pickup}
+              onChange={(e) => setPickup(e.target.value)}
+            />
+            {!pickup && <span className="pickup-field-label">📅 Pick date &amp; time</span>}
+          </div>
         </div>
       </div>
 

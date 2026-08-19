@@ -28,6 +28,74 @@ export function isWebBluetoothSupported(): boolean {
   return typeof navigator !== "undefined" && !!(navigator as any).bluetooth;
 }
 
+export function isWebUsbSupported(): boolean {
+  return typeof navigator !== "undefined" && !!(navigator as any).usb;
+}
+
+let cachedUsbDevice: USBDevice | null = null;
+let cachedUsbEndpoint: number | null = null;
+let cachedUsbInterface: number | null = null;
+
+/** Opens the browser's USB device picker and claims a printable endpoint. */
+export async function connectUsbPrinter(): Promise<{ name: string }> {
+  if (!isWebUsbSupported()) {
+    throw new Error("USB printing isn't supported in this browser. Use Chrome or Edge.");
+  }
+  const usb = (navigator as any).usb;
+  const device: USBDevice = await usb.requestDevice({ filters: [] });
+  await device.open();
+  if (!device.configuration) await device.selectConfiguration(1);
+
+  let ifaceNum: number | null = null;
+  let endpointNum: number | null = null;
+  for (const iface of device.configuration!.interfaces) {
+    for (const alt of iface.alternates) {
+      const out = alt.endpoints.find((e) => e.direction === "out");
+      if (out) {
+        ifaceNum = iface.interfaceNumber;
+        endpointNum = out.endpointNumber;
+        break;
+      }
+    }
+    if (ifaceNum !== null) break;
+  }
+  if (ifaceNum === null || endpointNum === null) {
+    throw new Error("No printable USB endpoint found on this device.");
+  }
+  await device.claimInterface(ifaceNum);
+
+  cachedUsbDevice = device;
+  cachedUsbInterface = ifaceNum;
+  cachedUsbEndpoint = endpointNum;
+  return { name: device.productName || "USB printer" };
+}
+
+export function isUsbConnected(): boolean {
+  return !!cachedUsbDevice && cachedUsbDevice.opened;
+}
+
+export async function disconnectUsbPrinter() {
+  try {
+    if (cachedUsbDevice && cachedUsbInterface !== null) {
+      await cachedUsbDevice.releaseInterface(cachedUsbInterface);
+    }
+    await cachedUsbDevice?.close();
+  } catch {
+    /* ignore */
+  }
+  cachedUsbDevice = null;
+  cachedUsbInterface = null;
+  cachedUsbEndpoint = null;
+}
+
+async function writeUsbBytes(bytes: Uint8Array) {
+  if (!cachedUsbDevice || cachedUsbEndpoint === null) throw new Error("USB printer not connected.");
+  const CHUNK = 4096;
+  for (let i = 0; i < bytes.length; i += CHUNK) {
+    await cachedUsbDevice.transferOut(cachedUsbEndpoint, bytes.slice(i, i + CHUNK));
+  }
+}
+
 let cachedDevice: BluetoothDevice | null = null;
 let cachedChar: BluetoothRemoteGATTCharacteristic | null = null;
 
@@ -248,11 +316,22 @@ export function buildReceiptEscPos(order: ReceiptData): Uint8Array {
   return b.build();
 }
 
-/** Sends a built receipt to the currently connected PR21 printer. */
-export async function printReceiptToPr21(order: ReceiptData): Promise<void> {
-  if (!isPrinterConnected()) {
-    await connectPrinter();
-  }
+export type PrinterTransport = "usb" | "bluetooth";
+
+/** Sends a built receipt to the printer. Prefers USB (direct-wired, most
+ *  reliable for a fixed till), falls back to a connected Bluetooth
+ *  printer, or connects fresh via the requested/available transport. */
+export async function printReceiptToPr21(order: ReceiptData, transport?: PrinterTransport): Promise<void> {
   const bytes = buildReceiptEscPos(order);
-  await writeBytes(bytes);
+
+  const useTransport: PrinterTransport =
+    transport || (isUsbConnected() ? "usb" : isPrinterConnected() ? "bluetooth" : isWebUsbSupported() ? "usb" : "bluetooth");
+
+  if (useTransport === "usb") {
+    if (!isUsbConnected()) await connectUsbPrinter();
+    await writeUsbBytes(bytes);
+  } else {
+    if (!isPrinterConnected()) await connectPrinter();
+    await writeBytes(bytes);
+  }
 }

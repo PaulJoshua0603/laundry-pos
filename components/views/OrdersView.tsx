@@ -70,8 +70,9 @@ export default function OrdersView() {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={10} style={{ textAlign: "center", color: "var(--text3)", padding: 28 }}>
-                  No orders yet.
+                <td colSpan={10} style={{ textAlign: "center", padding: "48px 20px" }}>
+                  <div style={{ fontSize: 34, opacity: 0.3, marginBottom: 8 }}>🧺</div>
+                  <div style={{ color: "var(--text3)", fontSize: 13 }}>No orders yet. Place your first order to see it here.</div>
                 </td>
               </tr>
             ) : (
@@ -139,7 +140,7 @@ export default function OrdersView() {
                     <td className="mono" style={{ fontSize: 11 }}>
                       {new Date(o.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                     </td>
-                    <td style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+                    <td className="row-actions">
                       <button className="btn btn-ghost btn-sm" onClick={() => showReceipt(o)} title="View receipt">
                         🧾
                       </button>

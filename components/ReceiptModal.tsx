@@ -5,10 +5,10 @@ import { useApp } from "@/context/AppContext";
 import { ORDER_TYPES, STATUS_MAP } from "@/lib/types";
 import { peso } from "@/lib/format";
 import { buildReceiptPDF } from "@/lib/receiptPdf";
-import { isPrinterConnected, isWebBluetoothSupported, printReceiptToPr21 } from "@/lib/printer";
+import { isPrinterConnected, isUsbConnected, isWebBluetoothSupported, isWebUsbSupported, printReceiptToPr21 } from "@/lib/printer";
 
 export default function ReceiptModal() {
-  const { receiptOrder, closeReceipt, printerMm, printerH, setPrinterWidth, paySettings, session } = useApp();
+  const { receiptOrder, closeReceipt, printerMm, printerH, setPrinterWidth, paySettings, session, showToast } = useApp();
   const [pdfBusy, setPdfBusy] = useState(false);
   const [printBusy, setPrintBusy] = useState(false);
 
@@ -31,7 +31,7 @@ export default function ReceiptModal() {
       const { doc, filename } = buildReceiptPDF(order, printerMm, shopName);
       doc.save(filename);
     } catch (err: any) {
-      alert("PDF error: " + err.message);
+      showToast("❌ PDF error: " + err.message, "error");
     } finally {
       setPdfBusy(false);
     }
@@ -40,8 +40,7 @@ export default function ReceiptModal() {
   async function printToPr21() {
     setPrintBusy(true);
     try {
-      if (isWebBluetoothSupported()) {
-        // Real ESC/POS print straight to the PR21 over Bluetooth.
+      if (isUsbConnected() || isWebUsbSupported() || isPrinterConnected()) {
         await printReceiptToPr21({
           shop: shopName,
           orderId: order.id,
@@ -61,12 +60,13 @@ export default function ReceiptModal() {
           paymentLabel: order.paid ? paidLabel || payLabel : "UNPAID — pay on pickup",
           balanceDue: !order.paid ? peso(order.total) : undefined,
         });
+        showToast("🖨️ Sent to printer", "success");
         return;
       }
 
-      // No Web Bluetooth (typically iOS Safari) — build the PDF and
-      // hand it to the native share sheet so the PR21 companion app
-      // can print it, same as the original app's iOS flow.
+      // No USB/Bluetooth support at all (typically iOS Safari) — build
+      // the PDF and hand it to the native share sheet so the PR21
+      // companion app can print it instead.
       const { doc, filename } = buildReceiptPDF(order, printerMm, shopName);
       const blob = doc.output("blob");
       const file = new File([blob], filename, { type: "application/pdf" });
@@ -79,7 +79,15 @@ export default function ReceiptModal() {
         doc.save(filename);
       }
     } catch (err: any) {
-      if (err?.name !== "AbortError") alert("Print error: " + err.message);
+      if (err?.name === "AbortError" || err?.name === "NotFoundError") return; // user cancelled the picker
+      const raw = String(err?.message || "");
+      let friendly = raw || "Couldn't print. Try Save PDF instead.";
+      if (/globally disabled/i.test(raw)) {
+        friendly = "Bluetooth is turned off on this device — enable Bluetooth in Windows, or plug the PR21 in via USB and connect it under Payment Methods → Thermal Printer.";
+      } else if (/not supported/i.test(raw)) {
+        friendly = "This browser can't print directly. Use Save PDF, or open this page in Chrome/Edge and connect the PR21 via USB under Payment Methods.";
+      }
+      showToast("❌ " + friendly, "error");
     } finally {
       setPrintBusy(false);
     }
@@ -104,7 +112,8 @@ export default function ReceiptModal() {
         </div>
         <div className="printer-size-hint">
           Using the <b>PR21 58mm</b> printer? Keep <b>58mm (PR21)</b> selected, then tap <b>🖨️ Print to PR21</b> below —
-          it prints directly over Bluetooth on Android/Chrome, or opens the iOS share sheet to your PR21 app on iPhone.
+          it prints directly over USB or Bluetooth (pair once in Payment Methods → Thermal Printer), or opens the iOS
+          share sheet to your PR21 app on iPhone.
         </div>
 
         <div className="receipt" id="receiptBody">
