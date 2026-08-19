@@ -1,3 +1,11 @@
+export interface NotificationEntry {
+  id: string;
+  message: string;
+  type: "" | "success" | "error";
+  time: string; // ISO string
+  read: boolean;
+}
+
 export interface Service {
   id: string;
   cat: "wash" | "dry" | "addon";

@@ -113,6 +113,60 @@ button, input{ color-scheme: inherit; }
 .theme-toggle:hover{border-color:var(--blue);color:var(--blue)}
 
 /* ══════════════════════════════════════════
+   NOTIFICATION BELL + HISTORY PANEL
+══════════════════════════════════════════ */
+.notif-wrap{position:relative}
+.notif-dot{
+  position:absolute;top:-4px;right:-4px;
+  min-width:16px;height:16px;padding:0 3px;border-radius:999px;
+  background:var(--red);color:#fff;
+  font-size:9.5px;font-weight:800;font-family:var(--mono);
+  display:flex;align-items:center;justify-content:center;
+  border:2px solid var(--bg);
+}
+.notif-panel{
+  position:absolute;top:calc(100% + 10px);right:0;
+  width:340px;max-width:88vw;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:14px;box-shadow:0 12px 36px rgba(0,0,0,.28);
+  opacity:0;visibility:hidden;transform:translateY(-6px);
+  transition:opacity var(--transition),transform var(--transition),visibility var(--transition);
+  z-index:300;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+.notif-panel.show{opacity:1;visibility:visible;transform:translateY(0)}
+.notif-panel-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:12px 14px;border-bottom:1px solid var(--border);
+  font-size:13px;font-weight:800;color:var(--text);
+  background:var(--surface2);
+}
+.notif-clear-btn{
+  background:none;border:none;cursor:pointer;
+  font-size:11.5px;font-weight:700;color:var(--blue);
+  padding:2px 4px;
+}
+.notif-clear-btn:hover{text-decoration:underline}
+.notif-panel-list{max-height:360px;overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--border2) transparent}
+.notif-panel-list::-webkit-scrollbar{width:3px}
+.notif-panel-list::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+.notif-empty{padding:28px 16px;text-align:center;font-size:12.5px;color:var(--text3)}
+.notif-item{
+  display:flex;gap:9px;align-items:flex-start;
+  padding:11px 14px;border-bottom:1px solid var(--border);
+}
+.notif-item:last-child{border-bottom:none}
+.notif-item-dot{
+  width:7px;height:7px;border-radius:50%;margin-top:5px;flex-shrink:0;
+  background:var(--text3);
+}
+.notif-item-success .notif-item-dot{background:var(--green)}
+.notif-item-error .notif-item-dot{background:var(--red)}
+.notif-item-body{flex:1;min-width:0}
+.notif-item-msg{font-size:12.5px;color:var(--text);line-height:1.4;word-break:break-word}
+.notif-item-time{font-size:10.5px;color:var(--text3);margin-top:2px}
+
+/* ══════════════════════════════════════════
    AUTH SCREEN (login / register)
 ══════════════════════════════════════════ */
 .auth-screen{

@@ -4,6 +4,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import {
   AUTO_READY_MS,
   CartLine,
+  NotificationEntry,
   Order,
   OrderStatus,
   PaySettings,
@@ -29,9 +30,11 @@ import {
   loadOrders,
   loadPaySettings,
   loadSmsTemplates,
+  loadNotifications,
   saveOrders,
   savePaySettings as persistPaySettings,
   saveSmsTemplates as persistSmsTemplates,
+  saveNotifications,
   PRINTWIDTH_KEY,
   THEME_KEY,
 } from "@/lib/storage";
@@ -66,6 +69,12 @@ interface AppContextValue {
   // toast
   toast: ToastState | null;
   showToast: (msg: string, type?: ToastType) => void;
+
+  // notification history
+  notifications: NotificationEntry[];
+  unreadCount: number;
+  markNotificationsRead: () => void;
+  clearNotifications: () => void;
 
   // nav
   activeView: ViewId;
@@ -139,6 +148,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [activeView, setActiveView] = useState<ViewId>("pos");
 
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -158,6 +168,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setToast({ msg, type, key: Date.now() });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
+
+    setNotifications((prev) => {
+      const entry: NotificationEntry = {
+        id: "n_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+        message: msg,
+        type,
+        time: new Date().toISOString(),
+        read: false,
+      };
+      const next = [entry, ...prev].slice(0, 200);
+      const s = getSession();
+      if (s) saveNotifications(s.userId, next);
+      return next;
+    });
   }, []);
 
   /* ─── BOOT: restore theme + session ─── */
@@ -177,6 +201,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (s && getUsers().some((u) => u.id === s.userId)) {
         setSessionState(s);
         setOrders(loadOrders(s.userId));
+        setNotifications(loadNotifications(s.userId));
         setPaySettings(loadPaySettings(s.userId));
         setSmsTemplates(loadSmsTemplates(s.userId));
       } else {
@@ -255,6 +280,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       authSetSession(sess);
       setSessionState(sess);
       setOrders(loadOrders(sess.userId));
+      setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
       showToast(`Welcome, ${name.split(" ")[0]}! Account created.`, "success");
@@ -286,6 +312,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       authSetSession(sess);
       setSessionState(sess);
       setOrders(loadOrders(sess.userId));
+      setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
       showToast(`Welcome back, ${user.name.split(" ")[0]}!`, "success");
@@ -314,6 +341,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSessionState(null);
     setOrders([]);
     setCart([]);
+    setNotifications([]);
     setActiveView("pos");
     showToast("Signed out");
   }, [showToast]);
@@ -551,6 +579,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /* ─── VIEW ─── */
   const switchView = useCallback((v: ViewId) => setActiveView(v), []);
 
+  const markNotificationsRead = useCallback(() => {
+    setNotifications((prev) => {
+      if (prev.every((n) => n.read)) return prev;
+      const next = prev.map((n) => ({ ...n, read: true }));
+      const s = getSession();
+      if (s) saveNotifications(s.userId, next);
+      return next;
+    });
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+    const s = getSession();
+    if (s) saveNotifications(s.userId, []);
+  }, []);
+
+  const unreadCount = notifications.filter((n) => !n.read).length;
+
   const value: AppContextValue = {
     booted,
     loggedIn: !!session,
@@ -567,6 +613,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleTheme,
     toast,
     showToast,
+    notifications,
+    unreadCount,
+    markNotificationsRead,
+    clearNotifications,
     activeView,
     switchView,
     cart,

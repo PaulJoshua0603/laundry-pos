@@ -1,10 +1,28 @@
 import {
   DEFAULT_SMS_TEMPLATE_PAID,
   DEFAULT_SMS_TEMPLATE_UNPAID,
+  NotificationEntry,
   Order,
   PaySettings,
   SmsTemplates,
 } from "./types";
+
+const NOTIFICATIONS_PREFIX = "sudsup_notifications_";
+export const NOTIFICATIONS_MAX = 200;
+
+export function notificationsKey(userId?: string | null) {
+  return NOTIFICATIONS_PREFIX + (userId || "anon");
+}
+export function loadNotifications(userId?: string | null): NotificationEntry[] {
+  try {
+    return JSON.parse(localStorage.getItem(notificationsKey(userId)) || "[]") || [];
+  } catch {
+    return [];
+  }
+}
+export function saveNotifications(userId: string | null | undefined, entries: NotificationEntry[]) {
+  localStorage.setItem(notificationsKey(userId), JSON.stringify(entries.slice(0, NOTIFICATIONS_MAX)));
+}
 
 const ORDERS_PREFIX = "sudsup_orders_";
 const PAYSETTINGS_PREFIX = "sudsup_paysettings_";
