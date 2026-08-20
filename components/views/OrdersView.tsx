@@ -22,6 +22,10 @@ export default function OrdersView() {
     (o) => o.id.toLowerCase().includes(q.toLowerCase()) || o.name.toLowerCase().includes(q.toLowerCase())
   );
 
+  const uniqueCustomers = new Set(filtered.map((o) => o.name.trim().toLowerCase())).size;
+  const totalItems = filtered.reduce((n, o) => n + o.items.reduce((m, c) => m + c.qty, 0), 0);
+  const totalAmount = filtered.reduce((s, o) => s + o.total, 0);
+
   function confirmDelete(o: Order) {
     if (window.confirm(`Permanently delete order ${o.id}? This cannot be undone.`)) deleteOrder(o.id);
   }
@@ -36,6 +40,37 @@ export default function OrdersView() {
         <button className="btn btn-primary btn-sm" onClick={() => switchView("pos")}>
           + New Order
         </button>
+      </div>
+
+      <div className="orders-stat-row">
+        <div className="orders-stat-chip">
+          <span className="orders-stat-icon">🧾</span>
+          <div>
+            <div className="orders-stat-val">{filtered.length}</div>
+            <div className="orders-stat-label">Order{filtered.length !== 1 ? "s" : ""}</div>
+          </div>
+        </div>
+        <div className="orders-stat-chip">
+          <span className="orders-stat-icon">🙋</span>
+          <div>
+            <div className="orders-stat-val">{uniqueCustomers}</div>
+            <div className="orders-stat-label">Customer{uniqueCustomers !== 1 ? "s" : ""}</div>
+          </div>
+        </div>
+        <div className="orders-stat-chip">
+          <span className="orders-stat-icon">🧺</span>
+          <div>
+            <div className="orders-stat-val">{totalItems}</div>
+            <div className="orders-stat-label">Item{totalItems !== 1 ? "s" : ""}</div>
+          </div>
+        </div>
+        <div className="orders-stat-chip orders-stat-chip-total">
+          <span className="orders-stat-icon">💰</span>
+          <div>
+            <div className="orders-stat-val">{peso(totalAmount)}</div>
+            <div className="orders-stat-label">Total</div>
+          </div>
+        </div>
       </div>
 
       <div className="filter-bar">
