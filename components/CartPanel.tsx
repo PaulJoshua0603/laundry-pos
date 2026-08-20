@@ -5,6 +5,14 @@ import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
 import { PaymentMethod } from "@/lib/types";
 
+/** Local "YYYY-MM-DDTHH:mm" string for right now, for the datetime-local input. */
+function nowForDatetimeLocal(): string {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  const tzOffsetMs = d.getTimezoneOffset() * 60000;
+  return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
+}
+
 export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boolean; onCartClose: () => void }) {
   const { cart, changeQty, removeFromCart, clearCart, cartTotal, payment, selectPayment, paySettings, checkout, showToast, showReceipt } = useApp();
 
@@ -12,7 +20,7 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
   const [phone, setPhone] = useState("");
   const [addr, setAddr] = useState("");
   const [type, setType] = useState<"walkin" | "delivery">("walkin");
-  const [pickup, setPickup] = useState("");
+  const [pickup, setPickup] = useState(nowForDatetimeLocal());
   const [nameErr, setNameErr] = useState(false);
 
   function resetCustomerFields() {
@@ -20,7 +28,7 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
     setPhone("");
     setAddr("");
     setType("walkin");
-    setPickup("");
+    setPickup(nowForDatetimeLocal());
   }
 
   function handleClear() {

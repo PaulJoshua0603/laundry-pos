@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
+import { exportSalesExcel } from "@/lib/salesExcel";
 
 function startOfWeek(d: Date) {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -60,7 +61,8 @@ function getPeriodBounds(period: "week" | "month" | "year", offset: number) {
 }
 
 export default function SalesView() {
-  const { orders, salesPeriod, setSalesPeriod, salesOffset, setSalesOffset } = useApp();
+  const { orders, salesPeriod, setSalesPeriod, salesOffset, setSalesOffset, session } = useApp();
+  const [exporting, setExporting] = useState(false);
 
   const { start, end, buckets, label, chartHint } = useMemo(
     () => getPeriodBounds(salesPeriod, salesOffset),
@@ -96,6 +98,22 @@ export default function SalesView() {
   const sortedSvc = Object.values(svcMap).sort((a, b) => b.rev - a.rev);
   const maxSvcRev = sortedSvc[0]?.rev || 1;
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const shopName = session?.business || "WashHub Laundry";
+      const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
+      await exportSalesExcel(inRange, {
+        title: "Sales Tracking",
+        subtitle: `${salesPeriod.charAt(0).toUpperCase() + salesPeriod.slice(1)} — ${label}`,
+        shopName,
+        filename: `${shopName.replace(/[^a-z0-9]+/gi, "-")}-sales-${salesPeriod}-${safeLabel}.xlsx`,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="view active" id="view-sales">
       <div className="section-head">
@@ -103,6 +121,9 @@ export default function SalesView() {
           <div className="section-eyebrow">Analytics</div>
           <div className="section-title">Sales Tracking</div>
         </div>
+        <button className="btn btn-secondary btn-sm" onClick={handleExport} disabled={exporting}>
+          {exporting ? "⏳ Exporting…" : "📊 Export Excel (A4)"}
+        </button>
       </div>
 
       <div className="pills" id="salesPeriodPills">

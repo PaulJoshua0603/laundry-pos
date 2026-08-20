@@ -3,11 +3,13 @@
 import { useApp } from "@/context/AppContext";
 import { isToday, peso } from "@/lib/format";
 import { Order } from "@/lib/types";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { saveOrders } from "@/lib/storage";
+import { exportSalesExcel } from "@/lib/salesExcel";
 
 export default function SummaryView() {
   const { orders, session } = useApp();
+  const [exporting, setExporting] = useState(false);
 
   const today = useMemo(() => orders.filter((o) => o.status !== "cancelled" && isToday(o.time)), [orders]);
   const paidOrders = today.filter((o) => o.paid);
@@ -44,6 +46,22 @@ export default function SummaryView() {
     window.location.reload();
   }
 
+  async function handleExport() {
+    setExporting(true);
+    try {
+      const shopName = session?.business || "WashHub Laundry";
+      const dateStr = new Date().toLocaleDateString("en-CA");
+      await exportSalesExcel(today, {
+        title: "Daily Summary",
+        subtitle: new Date().toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric", year: "numeric" }),
+        shopName,
+        filename: `${shopName.replace(/[^a-z0-9]+/gi, "-")}-daily-sales-${dateStr}.xlsx`,
+      });
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <div className="view active" id="view-summary">
       <div className="section-head">
@@ -51,9 +69,14 @@ export default function SummaryView() {
           <div className="section-eyebrow">Analytics</div>
           <div className="section-title">Daily Summary</div>
         </div>
-        <button className="btn btn-ghost btn-sm" onClick={clearDayData}>
-          Clear Day
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button className="btn btn-secondary btn-sm" onClick={handleExport} disabled={exporting}>
+            {exporting ? "⏳ Exporting…" : "📊 Export Excel (A4)"}
+          </button>
+          <button className="btn btn-ghost btn-sm" onClick={clearDayData}>
+            Clear Day
+          </button>
+        </div>
       </div>
 
       <div className="stats-row stats-row-4">
