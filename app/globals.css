@@ -1508,3 +1508,18 @@ img.emoji{
   .product-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:14px}
   .orders-stat-row{grid-template-columns:repeat(4,1fr)}
 }
+
+/* ══════════════════════════════════════════
+   ORDERS — TOTAL LOADS FOOTER
+══════════════════════════════════════════ */
+.orders-loads-footer{
+  display:flex;align-items:center;gap:8px;
+  justify-content:flex-end;
+  font-size:13px;font-weight:700;color:var(--text2);
+  letter-spacing:.02em;
+}
+.orders-loads-icon{font-size:15px}
+.orders-loads-val{
+  font-family:var(--mono);font-size:15px;font-weight:800;
+  color:var(--yellow);margin-left:2px;
+}

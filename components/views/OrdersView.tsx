@@ -26,8 +26,13 @@ export default function OrdersView() {
       return sortOrder === "oldest" ? diff : -diff;
     });
 
+  const uniqueOrderCount = new Set(filtered.map((o) => o.id)).size;
   const uniqueCustomers = new Set(filtered.map((o) => o.name.trim().toLowerCase())).size;
   const totalItems = filtered.reduce((n, o) => n + o.items.reduce((m, c) => m + c.qty, 0), 0);
+  const totalLoads = filtered.reduce(
+    (n, o) => n + o.items.reduce((m, c) => (c.service.cat === "wash" || c.service.cat === "dry" ? m + c.qty : m), 0),
+    0
+  );
   const totalAmount = filtered.reduce((s, o) => s + o.total, 0);
 
   function confirmDelete(o: Order) {
@@ -50,8 +55,8 @@ export default function OrdersView() {
         <div className="orders-stat-chip">
           <span className="orders-stat-icon">🧾</span>
           <div>
-            <div className="orders-stat-val">{filtered.length}</div>
-            <div className="orders-stat-label">Order{filtered.length !== 1 ? "s" : ""}</div>
+            <div className="orders-stat-val">{uniqueOrderCount}</div>
+            <div className="orders-stat-label">Order{uniqueOrderCount !== 1 ? "s" : ""}</div>
           </div>
         </div>
         <div className="orders-stat-chip">
@@ -65,7 +70,7 @@ export default function OrdersView() {
           <span className="orders-stat-icon">🧺</span>
           <div>
             <div className="orders-stat-val">{totalItems}</div>
-            <div className="orders-stat-label">Load{totalItems !== 1 ? "s" : ""}</div>
+            <div className="orders-stat-label">Item{totalItems !== 1 ? "s" : ""}</div>
           </div>
         </div>
         <div className="orders-stat-chip orders-stat-chip-total">
@@ -213,6 +218,11 @@ export default function OrdersView() {
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="orders-loads-footer">
+        <span className="orders-loads-icon">🧺</span>
+        TOTAL LOADS: <span className="orders-loads-val">{totalLoads}</span>
       </div>
     </div>
   );
