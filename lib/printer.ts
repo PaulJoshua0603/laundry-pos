@@ -43,31 +43,76 @@ export async function connectUsbPrinter(): Promise<{ name: string }> {
   }
   const usb = (navigator as any).usb;
   const device: USBDevice = await usb.requestDevice({ filters: [] });
-  await device.open();
-  if (!device.configuration) await device.selectConfiguration(1);
 
-  let ifaceNum: number | null = null;
-  let endpointNum: number | null = null;
-  for (const iface of device.configuration!.interfaces) {
-    for (const alt of iface.alternates) {
-      const out = alt.endpoints.find((e) => e.direction === "out");
-      if (out) {
-        ifaceNum = iface.interfaceNumber;
-        endpointNum = out.endpointNumber;
-        break;
+  try {
+    await device.open();
+  } catch (err: any) {
+    // Windows blocks WebUSB from opening a device once a Windows printer
+    // driver (e.g. "POS58 Printer" / "CLA58") has claimed it. open()
+    // throws "Access denied" in that case — surface a clear fix instead
+    // of the raw DOMException.
+    throw new Error(
+      "Can't access this printer over USB — Windows has a driver (e.g. \"CLA58\" / " +
+        "\"POS58 Printer\") already attached to it, so the browser is blocked from " +
+        "talking to it directly. Either use \"Print (Windows)\" instead, or remove the " +
+        "Windows driver for it (Settings > Bluetooth & devices > Printers, or Device " +
+        "Manager > Universal Serial Bus devices) and reconnect a driverless copy with " +
+        "Zadig (WinUSB) if you want direct USB/BT printing."
+    );
+  }
+
+  try {
+    if (!device.configuration) await device.selectConfiguration(1);
+
+    // Prefer a vendor-specific (non-printer-class) interface first — those
+    // are the ones WinUSB/WebUSB can actually claim. Printer-class (7)
+    // interfaces are normally reserved by the OS's own printer driver.
+    const interfaces = device.configuration!.interfaces;
+    const isPrinterClass = (iface: USBInterface) =>
+      iface.alternates.some((alt: any) => alt.interfaceClass === 7);
+    const ordered = [...interfaces].sort(
+      (a, b) => Number(isPrinterClass(a)) - Number(isPrinterClass(b))
+    );
+
+    let ifaceNum: number | null = null;
+    let endpointNum: number | null = null;
+    for (const iface of ordered) {
+      for (const alt of iface.alternates) {
+        const out = alt.endpoints.find((e) => e.direction === "out");
+        if (out) {
+          ifaceNum = iface.interfaceNumber;
+          endpointNum = out.endpointNumber;
+          break;
+        }
       }
+      if (ifaceNum !== null) break;
     }
-    if (ifaceNum !== null) break;
-  }
-  if (ifaceNum === null || endpointNum === null) {
-    throw new Error("No printable USB endpoint found on this device.");
-  }
-  await device.claimInterface(ifaceNum);
+    if (ifaceNum === null || endpointNum === null) {
+      throw new Error("No printable USB endpoint found on this device.");
+    }
 
-  cachedUsbDevice = device;
-  cachedUsbInterface = ifaceNum;
-  cachedUsbEndpoint = endpointNum;
-  return { name: device.productName || "USB printer" };
+    try {
+      await device.claimInterface(ifaceNum);
+    } catch (err: any) {
+      throw new Error(
+        "Windows is holding this USB interface for its own printer driver, so it can't " +
+          "be claimed here. Use \"Print (Windows)\" instead, or uninstall the Windows " +
+          "driver for this printer if you want direct USB printing."
+      );
+    }
+
+    cachedUsbDevice = device;
+    cachedUsbInterface = ifaceNum;
+    cachedUsbEndpoint = endpointNum;
+    return { name: device.productName || "USB printer" };
+  } catch (err) {
+    try {
+      await device.close();
+    } catch {
+      /* ignore */
+    }
+    throw err;
+  }
 }
 
 export function isUsbConnected(): boolean {
@@ -181,6 +226,11 @@ class EscPosBuilder {
 
   init() {
     this.push(ESC, 0x40); // ESC @  — initialize
+    // Crank up heat: max heating dots / heating time / heating interval.
+    // Most cheap 58mm ESC/POS clones (PR21/POS58/ZJ-58 chipset) ship with
+    // a very light default heat profile, which is why prints look faint
+    // instead of solid black. Raising heating time (n2) fixes that.
+    this.push(ESC, 0x37, 9, 200, 2); // ESC 7 n1 n2 n3
     return this;
   }
 
@@ -207,8 +257,13 @@ class EscPosBuilder {
       .replace(/₱/g, "P")
       .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
       .replace(/[^\x00-\x7E\n]/g, "");
+    // Emphasized (bold) mode on top of the higher heat setting from
+    // init() so every line — not just headers — comes out solid black
+    // instead of the faint/grey default.
+    this.push(ESC, 0x45, 1); // ESC E 1 — bold on
     const bytes = Array.from(new TextEncoder().encode(cleaned));
     this.parts.push(bytes);
+    this.push(ESC, 0x45, 0); // ESC E 0 — bold off (restore caller's state)
     return this;
   }
 
@@ -217,7 +272,7 @@ class EscPosBuilder {
     return this;
   }
 
-  divider(char = "-", width = 32) {
+  divider(char = "-", width = 32) {  // default only used when caller omits width
     this.line(char.repeat(width));
     return this;
   }
@@ -259,9 +314,14 @@ export interface ReceiptData {
   balanceDue?: string;
 }
 
-const WIDTH = 32; // chars per line on 58mm paper at default font
+const WIDTH_58MM = 32; // chars per line on 58mm paper at default font
+const WIDTH_80MM = 48; // chars per line on 80mm paper at default font
 
-function padRow(left: string, right: string, width = WIDTH): string {
+function widthForMm(mm?: number): number {
+  return mm && mm > 60 ? WIDTH_80MM : WIDTH_58MM;
+}
+
+function padRow(left: string, right: string, width: number): string {
   const space = Math.max(1, width - left.length - right.length);
   if (space <= 1 && left.length + right.length > width) {
     // wrap long left text onto its own line
@@ -271,46 +331,47 @@ function padRow(left: string, right: string, width = WIDTH): string {
 }
 
 /** Builds the raw ESC/POS byte stream for a WashHub receipt + basket tag. */
-export function buildReceiptEscPos(order: ReceiptData): Uint8Array {
+export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8Array {
+  const WIDTH = widthForMm(paperMm);
   const b = new EscPosBuilder();
   b.init();
 
   b.align("center").bold(true).doubleSize(true).line(order.shop.toUpperCase());
   b.doubleSize(false).bold(false).line("Official Receipt");
-  b.divider("=");
+  b.divider("=", WIDTH);
 
   b.align("left");
-  b.line(padRow("Customer", order.customer));
-  if (order.phone) b.line(padRow("Phone", order.phone));
-  b.line(padRow("Order ID", order.orderId));
-  b.line(padRow("Type", order.type));
-  b.line(padRow("Status", order.status));
-  if (order.pickup) b.line(padRow("Pickup", order.pickup));
-  b.line(padRow("Time", order.time));
-  b.divider("-");
+  b.line(padRow("Customer", order.customer, WIDTH));
+  if (order.phone) b.line(padRow("Phone", order.phone, WIDTH));
+  b.line(padRow("Order ID", order.orderId, WIDTH));
+  b.line(padRow("Type", order.type, WIDTH));
+  b.line(padRow("Status", order.status, WIDTH));
+  if (order.pickup) b.line(padRow("Pickup", order.pickup, WIDTH));
+  b.line(padRow("Time", order.time, WIDTH));
+  b.divider("-", WIDTH);
 
-  order.lines.forEach((l) => b.line(padRow(l.label, l.price)));
-  b.divider("-");
+  order.lines.forEach((l) => b.line(padRow(l.label, l.price, WIDTH)));
+  b.divider("-", WIDTH);
 
-  b.bold(true).doubleSize(true).line(padRow("TOTAL", order.total, 16));
+  b.bold(true).doubleSize(true).line(padRow("TOTAL", order.total, Math.round(WIDTH / 2)));
   b.doubleSize(false);
-  b.line(padRow("Payment", order.paymentLabel));
-  if (order.balanceDue) b.line(padRow("Balance due", order.balanceDue));
+  b.line(padRow("Payment", order.paymentLabel, WIDTH));
+  if (order.balanceDue) b.line(padRow("Balance due", order.balanceDue, WIDTH));
   b.bold(false);
 
-  b.divider("-");
+  b.divider("-", WIDTH);
   b.align("center").line("Thank you for choosing");
   b.bold(true).line(order.shop);
   b.bold(false).line("Keep this receipt for reference.");
 
   // ── Basket tag ──
-  b.feed(1).divider("=");
+  b.feed(1).divider("=", WIDTH);
   b.bold(true).line("-- BASKET TAG --");
   b.doubleSize(true).line(order.customer.toUpperCase());
   b.doubleSize(false);
   if (order.phone) b.line(order.phone);
-  b.bold(false).divider("-");
-  b.align("left").line(padRow(order.orderId, order.type));
+  b.bold(false).divider("-", WIDTH);
+  b.align("left").line(padRow(order.orderId, order.type, WIDTH));
 
   b.cut();
   return b.build();
@@ -321,8 +382,12 @@ export type PrinterTransport = "usb" | "bluetooth";
 /** Sends a built receipt to the printer. Prefers USB (direct-wired, most
  *  reliable for a fixed till), falls back to a connected Bluetooth
  *  printer, or connects fresh via the requested/available transport. */
-export async function printReceiptToPr21(order: ReceiptData, transport?: PrinterTransport): Promise<void> {
-  const bytes = buildReceiptEscPos(order);
+export async function printReceiptToPr21(
+  order: ReceiptData,
+  transport?: PrinterTransport,
+  paperMm?: number
+): Promise<void> {
+  const bytes = buildReceiptEscPos(order, paperMm);
 
   const useTransport: PrinterTransport =
     transport || (isUsbConnected() ? "usb" : isPrinterConnected() ? "bluetooth" : isWebUsbSupported() ? "usb" : "bluetooth");

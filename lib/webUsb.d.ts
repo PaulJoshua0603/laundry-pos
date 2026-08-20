@@ -9,6 +9,7 @@ declare global {
 
   interface USBAlternateInterface {
     readonly alternateSetting: number;
+    readonly interfaceClass: number;
     readonly endpoints: USBEndpoint[];
   }
 

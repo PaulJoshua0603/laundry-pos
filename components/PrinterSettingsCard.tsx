@@ -73,7 +73,8 @@ export default function PrinterSettingsCard() {
           total: "P160",
           paymentLabel: "Cash",
         },
-        isUsbConnected() ? "usb" : "bluetooth"
+        isUsbConnected() ? "usb" : "bluetooth",
+        printerMm
       );
       showToast("🖨️ Test receipt sent to printer", "success");
     } catch (err: any) {

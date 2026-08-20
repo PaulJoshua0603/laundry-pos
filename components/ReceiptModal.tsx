@@ -59,7 +59,7 @@ export default function ReceiptModal() {
           total: peso(order.total),
           paymentLabel: order.paid ? paidLabel || payLabel : "UNPAID — pay on pickup",
           balanceDue: !order.paid ? peso(order.total) : undefined,
-        });
+        }, undefined, printerMm);
         showToast("🖨️ Sent to printer", "success");
         return;
       }
@@ -93,9 +93,14 @@ export default function ReceiptModal() {
     }
   }
 
+  // Printers report their nominal roll width (58mm/80mm), but their real
+  // printable area is narrower (margins) — that mismatch was clipping the
+  // right column. Size the receipt to the printable area, not the roll.
+  const printableMm = printerMm === 58 ? 48 : printerMm === 80 ? 72 : printerMm;
+
   return (
     <div className="modal-overlay show" id="receiptModal" onClick={(e) => e.target === e.currentTarget && closeReceipt()}>
-      <div className="modal" id="receiptModalInner" style={{ ["--receipt-w" as any]: `${printerMm}mm` }}>
+      <div className="modal" id="receiptModalInner" style={{ ["--receipt-w" as any]: `${printableMm}mm` }}>
         <div className="printer-size-row">
           <span className="printer-size-label">Printer paper</span>
           <div className="pills">
@@ -119,7 +124,7 @@ export default function ReceiptModal() {
 
         <div className="receipt" id="receiptBody">
           <div className="receipt-header">
-            <div className="receipt-logo">🫧</div>
+            <div className="receipt-logo receipt-icon">🫧</div>
             <div className="receipt-biz">{shopName}</div>
             <div className="receipt-sub">Official Receipt</div>
           </div>
@@ -141,13 +146,19 @@ export default function ReceiptModal() {
           <div className="receipt-row customer">
             <span>Order Type</span>
             <span>
-              {typeInfo.icon} {typeInfo.label}
+              <span className="receipt-icon">{typeInfo.icon} </span>{typeInfo.label}
             </span>
           </div>
           <div className="receipt-row customer">
             <span>Status</span>
             <span>
-              {statusInfo ? `${statusInfo.icon} ${statusInfo.label}` : order.status}
+              {statusInfo ? (
+                <>
+                  <span className="receipt-icon">{statusInfo.icon} </span>{statusInfo.label}
+                </>
+              ) : (
+                order.status
+              )}
             </span>
           </div>
           {order.pickup && (
@@ -164,7 +175,7 @@ export default function ReceiptModal() {
           {order.items.map((c, i) => (
             <div className="receipt-row" key={i}>
               <span>
-                {c.service.icon} {c.service.name} × {c.qty}
+                <span className="receipt-icon">{c.service.icon} </span>{c.service.name} × {c.qty}
               </span>
               <span>{peso(c.service.price * c.qty)}</span>
             </div>
@@ -191,7 +202,7 @@ export default function ReceiptModal() {
             </div>
           )}
           <div className="receipt-footer">
-            Thank you for choosing {shopName}! 🫧
+            Thank you for choosing {shopName}! <span className="receipt-icon">🫧</span>
             <br />
             <span style={{ fontSize: 10 }}>Keep this receipt for reference.</span>
           </div>
