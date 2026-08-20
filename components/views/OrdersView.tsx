@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
+import { isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
 import { peso } from "@/lib/format";
+import EditOrderModal from "@/components/EditOrderModal";
 
 export default function OrdersView() {
   const {
@@ -18,6 +19,7 @@ export default function OrdersView() {
   } = useApp();
   const [q, setQ] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
 
   const filtered = orders
     .filter((o) => o.id.toLowerCase().includes(q.toLowerCase()) || o.name.toLowerCase().includes(q.toLowerCase()))
@@ -28,7 +30,6 @@ export default function OrdersView() {
 
   const uniqueOrderCount = new Set(filtered.map((o) => o.id)).size;
   const uniqueCustomers = new Set(filtered.map((o) => o.name.trim().toLowerCase())).size;
-  const totalItems = filtered.reduce((n, o) => n + o.items.reduce((m, c) => m + c.qty, 0), 0);
   const totalLoads = filtered.reduce(
     (n, o) => n + o.items.reduce((m, c) => (c.service.cat === "wash" || c.service.cat === "dry" ? m + c.qty : m), 0),
     0
@@ -69,8 +70,8 @@ export default function OrdersView() {
         <div className="orders-stat-chip">
           <span className="orders-stat-icon">🧺</span>
           <div>
-            <div className="orders-stat-val">{totalItems}</div>
-            <div className="orders-stat-label">Item{totalItems !== 1 ? "s" : ""}</div>
+            <div className="orders-stat-val">{totalLoads}</div>
+            <div className="orders-stat-label">Total Loads</div>
           </div>
         </div>
         <div className="orders-stat-chip orders-stat-chip-total">
@@ -106,7 +107,7 @@ export default function OrdersView() {
               <th>Customer</th>
               <th>Order ID</th>
               <th>Type</th>
-              <th>Items</th>
+              <th>Loads, Items</th>
               <th>Total</th>
               <th>Status</th>
               <th>Payment</th>
@@ -131,21 +132,47 @@ export default function OrdersView() {
                   ? new Date(o.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                   : "—";
                 const paidMethodLabel: any = { cash: "Cash", gcash: "GCash", maya: "Maya" }[o.paidMethod || ""] || "";
-                const itemQty = o.items.reduce((n, c) => n + c.qty, 0);
+                const loadQty = o.items.reduce((n, c) => (isLoadLine(c) ? n + c.qty : n), 0);
+                const extraLines = o.items.filter(isExtraLine);
+                const extraQty = extraLines.reduce((n, c) => n + c.qty, 0);
+                const extraAmount = extraLines.reduce((n, c) => n + c.service.price * c.qty, 0);
+                const initials = o.name
+                  .trim()
+                  .split(/\s+/)
+                  .slice(0, 2)
+                  .map((p) => p[0]?.toUpperCase())
+                  .join("") || "?";
                 return (
                   <tr key={o.id}>
-                    <td>{o.name}</td>
+                    <td>
+                      <div className="customer-cell">
+                        <span className="customer-avatar">{initials}</span>
+                        <span>{o.name}</span>
+                      </div>
+                    </td>
                     <td className="order-id-cell">{o.id}</td>
                     <td>
                       <span className="type-badge">
                         {typeInfo.icon} {typeInfo.label}
                       </span>
                     </td>
-                    <td style={{ color: "var(--text2)" }}>
-                      {itemQty} item{itemQty !== 1 ? "s" : ""}
+                    <td>
+                      <div className="loads-items-cell">
+                        <span className="loads-chip">
+                          🧺 {loadQty} load{loadQty !== 1 ? "s" : ""}
+                        </span>
+                        {extraQty > 0 && (
+                          <span className="items-chip" title={`${peso(extraAmount)} in add-ons/fees`}>
+                            ➕ {extraQty} item{extraQty !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="mono" style={{ color: "var(--yellow)" }}>
-                      {peso(o.total)}
+                      <div className="total-cell">
+                        <span>{peso(o.total)}</span>
+                        {extraAmount > 0 && <span className="total-cell-sub">incl. {peso(extraAmount)} extras</span>}
+                      </div>
                     </td>
                     <td>
                       <select
@@ -190,6 +217,9 @@ export default function OrdersView() {
                       {new Date(o.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                     </td>
                     <td className="row-actions">
+                      <button className="btn btn-ghost btn-sm" onClick={() => setEditingOrder(o)} title="Edit order details">
+                        ✏️
+                      </button>
                       <button className="btn btn-ghost btn-sm" onClick={() => showReceipt(o)} title="View receipt">
                         🧾
                       </button>
@@ -220,10 +250,7 @@ export default function OrdersView() {
         </table>
       </div>
 
-      <div className="orders-loads-footer">
-        <span className="orders-loads-icon">🧺</span>
-        TOTAL LOADS: <span className="orders-loads-val">{totalLoads}</span>
-      </div>
+      {editingOrder && <EditOrderModal order={editingOrder} onClose={() => setEditingOrder(null)} />}
     </div>
   );
 }

@@ -104,6 +104,10 @@ interface AppContextValue {
   deleteOrder: (id: string) => void;
   markOrderPaid: (id: string, method: "cash" | "gcash" | "maya") => void;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
+  updateOrderDetails: (
+    id: string,
+    patch: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string; items?: CartLine[] }
+  ) => void;
 
   // receipt modal
   receiptOrder: Order | null;
@@ -127,8 +131,8 @@ interface AppContextValue {
   sendPickupSms: (id: string) => void;
 
   // sales tracking
-  salesPeriod: "week" | "month" | "year";
-  setSalesPeriod: (p: "week" | "month" | "year") => void;
+  salesPeriod: "today" | "week" | "month" | "year";
+  setSalesPeriod: (p: "today" | "week" | "month" | "year") => void;
   salesOffset: number;
   setSalesOffset: (n: number | ((prev: number) => number)) => void;
 }
@@ -159,7 +163,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [printerH, setPrinterH] = useState(210);
   const [paySettings, setPaySettings] = useState<PaySettings>({ gcash: { qr: null, number: "" }, maya: { qr: null, number: "" } });
   const [smsTemplates, setSmsTemplates] = useState<SmsTemplates>(loadSmsTemplates());
-  const [salesPeriod, setSalesPeriod] = useState<"week" | "month" | "year">("week");
+  const [salesPeriod, setSalesPeriod] = useState<"today" | "week" | "month" | "year">("today");
   const [salesOffset, setSalesOffset] = useState(0);
 
   const toastTimer = useRef<any>(null);
@@ -491,6 +495,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [mutateOrder, showToast]
   );
 
+  const updateOrderDetails = useCallback(
+    (
+      id: string,
+      patch: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string; items?: CartLine[] }
+    ) => {
+      mutateOrder(id, (o) => {
+        const items = patch.items ?? o.items;
+        const total = items.reduce((s, c) => s + c.service.price * c.qty, 0);
+        return {
+          ...o,
+          name: patch.name,
+          phone: patch.phone,
+          addr: patch.addr,
+          type: patch.type,
+          pickup: patch.pickup ? new Date(patch.pickup).toISOString() : null,
+          items,
+          total,
+        };
+      });
+      showToast(`${id} updated`, "success");
+    },
+    [mutateOrder, showToast]
+  );
+
   /* ─── RECEIPT ─── */
   const showReceipt = useCallback((order: Order) => setReceiptOrder(order), []);
   const closeReceipt = useCallback(() => setReceiptOrder(null), []);
@@ -634,6 +662,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     deleteOrder,
     markOrderPaid,
     updateOrderStatus,
+    updateOrderDetails,
     receiptOrder,
     showReceipt,
     closeReceipt,

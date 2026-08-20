@@ -12,8 +12,26 @@ function startOfWeek(d: Date) {
   return x;
 }
 
-function getPeriodBounds(period: "week" | "month" | "year", offset: number) {
+function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: number) {
   const now = new Date();
+  if (period === "today") {
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    start.setDate(start.getDate() + offset);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 1);
+    const buckets = [];
+    for (let h = 0; h < 24; h++) {
+      const bStart = new Date(start);
+      bStart.setHours(h, 0, 0, 0);
+      const bEnd = new Date(bStart);
+      bEnd.setHours(h + 1, 0, 0, 0);
+      const label = h === 0 ? "12AM" : h < 12 ? `${h}AM` : h === 12 ? "12PM" : `${h - 12}PM`;
+      buckets.push({ start: bStart, end: bEnd, label });
+    }
+    const isToday = offset === 0;
+    const label = isToday ? "Today" : start.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    return { start, end, buckets, label, chartHint: "by hour" };
+  }
   if (period === "week") {
     const start = startOfWeek(now);
     start.setDate(start.getDate() + offset * 7);
@@ -127,7 +145,7 @@ export default function SalesView() {
       </div>
 
       <div className="pills" id="salesPeriodPills">
-        {(["week", "month", "year"] as const).map((p) => (
+        {(["today", "week", "month", "year"] as const).map((p) => (
           <div
             key={p}
             className={`pill${salesPeriod === p ? " active" : ""}`}
@@ -155,7 +173,9 @@ export default function SalesView() {
         <div className="stat-card">
           <div className="stat-card-label">Revenue</div>
           <div className="stat-card-val">{peso(rev)}</div>
-          <div className="stat-card-sub">{salesPeriod === "week" ? "This week" : salesPeriod === "month" ? "This month" : "This year"}</div>
+          <div className="stat-card-sub">
+            {salesPeriod === "today" ? "Today" : salesPeriod === "week" ? "This week" : salesPeriod === "month" ? "This month" : "This year"}
+          </div>
         </div>
         <div className="stat-card">
           <div className="stat-card-label">Orders</div>
