@@ -552,6 +552,19 @@ button, input{ color-scheme: inherit; }
 .stat-card-sub b{color:var(--green)}
 
 .filter-bar{display:flex;gap:8px;align-items:center}
+.sort-select{
+  appearance:none;-webkit-appearance:none;
+  background:var(--surface);border:1.5px solid var(--border);
+  border-radius:12px;padding:11px 34px 11px 14px;
+  font-size:13px;font-weight:600;color:var(--text2);
+  cursor:pointer;outline:none;white-space:nowrap;flex-shrink:0;
+  box-shadow:0 1px 3px rgba(0,0,0,.04);
+  transition:border-color var(--transition),box-shadow var(--transition);
+  background-repeat:no-repeat;background-position:right 12px center;background-size:10px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath fill='%2394A3B8' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+}
+.sort-select:hover{border-color:var(--border2)}
+.sort-select:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-glow)}
 .search-wrap{position:relative;flex:1}
 .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px;pointer-events:none}
 .search-input{
@@ -663,7 +676,8 @@ tbody td{padding:14px 16px;font-size:13px;color:var(--text2);border-bottom:1px s
 tbody tr:last-child td{border-bottom:none}
 tbody tr{transition:background var(--transition)}
 tbody tr:hover{background:var(--surface2)}
-tbody td:first-child{color:var(--text);font-weight:700;font-family:var(--mono);font-size:12.5px}
+tbody td:first-child{color:var(--text);font-weight:700;font-size:13px}
+.order-id-cell{color:var(--text2) !important;font-weight:600 !important;font-family:var(--mono);font-size:12.5px}
 .status-badge{
   display:inline-flex;align-items:center;gap:5px;
   padding:3px 10px;border-radius:999px;
@@ -1099,6 +1113,9 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 ══════════════════════════════════════════ */
 @media(max-width:640px){
   html,body{overflow:hidden;height:100%}
+
+  .filter-bar{flex-wrap:wrap}
+  .sort-select{flex:1 1 100%}
 
   .shell{
     grid-template-rows:calc(56px + env(safe-area-inset-top)) 1fr;

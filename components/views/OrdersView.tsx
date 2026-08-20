@@ -17,10 +17,14 @@ export default function OrdersView() {
     deleteOrder,
   } = useApp();
   const [q, setQ] = useState("");
+  const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
 
-  const filtered = orders.filter(
-    (o) => o.id.toLowerCase().includes(q.toLowerCase()) || o.name.toLowerCase().includes(q.toLowerCase())
-  );
+  const filtered = orders
+    .filter((o) => o.id.toLowerCase().includes(q.toLowerCase()) || o.name.toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => {
+      const diff = new Date(a.time).getTime() - new Date(b.time).getTime();
+      return sortOrder === "oldest" ? diff : -diff;
+    });
 
   const uniqueCustomers = new Set(filtered.map((o) => o.name.trim().toLowerCase())).size;
   const totalItems = filtered.reduce((n, o) => n + o.items.reduce((m, c) => m + c.qty, 0), 0);
@@ -61,7 +65,7 @@ export default function OrdersView() {
           <span className="orders-stat-icon">🧺</span>
           <div>
             <div className="orders-stat-val">{totalItems}</div>
-            <div className="orders-stat-label">Item{totalItems !== 1 ? "s" : ""}</div>
+            <div className="orders-stat-label">Load{totalItems !== 1 ? "s" : ""}</div>
           </div>
         </div>
         <div className="orders-stat-chip orders-stat-chip-total">
@@ -84,14 +88,18 @@ export default function OrdersView() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
+        <select className="sort-select" value={sortOrder} onChange={(e) => setSortOrder(e.target.value as "newest" | "oldest")}>
+          <option value="newest">🕐 Newest first</option>
+          <option value="oldest">📜 Oldest first</option>
+        </select>
       </div>
 
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>Order ID</th>
               <th>Customer</th>
+              <th>Order ID</th>
               <th>Type</th>
               <th>Items</th>
               <th>Total</th>
@@ -118,17 +126,18 @@ export default function OrdersView() {
                   ? new Date(o.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                   : "—";
                 const paidMethodLabel: any = { cash: "Cash", gcash: "GCash", maya: "Maya" }[o.paidMethod || ""] || "";
+                const itemQty = o.items.reduce((n, c) => n + c.qty, 0);
                 return (
                   <tr key={o.id}>
-                    <td className="mono">{o.id}</td>
                     <td>{o.name}</td>
+                    <td className="order-id-cell">{o.id}</td>
                     <td>
                       <span className="type-badge">
                         {typeInfo.icon} {typeInfo.label}
                       </span>
                     </td>
                     <td style={{ color: "var(--text2)" }}>
-                      {o.items.length} item{o.items.length !== 1 ? "s" : ""}
+                      {itemQty} item{itemQty !== 1 ? "s" : ""}
                     </td>
                     <td className="mono" style={{ color: "var(--yellow)" }}>
                       {peso(o.total)}
