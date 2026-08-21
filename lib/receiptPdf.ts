@@ -13,33 +13,41 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
   let y = 4;
 
   const itemCount = (order.items || []).length;
-  const pageH = Math.max(120, 70 + itemCount * 8);
+  const pageH = Math.max(130, 76 + itemCount * 8);
 
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: [PW, pageH] });
 
   function drawDashed(yy: number) {
     doc.setLineDashPattern([1, 1], 0);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.35);
     doc.line(ML, yy, PW - MR, yy);
     doc.setLineDashPattern([], 0);
   }
   function drawSolid(yy: number) {
     doc.setLineDashPattern([], 0);
-    doc.setLineWidth(0.4);
+    doc.setLineWidth(0.6);
     doc.line(ML, yy, PW - MR, yy);
   }
+  // Draws text twice with a hair's offset ("fake bold") so strokes come
+  // out thicker/darker on thermal output — jsPDF's "bold" Courier style
+  // alone still prints thin/grey on cheap 58mm thermal printers.
+  function boldText(txt: string, x: number, yy: number, opts?: any) {
+    doc.text(txt, x, yy, opts);
+    doc.text(txt, x + 0.08, yy, opts);
+    doc.text(txt, x, yy + 0.08, opts);
+  }
   function rowLR(left: string, right: string, bold = false) {
-    doc.setFont("Courier", bold ? "bold" : "normal");
+    doc.setFont("Courier", "bold");
     doc.setFontSize(7.5);
-    doc.text(left, ML, y);
-    doc.text(right, PW - MR, y, { align: "right" });
+    boldText(left, ML, y);
+    boldText(right, PW - MR, y, { align: "right" });
     y += 4.2;
   }
-  function center(txt: string, size = 8, bold = false) {
-    doc.setFont("Courier", bold ? "bold" : "normal");
+  function center(txt: string, size = 7, bold = false) {
+    doc.setFont("Courier", "bold");
     doc.setFontSize(size);
-    doc.text(txt, PW / 2, y, { align: "center" });
-    y += size * 0.45;
+    boldText(txt, PW / 2, y, { align: "center" });
+    y += size * 0.48;
   }
   function gap(h = 2) {
     y += h;
@@ -50,13 +58,13 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
   const shopLabel = (order.shop || shopName || "Laundry Shop").toUpperCase();
   const shopLines = doc.splitTextToSize(shopLabel, CW);
   shopLines.forEach((l: string) => {
-    doc.text(l, PW / 2, y, { align: "center" });
+    boldText(l, PW / 2, y, { align: "center" });
     y += 5;
   });
 
-  doc.setFont("Courier", "normal");
+  doc.setFont("Courier", "bold");
   doc.setFontSize(7);
-  doc.text("Official Receipt", PW / 2, y, { align: "center" });
+  boldText("Official Receipt", PW / 2, y, { align: "center" });
   y += 4;
 
   drawSolid(y);
@@ -91,8 +99,8 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
 
   doc.setFont("Courier", "bold");
   doc.setFontSize(10);
-  doc.text("TOTAL", ML, y);
-  doc.text(`P${(order.total || 0).toLocaleString()}`, PW - MR, y, { align: "right" });
+  boldText("TOTAL", ML, y);
+  boldText(`P${(order.total || 0).toLocaleString()}`, PW - MR, y, { align: "right" });
   y += 6;
 
   rowLR("Payment", order.paidMethod || order.payment || "Cash", true);
@@ -108,6 +116,12 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
   center("Keep this receipt for reference.", 7);
   gap(3);
 
+  y += 1;
+  drawDashed(y);
+  y += 2;
+  center("✂  - - - CUT HERE - - -  ✂", 8, true);
+  gap(1);
+
   drawDashed(y);
   y += 3;
   center("-- BASKET TAG --", 7, true);
@@ -117,13 +131,13 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
   doc.setFontSize(13);
   const nameLines = doc.splitTextToSize((order.name || "").toUpperCase(), CW);
   nameLines.forEach((l: string) => {
-    doc.text(l, PW / 2, y, { align: "center" });
+    boldText(l, PW / 2, y, { align: "center" });
     y += 6;
   });
 
   doc.setFont("Courier", "bold");
   doc.setFontSize(8);
-  doc.text(order.phone || "", PW / 2, y, { align: "center" });
+  boldText(order.phone || "", PW / 2, y, { align: "center" });
   y += 4;
 
   drawDashed(y);

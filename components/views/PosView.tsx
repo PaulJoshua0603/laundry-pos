@@ -69,7 +69,9 @@ export default function PosView() {
   const { cart, addToCart } = useApp();
   const [cat, setCat] = useState("all");
 
-  const filtered = cat === "all" ? SERVICES : SERVICES.filter((s) => s.cat === cat);
+  const filtered = (cat === "all" ? SERVICES : SERVICES.filter((s) => s.cat === cat))
+    .slice()
+    .sort((a, b) => a.price - b.price);
 
   return (
     <div className="view active" id="view-pos">

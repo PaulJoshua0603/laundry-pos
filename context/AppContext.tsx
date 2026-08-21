@@ -39,7 +39,7 @@ import {
   THEME_KEY,
 } from "@/lib/storage";
 
-export type ViewId = "pos" | "orders" | "summary" | "sales" | "payments";
+export type ViewId = "pos" | "orders" | "daily" | "summary" | "sales" | "payments";
 export type ToastType = "" | "success" | "error";
 
 interface ToastState {
@@ -106,7 +106,16 @@ interface AppContextValue {
   updateOrderStatus: (id: string, status: OrderStatus) => void;
   updateOrderDetails: (
     id: string,
-    patch: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string; items?: CartLine[] }
+    patch: {
+      name: string;
+      phone: string;
+      addr: string;
+      type: "walkin" | "delivery";
+      pickup: string;
+      items?: CartLine[];
+      paid?: boolean;
+      paidMethod?: "cash" | "gcash" | "maya" | null;
+    }
   ) => void;
 
   // receipt modal
@@ -498,11 +507,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateOrderDetails = useCallback(
     (
       id: string,
-      patch: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string; items?: CartLine[] }
+      patch: {
+        name: string;
+        phone: string;
+        addr: string;
+        type: "walkin" | "delivery";
+        pickup: string;
+        items?: CartLine[];
+        paid?: boolean;
+        paidMethod?: "cash" | "gcash" | "maya" | null;
+      }
     ) => {
       mutateOrder(id, (o) => {
         const items = patch.items ?? o.items;
         const total = items.reduce((s, c) => s + c.service.price * c.qty, 0);
+        const paid = patch.paid ?? o.paid;
         return {
           ...o,
           name: patch.name,
@@ -512,6 +531,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           pickup: patch.pickup ? new Date(patch.pickup).toISOString() : null,
           items,
           total,
+          paid,
+          paidMethod: paid ? patch.paidMethod ?? o.paidMethod ?? "cash" : null,
+          paidAt: paid ? o.paidAt ?? new Date().toISOString() : null,
         };
       });
       showToast(`${id} updated`, "success");

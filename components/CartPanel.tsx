@@ -95,7 +95,9 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
             <option value="walkin">🚶 Walk-in</option>
             <option value="delivery">🛵 Delivery</option>
           </select>
-          <div className="pickup-field-wrap">
+        </div>
+        <div className="customer-row">
+          <div className="pickup-field-wrap pickup-field-wrap-full">
             <input
               className={`customer-field pickup-field${pickup ? " has-value" : ""}`}
               type="datetime-local"

@@ -229,8 +229,9 @@ class EscPosBuilder {
     // Crank up heat: max heating dots / heating time / heating interval.
     // Most cheap 58mm ESC/POS clones (PR21/POS58/ZJ-58 chipset) ship with
     // a very light default heat profile, which is why prints look faint
-    // instead of solid black. Raising heating time (n2) fixes that.
-    this.push(ESC, 0x37, 9, 200, 2); // ESC 7 n1 n2 n3
+    // instead of solid black. Raising heating time (n2) to its max fixes
+    // that — some clones ignore values above ~255 so we cap there.
+    this.push(ESC, 0x37, 15, 255, 2); // ESC 7 n1(max dots) n2(max heat time) n3(min interval)
     return this;
   }
 
@@ -257,12 +258,14 @@ class EscPosBuilder {
       .replace(/₱/g, "P")
       .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
       .replace(/[^\x00-\x7E\n]/g, "");
-    // Emphasized (bold) mode on top of the higher heat setting from
-    // init() so every line — not just headers — comes out solid black
-    // instead of the faint/grey default.
+    // Emphasized (bold) + double-strike mode on top of the higher heat
+    // setting from init() so every line — not just headers — comes out
+    // solid black instead of the faint/grey default that rubs off.
     this.push(ESC, 0x45, 1); // ESC E 1 — bold on
+    this.push(ESC, 0x47, 1); // ESC G 1 — double-strike on (prints each line twice, thicker ink)
     const bytes = Array.from(new TextEncoder().encode(cleaned));
     this.parts.push(bytes);
+    this.push(ESC, 0x47, 0); // ESC G 0 — double-strike off
     this.push(ESC, 0x45, 0); // ESC E 0 — bold off (restore caller's state)
     return this;
   }
@@ -364,8 +367,13 @@ export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8A
   b.bold(true).line(order.shop);
   b.bold(false).line("Keep this receipt for reference.");
 
+  // ── Cut line — clear scissors marker so it's obvious where to cut
+  // the strip apart before pinning the tag to a basket. ──
+  b.feed(1).align("center").bold(true).line("- - - - - CUT HERE - - - - -");
+  b.bold(false);
+
   // ── Basket tag ──
-  b.feed(1).divider("=", WIDTH);
+  b.divider("=", WIDTH);
   b.bold(true).line("-- BASKET TAG --");
   b.doubleSize(true).line(order.customer.toUpperCase());
   b.doubleSize(false);

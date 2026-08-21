@@ -9,6 +9,7 @@ import MobileBar from "@/components/MobileBar";
 import MobileMoreSheet from "@/components/MobileMoreSheet";
 import PosView from "@/components/views/PosView";
 import OrdersView from "@/components/views/OrdersView";
+import DailyOrdersView from "@/components/views/DailyOrdersView";
 import SummaryView from "@/components/views/SummaryView";
 import SalesView from "@/components/views/SalesView";
 import PaymentsView from "@/components/views/PaymentsView";
@@ -37,6 +38,7 @@ export default function AppShell() {
         <main className="main" id="mainArea">
           {activeView === "pos" && <PosView />}
           {activeView === "orders" && <OrdersView />}
+          {activeView === "daily" && <DailyOrdersView />}
           {activeView === "summary" && <SummaryView />}
           {activeView === "sales" && <SalesView />}
           {activeView === "payments" && <PaymentsView />}

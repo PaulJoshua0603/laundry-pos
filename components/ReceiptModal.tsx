@@ -208,6 +208,8 @@ export default function ReceiptModal() {
           </div>
         </div>
 
+        <div className="cut-line">✂ - - - - - - - CUT HERE - - - - - - - ✂</div>
+
         <div className="basket-tag" id="basketTag">
           <div className="tag-label">BASKET TAG</div>
           <div className="tag-name">{order.name}</div>

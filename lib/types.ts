@@ -23,6 +23,15 @@ export interface CartLine {
 export function isLoadLine(c: CartLine): boolean {
   return c.service.cat === "wash" || c.service.cat === "dry";
 }
+// A "load" = one basket of laundry. Wash + Dry services are performed on the
+// SAME load (not two separate loads), so counting wash-qty + dry-qty double
+// counts. A load is represented by its wash step; if an order only has a dry
+// step (no wash), fall back to the dry qty so it still counts as a load.
+export function getLoadCount(items: CartLine[]): number {
+  const washQty = items.reduce((n, c) => (c.service.cat === "wash" ? n + c.qty : n), 0);
+  const dryQty = items.reduce((n, c) => (c.service.cat === "dry" ? n + c.qty : n), 0);
+  return washQty > 0 ? washQty : dryQty;
+}
 export function isExtraLine(c: CartLine): boolean {
   return c.service.cat === "addon";
 }
@@ -94,20 +103,21 @@ export interface Session {
 }
 
 export const SERVICES: Service[] = [
-  { id: "w1", cat: "wash", icon: "🫧", name: "Regular Wash (1)", desc: " 38 mins wash 1 wash 2 rinse (3–5 kg) ", price: 160 },
+  { id: "w1", cat: "wash", icon: "🫧", name: "Regular Wash", desc: "Standard wash cycle", price: 80 },
+  { id: "w3", cat: "wash", icon: "🛏️", name: "Premium Wash", desc: "Extra rinse, gentler cycle", price: 100 },
   { id: "w2", cat: "wash", icon: "🫧", name: "Regular Wash (2)", desc: "38 mins wash 1 wash 2 rinse (6–7 kg)", price: 180 },
   { id: "w5", cat: "wash", icon: "🫧", name: "Regular Wash (2) Heavy", desc: "For heavy/bulky clothes (6–7 kg)", price: 190 },
-  { id: "w3", cat: "wash", icon: "🛏️", name: "Premium Wash (1)", desc: "48 mins wash 1 wash 3 rinse (6–7 kg)", price: 200 },
   { id: "w6", cat: "wash", icon: "🌨️", name: "Premium Wash (2)", desc: "7 kg and up", price: 210 },
   { id: "w4", cat: "wash", icon: "🌨️", name: "Premium Wash (2)", desc: "Per load", price: 230 },
-  { id: "d1", cat: "dry", icon: "☀️", name: "Regular Dry", desc: "Max 7 kgs / load", price: 60 },
-  { id: "d2", cat: "dry", icon: "🌤️", name: "Dry Heavy", desc: "Max 8 kgs / load", price: 70 },
+  { id: "d1", cat: "dry", icon: "☀️", name: "Regular Dry", desc: "Max 7 kgs / load", price: 80 },
+  { id: "d2", cat: "dry", icon: "🌤️", name: "Heavy Dry", desc: "Max 8 kgs / load", price: 100 },
   { id: "d3", cat: "addon", icon: "⏱️", name: "Add Dry", desc: "+10 minutes dry only", price: 30 },
   { id: "a1", cat: "addon", icon: "🌸", name: "Downy Fabric Conditioner", desc: "Added to final rinse", price: 10 },
   { id: "a2", cat: "addon", icon: "✨", name: "Surf Fabric Softener", desc: "Added to final rinse", price: 10 },
   { id: "a3", cat: "addon", icon: "✨", name: "Del Fabric Softener", desc: "Added to final rinse", price: 10 },
   { id: "a4", cat: "addon", icon: "🧼", name: "Ariel Liquid Detergent", desc: "Extra detergent scoop", price: 15 },
-  { id: "a5", cat: "addon", icon: "🌊", name: "Wings Liquid Detergent", desc: "Extra detergent scoop", price: 15 },
+  { id: "a5", cat: "addon", icon: "🌊", name: "Wings Liquid Detergent", desc: "Extra detergent scoop", price: 10 },
+  { id: "a6", cat: "addon", icon: "🧴", name: "Zonrox", desc: "Extra detergent scoop", price: 25 },
 ];
 
 export const STATUS_OPTIONS: { id: OrderStatus; label: string; icon: string; cls: string }[] = [

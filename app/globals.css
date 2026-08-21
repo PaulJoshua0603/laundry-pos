@@ -488,6 +488,61 @@ button, input{ color-scheme: inherit; }
 .sidebar-stat-val{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.03em}
 .sidebar-stat-sub{font-size:11px;color:var(--green);margin-top:2px;font-weight:500}
 .sidebar-stat-unpaid{font-size:11px;color:var(--yellow);margin-top:5px;font-weight:700;padding-top:5px;border-top:1px dashed var(--border)}
+
+/* ── SIDEBAR REVENUE — premium ── */
+.sidebar-stats-premium{
+  position:relative;overflow:hidden;
+  padding:16px;
+  background:linear-gradient(160deg, var(--surface2) 0%, var(--surface) 100%);
+  border:1px solid var(--border2);
+  box-shadow:0 8px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
+}
+.sidebar-stat-glow{
+  position:absolute;top:-40px;right:-40px;width:120px;height:120px;
+  background:radial-gradient(circle, var(--blue-glow) 0%, transparent 70%);
+  pointer-events:none;
+}
+.sidebar-stat-top{
+  display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:6px;position:relative;
+}
+.sidebar-stat-top .sidebar-stat-label{margin-bottom:0;display:flex;align-items:center;gap:6px}
+.sidebar-stat-dot{
+  width:6px;height:6px;border-radius:999px;
+  background:var(--green);
+  box-shadow:0 0 0 3px var(--green-dim);
+}
+.sidebar-stat-badge{
+  font-size:9px;font-weight:800;letter-spacing:.08em;
+  color:var(--blue);background:var(--blue-muted);
+  padding:2px 7px;border-radius:999px;
+}
+.sidebar-stats-premium .sidebar-stat-val{
+  font-size:26px;position:relative;
+  background:linear-gradient(90deg, var(--text) 0%, var(--text2) 100%);
+  -webkit-background-clip:text;background-clip:text;
+}
+.sidebar-stat-check{
+  display:inline-flex;align-items:center;justify-content:center;
+  width:13px;height:13px;border-radius:999px;
+  background:var(--green-dim);color:var(--green);
+  font-size:9px;font-weight:700;margin-right:5px;
+}
+.sidebar-stat-progress{
+  margin-top:10px;height:4px;border-radius:999px;
+  background:var(--border);overflow:hidden;position:relative;
+}
+.sidebar-stat-progress-fill{
+  height:100%;border-radius:999px;
+  background:linear-gradient(90deg, var(--blue-dim), var(--blue), var(--blue-2));
+  transition:width .4s cubic-bezier(.4,0,.2,1);
+}
+.sidebar-stat-unpaid{
+  display:flex;align-items:center;justify-content:space-between;
+  font-size:11px;color:var(--yellow);margin-top:10px;font-weight:700;
+  padding:6px 8px;border-radius:var(--radius-sm);
+  background:var(--yellow-dim);border:1px dashed transparent;
+}
 .sidebar-hours{
   margin-top:auto;padding-top:14px;
   font-size:10.5px;color:var(--text3);font-weight:500;
@@ -1060,6 +1115,7 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .modal-actions{padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:8px}
 .modal-actions .btn{flex:1 1 130px;justify-content:center}
 .basket-tag{display:none}
+.cut-line{display:none}
 
 /* ══════════════════════════════════════════
    TOAST — bottom-right slide-in
@@ -1289,30 +1345,37 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   /* Receipt body — compact for narrow thermal rolls. Thermal printer
      drivers (e.g. POS58/CLA58) render thin/regular-weight small text as
      light-grey dithered dots instead of solid black at 203dpi, which is
-     why prints looked "invisible" — bumping weight to 700+ and the font
-     size up fixes that without changing the layout. */
+     why prints looked "invisible"/erasable. We fix that with a
+     text-stroke + text-shadow "fake bold" pass (thickens every glyph's
+     strokes) rather than just cranking font-size, because oversized
+     text was overflowing the 48mm roll and getting truncated/wrapped. */
   #receiptBody{
     display:block !important;
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
     box-sizing:border-box !important;
-    margin:0 !important;padding:1mm 1.5mm !important;
+    margin:0 !important;padding:1mm 1mm !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
-    font-size:13px !important;line-height:1.45 !important;font-weight:700 !important;
+    font-size:12px !important;line-height:1.5 !important;font-weight:900 !important;
     -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;
     -webkit-font-smoothing:none !important;text-rendering:optimizeSpeed !important;
     overflow:hidden !important;
     page-break-inside:avoid !important;
     word-break:break-word !important;
   }
-  /* Make every element inside box-sizing and clipped to width */
+  /* Make every element inside box-sizing and clipped to width. The
+     text-shadow stack + text-stroke below is the "fake bold" pass —
+     it redraws each glyph's edges in solid black so thin fonts print
+     as dense black instead of dithered grey, without inflating size. */
   #receiptBody *{
     box-sizing:border-box !important;
     max-width:100% !important;
     overflow-wrap:break-word !important;
     word-break:break-word !important;
-    font-weight:700 !important;
+    font-weight:900 !important;
     color:#000 !important;
+    -webkit-text-stroke:.3px #000 !important;
+    text-shadow:.2px 0 0 #000,-.2px 0 0 #000,0 .2px 0 #000,0 -.2px 0 #000 !important;
   }
   .receipt{padding:0 !important}
   .receipt::before{display:none !important}
@@ -1322,25 +1385,25 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   }
   .receipt-logo{display:none !important}
   .receipt-biz{
-    font-size:16px !important;font-weight:900 !important;
+    font-size:14.5px !important;font-weight:900 !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;line-height:1.25 !important;
-    letter-spacing:.03em !important;text-transform:uppercase !important;
+    letter-spacing:.02em !important;text-transform:uppercase !important;
   }
   .receipt-sub{
-    font-size:11px !important;color:#000 !important;margin-top:1px !important;
-    font-family:'Courier New',monospace !important;font-weight:700 !important;
-    letter-spacing:.08em !important;text-transform:uppercase !important;
+    font-size:10.5px !important;color:#000 !important;margin-top:1px !important;
+    font-family:'Courier New',monospace !important;font-weight:900 !important;
+    letter-spacing:.05em !important;text-transform:uppercase !important;
   }
   .receipt-divider{
-    border-top:2px solid #000 !important;
+    border-top:2.5px solid #000 !important;
     margin:4px 0 !important;border-bottom:none !important;
   }
   .receipt-row{
     display:flex !important;justify-content:space-between !important;
-    margin-bottom:2.5px !important;font-size:12px !important;
-    color:#000 !important;font-family:'Courier New',monospace !important;font-weight:700 !important;
-    gap:2px !important;
+    margin-bottom:2.5px !important;font-size:11px !important;
+    color:#000 !important;font-family:'Courier New',monospace !important;font-weight:900 !important;
+    gap:4px !important;
   }
   .receipt-row span:first-child{
     flex:1 1 auto !important;
@@ -1353,39 +1416,60 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     white-space:nowrap !important;
     text-align:right !important;
   }
-  .receipt-row.customer{font-size:12px !important;color:#000 !important}
+  .receipt-row.customer{font-size:11px !important;color:#000 !important}
   .receipt-row.total{
-    font-weight:900 !important;font-size:15px !important;
+    font-weight:900 !important;font-size:14px !important;
     color:#000 !important;margin-top:4px !important;
   }
   .receipt-footer{
-    text-align:center !important;font-size:10.5px !important;
+    text-align:center !important;font-size:10px !important;
     color:#000 !important;margin-top:6px !important;
-    font-family:'Courier New',monospace !important;font-weight:700 !important;
+    font-family:'Courier New',monospace !important;font-weight:900 !important;
     line-height:1.45 !important;
+  }
+
+  /* Cut line — a clear "cut here with scissors" marker between the
+     receipt and the basket tag, since these print on one continuous
+     strip and get hand-cut apart before pinning the tag to a basket. */
+  .cut-line{
+    display:block !important;
+    width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
+    box-sizing:border-box !important;
+    text-align:center !important;
+    font-family:'Courier New',monospace !important;
+    font-size:10px !important;font-weight:900 !important;
+    color:#000 !important;letter-spacing:.05em !important;
+    margin:5mm 0 0 0 !important;padding:0 !important;
+    -webkit-text-stroke:.3px #000 !important;
+    white-space:nowrap !important;overflow:hidden !important;
   }
 
   /* Basket tag — inline on same page, no page break. Larger + heavier
      so the customer's name is readable at a glance when pinned to the
-     laundry basket. */
+     laundry basket, but still small enough that the pickup/order rows
+     don't wrap onto extra lines. */
   .basket-tag{
     display:block !important;
     page-break-before:avoid !important;break-before:avoid !important;
     page-break-after:avoid !important;page-break-inside:avoid !important;
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
     box-sizing:border-box !important;
-    margin:3.5mm 0 0 0 !important;padding:2mm 1.5mm !important;
-    border:2px dashed #000 !important;
+    margin:3.5mm 0 0 0 !important;padding:2mm 1mm !important;
+    border:2.5px dashed #000 !important;
     text-align:center !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
   }
-  .basket-tag,.basket-tag *{color:#000 !important;box-sizing:border-box !important;font-weight:800 !important}
-  .tag-label{font-size:10px;letter-spacing:.15em;font-weight:900;margin-bottom:3px;text-transform:uppercase}
-  .tag-name{font-size:24px;font-weight:900;line-height:1.2;word-break:break-word;margin-bottom:2px;letter-spacing:.02em;text-transform:uppercase}
-  .tag-phone{font-size:11px;margin-bottom:3px;font-weight:800}
-  .tag-divider{border-top:2px dashed #000;margin:3px 0}
-  .tag-row{display:flex;justify-content:space-between;font-size:11px;margin-bottom:2px;font-weight:800}
+  .basket-tag,.basket-tag *{
+    color:#000 !important;box-sizing:border-box !important;font-weight:900 !important;
+    -webkit-text-stroke:.35px #000 !important;
+    text-shadow:.22px 0 0 #000,-.22px 0 0 #000,0 .22px 0 #000,0 -.22px 0 #000 !important;
+  }
+  .tag-label{font-size:10px;letter-spacing:.12em;font-weight:900;margin-bottom:3px;text-transform:uppercase}
+  .tag-name{font-size:21px;font-weight:900;line-height:1.2;word-break:break-word;margin-bottom:2px;letter-spacing:.01em;text-transform:uppercase}
+  .tag-phone{font-size:11px;margin-bottom:3px;font-weight:900}
+  .tag-divider{border-top:2.5px dashed #000;margin:3px 0}
+  .tag-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;font-weight:900;gap:4px}
 }
 
 /* Twemoji images swapped in for emoji characters (consistent
@@ -1405,6 +1489,15 @@ img.emoji{
 .pickup-field-wrap .pickup-field{ width: 100%; }
 .pickup-field-wrap .pickup-field:not(.has-value){ color: transparent; }
 .pickup-field-wrap .pickup-field:not(.has-value)::-webkit-datetime-edit{ opacity: 0; }
+.pickup-field-wrap-full{ flex: 1 1 100%; }
+.pickup-field-wrap-full .pickup-field{
+  font-size: 13px;
+  padding: 10px 12px;
+  letter-spacing: 0.2px;
+}
+.pickup-field-wrap-full .pickup-field::-webkit-datetime-edit{ padding: 0; }
+.pickup-field-wrap-full .pickup-field::-webkit-datetime-edit-fields-wrapper{ padding: 0; }
+.pickup-field-wrap-full .pickup-field::-webkit-calendar-picker-indicator{ margin-left: 8px; }
 .pickup-field-label{
   position: absolute;
   left: 12px;

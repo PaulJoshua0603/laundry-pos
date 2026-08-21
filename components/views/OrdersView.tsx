@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
-import { peso } from "@/lib/format";
+import { getLoadCount, isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
+import { isBusinessToday, peso } from "@/lib/format";
 import EditOrderModal from "@/components/EditOrderModal";
 
 export default function OrdersView() {
@@ -28,13 +28,14 @@ export default function OrdersView() {
       return sortOrder === "oldest" ? diff : -diff;
     });
 
-  const uniqueOrderCount = new Set(filtered.map((o) => o.id)).size;
-  const uniqueCustomers = new Set(filtered.map((o) => o.name.trim().toLowerCase())).size;
-  const totalLoads = filtered.reduce(
-    (n, o) => n + o.items.reduce((m, c) => (c.service.cat === "wash" || c.service.cat === "dry" ? m + c.qty : m), 0),
-    0
-  );
-  const totalAmount = filtered.reduce((s, o) => s + o.total, 0);
+  // Top stat chips reflect the CURRENT business day only (6AM–12AM), so a
+  // load from yesterday never bleeds into "today's" totals. The table below
+  // still shows every order matching the search, regardless of date.
+  const todayOrders = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
+  const uniqueOrderCount = todayOrders.length;
+  const uniqueCustomers = new Set(todayOrders.map((o) => o.name.trim().toLowerCase())).size;
+  const totalLoads = todayOrders.reduce((n, o) => n + getLoadCount(o.items), 0);
+  const totalAmount = todayOrders.reduce((s, o) => s + o.total, 0);
 
   function confirmDelete(o: Order) {
     if (window.confirm(`Permanently delete order ${o.id}? This cannot be undone.`)) deleteOrder(o.id);
@@ -132,7 +133,7 @@ export default function OrdersView() {
                   ? new Date(o.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                   : "—";
                 const paidMethodLabel: any = { cash: "Cash", gcash: "GCash", maya: "Maya" }[o.paidMethod || ""] || "";
-                const loadQty = o.items.reduce((n, c) => (isLoadLine(c) ? n + c.qty : n), 0);
+                const loadQty = getLoadCount(o.items);
                 const extraLines = o.items.filter(isExtraLine);
                 const extraQty = extraLines.reduce((n, c) => n + c.qty, 0);
                 const extraAmount = extraLines.reduce((n, c) => n + c.service.price * c.qty, 0);

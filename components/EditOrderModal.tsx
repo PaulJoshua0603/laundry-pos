@@ -23,6 +23,8 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
   const [type, setType] = useState<"walkin" | "delivery">(order.type);
   const [pickup, setPickup] = useState(toDatetimeLocal(order.pickup));
   const [nameErr, setNameErr] = useState(false);
+  const [paid, setPaid] = useState(order.paid);
+  const [paidMethod, setPaidMethod] = useState<"cash" | "gcash" | "maya">((order.paidMethod as any) || "cash");
   const [loads, setLoads] = useState<CartLine[]>(order.items.filter(isLoadLine));
   const [extras, setExtras] = useState<CartLine[]>(order.items.filter(isExtraLine));
   const [addonPick, setAddonPick] = useState("");
@@ -36,6 +38,8 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
     setAddr(order.addr || "");
     setType(order.type);
     setPickup(toDatetimeLocal(order.pickup));
+    setPaid(order.paid);
+    setPaidMethod((order.paidMethod as any) || "cash");
     setLoads(order.items.filter(isLoadLine));
     setExtras(order.items.filter(isExtraLine));
   }, [order]);
@@ -106,6 +110,8 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
       type,
       pickup,
       items: [...loads, ...extras],
+      paid,
+      paidMethod: paid ? paidMethod : null,
     });
     onClose();
   }
@@ -158,6 +164,52 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
         <div className="field-group">
           <label className="field-label">Pickup date &amp; time</label>
           <input className="field-input" type="datetime-local" value={pickup} onChange={(e) => setPickup(e.target.value)} />
+        </div>
+
+        <div className="field-group">
+          <label className="field-label">Payment status</label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{
+                flex: 1,
+                background: paid ? "var(--green)" : "var(--surface2)",
+                color: paid ? "#0a1a12" : "var(--text2)",
+                border: "1px solid var(--border)",
+                fontWeight: 700,
+              }}
+              onClick={() => setPaid(true)}
+            >
+              ✓ Paid
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{
+                flex: 1,
+                background: !paid ? "var(--yellow)" : "var(--surface2)",
+                color: !paid ? "#2b1c00" : "var(--text2)",
+                border: "1px solid var(--border)",
+                fontWeight: 700,
+              }}
+              onClick={() => setPaid(false)}
+            >
+              ⏳ Unpaid
+            </button>
+          </div>
+          {paid && (
+            <select
+              className="field-input"
+              style={{ marginTop: 8 }}
+              value={paidMethod}
+              onChange={(e) => setPaidMethod(e.target.value as any)}
+            >
+              <option value="cash">💵 Cash</option>
+              <option value="gcash">📱 GCash</option>
+              <option value="maya">💜 Maya</option>
+            </select>
+          )}
         </div>
 
         <div className="field-group">
