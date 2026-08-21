@@ -7,6 +7,7 @@ import { isToday, peso } from "@/lib/format";
 const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "pos", icon: "🛒", label: "New Order" },
   { id: "orders", icon: "📋", label: "Orders" },
+  { id: "unpaid", icon: "⏳", label: "Unpaid Customers" },
   { id: "daily", icon: "📅", label: "Daily Orders" },
   { id: "summary", icon: "📊", label: "Daily Summary" },
   { id: "sales", icon: "📈", label: "Sales Tracking" },
@@ -20,7 +21,8 @@ export default function Sidebar() {
   const paidCount = today.filter((o) => o.paid).length;
   const target = 1000;
   const pct = Math.max(0, Math.min(100, Math.round((rev / target) * 100)));
-  const unpaidTotal = orders.filter((o) => o.status !== "cancelled" && !o.paid).reduce((s, o) => s + o.total, 0);
+  const unpaidOrders = orders.filter((o) => o.status !== "cancelled" && !o.paid);
+  const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.total, 0);
 
   return (
     <nav className="sidebar">
@@ -34,6 +36,9 @@ export default function Sidebar() {
         >
           <span className="nav-icon">{n.icon}</span> {n.label}
           {n.id === "orders" && <span className="nav-badge">{orders.length}</span>}
+          {n.id === "unpaid" && unpaidOrders.length > 0 && (
+            <span className="nav-badge nav-badge-warn">{unpaidOrders.length}</span>
+          )}
         </div>
       ))}
 
@@ -57,8 +62,8 @@ export default function Sidebar() {
           <div className="sidebar-stat-progress-fill" style={{ width: `${pct}%` }} />
         </div>
         {unpaidTotal > 0 && (
-          <div className="sidebar-stat-unpaid">
-            <span>⏳ Unpaid</span>
+          <div className="sidebar-stat-unpaid" onClick={() => switchView("unpaid")} role="button" tabIndex={0}>
+            <span>⏳ Unpaid ({unpaidOrders.length})</span>
             <span>{peso(unpaidTotal)}</span>
           </div>
         )}

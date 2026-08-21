@@ -476,6 +476,7 @@ button, input{ color-scheme: inherit; }
   padding:2px 7px;border-radius:999px;
   font-family:var(--mono);
 }
+.nav-badge-warn{background:var(--yellow);color:#1a1305}
 
 .sidebar-stats{
   margin:auto 12px 12px;
@@ -542,7 +543,9 @@ button, input{ color-scheme: inherit; }
   font-size:11px;color:var(--yellow);margin-top:10px;font-weight:700;
   padding:6px 8px;border-radius:var(--radius-sm);
   background:var(--yellow-dim);border:1px dashed transparent;
+  cursor:pointer;transition:border-color var(--transition), transform var(--transition);
 }
+.sidebar-stat-unpaid:hover{border-color:var(--yellow);transform:translateY(-1px)}
 .sidebar-hours{
   margin-top:auto;padding-top:14px;
   font-size:10.5px;color:var(--text3);font-weight:500;

@@ -38,6 +38,15 @@ export default function MobileMoreSheet({
         <div
           className="mobile-more-item"
           onClick={() => {
+            onNav("unpaid");
+            onClose();
+          }}
+        >
+          <span className="nav-icon">⏳</span> Unpaid Customers
+        </div>
+        <div
+          className="mobile-more-item"
+          onClick={() => {
             onNav("daily");
             onClose();
           }}

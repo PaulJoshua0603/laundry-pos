@@ -39,7 +39,7 @@ import {
   THEME_KEY,
 } from "@/lib/storage";
 
-export type ViewId = "pos" | "orders" | "daily" | "summary" | "sales" | "payments";
+export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "payments";
 export type ToastType = "" | "success" | "error";
 
 interface ToastState {
