@@ -65,14 +65,43 @@ function AdditionalFeeCard() {
   );
 }
 
+const SECTION_META: Record<string, { label: string; icon: string }> = {
+  wash: { label: "Wash", icon: "🫧" },
+  dry: { label: "Dry", icon: "☀️" },
+  addon: { label: "Add Ons", icon: "➕" },
+};
+const SECTION_ORDER = ["wash", "dry", "addon"];
+
+function ProductCard({
+  s,
+  qty,
+  onClick,
+}: {
+  s: (typeof SERVICES)[number];
+  qty: number;
+  onClick: () => void;
+}) {
+  return (
+    <div className={`product-card${qty ? " in-cart" : ""}`} onClick={onClick} id={`pc-${s.id}`}>
+      {qty > 0 && <div className="product-qty-badge">{qty}</div>}
+      <div className="product-icon">{s.icon}</div>
+      <div className="product-name">{s.name}</div>
+      <div className="product-desc">{s.desc}</div>
+      <div className="product-price">{peso(s.price)}</div>
+    </div>
+  );
+}
+
 export default function PosView() {
   const { cart, addToCart } = useApp();
   const [cat, setCat] = useState("all");
 
-  const CAT_ORDER: Record<string, number> = { wash: 0, dry: 1, addon: 2 };
-  const filtered = (cat === "all" ? SERVICES : SERVICES.filter((s) => s.cat === cat))
-    .slice()
-    .sort((a, b) => (cat === "all" ? CAT_ORDER[a.cat] - CAT_ORDER[b.cat] || a.price - b.price : a.price - b.price));
+  const cats = cat === "all" ? SECTION_ORDER : [cat];
+
+  function qtyOf(id: string) {
+    const inCart = cart.find((c) => c.service.id === id);
+    return inCart ? inCart.qty : 0;
+  }
 
   return (
     <div className="view active" id="view-pos">
@@ -93,21 +122,25 @@ export default function PosView() {
 
       {(cat === "all" || cat === "wash") && <AdditionalFeeCard />}
 
-      <div className="product-grid" id="productGrid">
-        {filtered.map((s) => {
-          const inCart = cart.find((c) => c.service.id === s.id);
-          const qty = inCart ? inCart.qty : 0;
-          return (
-            <div key={s.id} className={`product-card${qty ? " in-cart" : ""}`} onClick={() => addToCart(s.id)} id={`pc-${s.id}`}>
-              {qty > 0 && <div className="product-qty-badge">{qty}</div>}
-              <div className="product-icon">{s.icon}</div>
-              <div className="product-name">{s.name}</div>
-              <div className="product-desc">{s.desc}</div>
-              <div className="product-price">{peso(s.price)}</div>
+      {cats.map((c) => {
+        const items = SERVICES.filter((s) => s.cat === c).slice().sort((a, b) => a.price - b.price);
+        if (items.length === 0) return null;
+        const meta = SECTION_META[c];
+        return (
+          <div key={c} className="product-section">
+            <div className="product-section-head">
+              <span className="product-section-icon">{meta.icon}</span>
+              <span className="product-section-label">{meta.label}</span>
+              <span className="product-section-count">{items.length}</span>
             </div>
-          );
-        })}
-      </div>
+            <div className="product-grid" id={`productGrid-${c}`}>
+              {items.map((s) => (
+                <ProductCard key={s.id} s={s} qty={qtyOf(s.id)} onClick={() => addToCart(s.id)} />
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
