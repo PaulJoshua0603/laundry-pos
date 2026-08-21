@@ -349,7 +349,7 @@ export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8A
   b.line(padRow("Order ID", order.orderId, WIDTH));
   b.line(padRow("Type", order.type, WIDTH));
   b.line(padRow("Status", order.status, WIDTH));
-  if (order.pickup) b.line(padRow("Pickup", order.pickup, WIDTH));
+  if (order.pickup) b.line(padRow("Placed Order", order.pickup, WIDTH));
   b.line(padRow("Time", order.time, WIDTH));
   b.divider("-", WIDTH);
 

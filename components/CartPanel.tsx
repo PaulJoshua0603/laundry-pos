@@ -91,13 +91,11 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
         </div>
         <input className="customer-field" type="text" placeholder="Address (optional)" value={addr} onChange={(e) => setAddr(e.target.value)} />
         <div className="customer-row">
-          <select className="customer-field" value={type} onChange={(e) => setType(e.target.value as any)}>
+          <select className="customer-field customer-field-type" value={type} onChange={(e) => setType(e.target.value as any)}>
             <option value="walkin">🚶 Walk-in</option>
             <option value="delivery">🛵 Delivery</option>
           </select>
-        </div>
-        <div className="customer-row">
-          <div className="pickup-field-wrap pickup-field-wrap-full">
+          <div className="pickup-field-wrap">
             <input
               className={`customer-field pickup-field${pickup ? " has-value" : ""}`}
               type="datetime-local"
@@ -119,27 +117,25 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
         ) : (
           cart.map((c) => (
             <div className="cart-item" key={c.service.id}>
-              <div style={{ fontSize: 20, marginTop: 1 }}>{c.service.icon}</div>
+              <div className="cart-item-icon">{c.service.icon}</div>
               <div className="cart-item-info">
                 <div className="cart-item-name">{c.service.name}</div>
-                <div className="cart-item-price">
-                  {c.service.desc} · {peso(c.service.price)} each
-                </div>
-                <div className="cart-item-controls">
-                  <button className="qty-btn" onClick={() => changeQty(c.service.id, -1)}>
-                    −
-                  </button>
-                  <span className="qty-display">{c.qty}</span>
-                  <button className="qty-btn" onClick={() => changeQty(c.service.id, 1)}>
-                    +
-                  </button>
-                </div>
+                <div className="cart-item-price">{peso(c.service.price)} each</div>
               </div>
-              <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <div className="cart-item-controls">
+                <button className="qty-btn" onClick={() => changeQty(c.service.id, -1)}>
+                  −
+                </button>
+                <span className="qty-display">{c.qty}</span>
+                <button className="qty-btn" onClick={() => changeQty(c.service.id, 1)}>
+                  +
+                </button>
+              </div>
+              <div className="cart-item-end">
+                <span className="cart-item-total">{peso(c.service.price * c.qty)}</span>
                 <button className="cart-item-del" onClick={() => removeFromCart(c.service.id)}>
                   ✕
                 </button>
-                <span className="cart-item-total">{peso(c.service.price * c.qty)}</span>
               </div>
             </div>
           ))

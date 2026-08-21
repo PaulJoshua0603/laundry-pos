@@ -163,7 +163,7 @@ export default function ReceiptModal() {
           </div>
           {order.pickup && (
             <div className="receipt-row customer">
-              <span>Pickup</span>
+              <span>Placed Order</span>
               <span>{new Date(order.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
             </div>
           )}
@@ -229,7 +229,7 @@ export default function ReceiptModal() {
           </div>
           {order.pickup && (
             <div className="tag-row">
-              <span>Pickup</span>
+              <span>Placed Order</span>
               <span>{new Date(order.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
             </div>
           )}

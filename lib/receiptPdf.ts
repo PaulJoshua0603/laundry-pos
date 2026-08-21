@@ -81,7 +81,7 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
   rowLR("Order ID", order.id || "", true);
   rowLR("Type", typeLabel, true);
   rowLR("Status", statusLabel, true);
-  rowLR("Pickup", pickupStr, true);
+  rowLR("Placed Order", pickupStr, true);
 
   drawSolid(y);
   y += 3;
