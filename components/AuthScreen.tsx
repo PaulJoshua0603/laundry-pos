@@ -83,6 +83,7 @@ export default function AuthScreen() {
   const [forgotPass2, setForgotPass2] = useState("");
   const [forgotErr, setForgotErr] = useState("");
   const [forgotDone, setForgotDone] = useState(false);
+  const [forgotDoneMsg, setForgotDoneMsg] = useState("");
   const [forgotBusy, setForgotBusy] = useState(false);
 
   const { forgotPassword, showToast } = useApp();
@@ -114,6 +115,7 @@ export default function AuthScreen() {
     setForgotEmail(loginEmail || "");
     setForgotErr("");
     setForgotDone(false);
+    setForgotDoneMsg("");
     setForgotOpen(true);
   }
 
@@ -127,8 +129,11 @@ export default function AuthScreen() {
       return;
     }
     setForgotDone(true);
-    showToast("Password updated — you can now sign in.", "success");
-    setTimeout(() => setForgotOpen(false), 2200);
+    setForgotDoneMsg(res.msg || "Password updated — you can now sign in.");
+    showToast(res.msg || "Password updated — you can now sign in.", "success");
+    if (!res.msg?.toLowerCase().includes("email")) {
+      setTimeout(() => setForgotOpen(false), 2200);
+    }
   }
 
   return (
@@ -301,7 +306,7 @@ export default function AuthScreen() {
             </div>
             <div className={`auth-error-banner${forgotErr ? " show" : ""}`}>{forgotErr}</div>
             {forgotDone ? (
-              <div className="forgot-success">✅ Password updated! You can now sign in with your new password.</div>
+              <div className="forgot-success">✅ {forgotDoneMsg}</div>
             ) : (
               <div>
                 <div className="field-group">

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import PrinterSettingsCard from "@/components/PrinterSettingsCard";
+import CloudBackupCard from "@/components/CloudBackupCard";
 
 function QrCard({ method, label, icon }: { method: "gcash" | "maya"; label: string; icon: string }) {
   const { paySettings, saveGcashMaya, clearPayMethod, showToast } = useApp();
@@ -126,6 +127,8 @@ export default function PaymentsView() {
       <div className="paysettings-note">
         Upload your GCash and Maya QR codes and account details here. They&apos;ll appear in the cart when a customer pays via GCash or Maya, so your staff can show the code to scan.
       </div>
+
+      <CloudBackupCard />
 
       <div className="paysettings-grid">
         <QrCard method="gcash" label="GCash" icon="📱" />

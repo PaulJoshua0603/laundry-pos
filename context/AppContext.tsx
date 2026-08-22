@@ -38,6 +38,26 @@ import {
   PRINTWIDTH_KEY,
   THEME_KEY,
 } from "@/lib/storage";
+import {
+  cloudLogin,
+  cloudLogout,
+  cloudRegister,
+  cloudSendPasswordReset,
+  getCloudSession,
+  isSupabaseConfigured,
+} from "@/lib/cloudAuth";
+import {
+  cloudDeleteOrder,
+  cloudLoadNotifications,
+  cloudLoadOrders,
+  cloudLoadPaySettings,
+  cloudLoadSmsTemplates,
+  cloudSaveAllOrders,
+  cloudSaveOrder,
+  cloudSavePaySettings,
+  cloudSaveSmsTemplates,
+} from "@/lib/cloudStorage";
+import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCloud } from "@/lib/migrateLocalData";
 
 export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "payments";
 export type ToastType = "" | "success" | "error";
@@ -61,6 +81,12 @@ interface AppContextValue {
   login: (data: { email: string; pass: string }) => Promise<boolean>;
   forgotPassword: (data: { email: string; pass: string; pass2: string }) => Promise<{ ok: boolean; msg?: string }>;
   logout: () => void;
+
+  // cloud backup
+  cloudConfigured: boolean;
+  cloudActive: boolean;
+  legacyMatches: LegacyAccountMatch[];
+  importLegacyAccount: (localUserId: string) => Promise<void>;
 
   // theme
   theme: "dark" | "light";
@@ -157,6 +183,8 @@ export function useApp() {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [booted, setBooted] = useState(false);
   const [session, setSessionState] = useState<Session | null>(null);
+  const [cloudActive, setCloudActive] = useState(false);
+  const [legacyMatches, setLegacyMatches] = useState<LegacyAccountMatch[]>([]);
   const [authTab, setAuthTab] = useState<"login" | "register">("login");
   const [authError, setAuthError] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
@@ -199,31 +227,58 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /* ─── BOOT: restore theme + session ─── */
   useEffect(() => {
-    try {
-      const savedTheme = (localStorage.getItem(THEME_KEY) as "dark" | "light") || null;
-      const theme = savedTheme || (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
-      setTheme(theme);
-      document.documentElement.setAttribute("data-theme", theme);
+    (async () => {
+      try {
+        const savedTheme = (localStorage.getItem(THEME_KEY) as "dark" | "light") || null;
+        const theme = savedTheme || (window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        setTheme(theme);
+        document.documentElement.setAttribute("data-theme", theme);
 
-      const savedMm = parseInt(localStorage.getItem(PRINTWIDTH_KEY) || "", 10) || 58;
-      const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + "_h") || "", 10) || 210;
-      setPrinterMm(savedMm);
-      setPrinterH(savedH);
+        const savedMm = parseInt(localStorage.getItem(PRINTWIDTH_KEY) || "", 10) || 58;
+        const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + "_h") || "", 10) || 210;
+        setPrinterMm(savedMm);
+        setPrinterH(savedH);
 
-      const s = getSession();
-      if (s && getUsers().some((u) => u.id === s.userId)) {
-        setSessionState(s);
-        setOrders(loadOrders(s.userId));
-        setNotifications(loadNotifications(s.userId));
-        setPaySettings(loadPaySettings(s.userId));
-        setSmsTemplates(loadSmsTemplates(s.userId));
-      } else {
-        authClearSession();
+        // Prefer a cloud session (Supabase) when configured — this is the
+        // go-forward, multi-device-safe path. Falls back to the legacy
+        // localStorage-only account system so existing local users keep
+        // working exactly as before.
+        if (isSupabaseConfigured()) {
+          const cloudSession = await getCloudSession();
+          if (cloudSession) {
+            setSessionState(cloudSession);
+            setCloudActive(true);
+            const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+              cloudLoadOrders(cloudSession.userId),
+              cloudLoadNotifications(cloudSession.userId),
+              cloudLoadPaySettings(cloudSession.userId),
+              cloudLoadSmsTemplates(cloudSession.userId),
+            ]);
+            setOrders(cOrders);
+            setNotifications(cNotifs);
+            if (cPay) setPaySettings(cPay);
+            if (cSms) setSmsTemplates(cSms);
+            setBooted(true);
+            return;
+          }
+        }
+
+        const s = getSession();
+        if (s && getUsers().some((u) => u.id === s.userId)) {
+          setSessionState(s);
+          setCloudActive(false);
+          setOrders(loadOrders(s.userId));
+          setNotifications(loadNotifications(s.userId));
+          setPaySettings(loadPaySettings(s.userId));
+          setSmsTemplates(loadSmsTemplates(s.userId));
+        } else {
+          authClearSession();
+        }
+      } catch {
+        /* ignore */
       }
-    } catch {
-      /* ignore */
-    }
-    setBooted(true);
+      setBooted(true);
+    })();
   }, []);
 
   /* ─── Auto-advance washing/drying -> ready after 1hr ─── */
@@ -242,6 +297,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         });
         if (changed) {
           saveOrders(session.userId, next);
+          if (cloudActive) {
+            next
+              .filter((o) => o.autoReady && (o.status as OrderStatus) === "ready")
+              .forEach((o) => cloudSaveOrder(session.userId, o).catch(() => {}));
+          }
           showToast("✅ An order was auto-marked Ready for Pickup (1 hr elapsed)", "success");
           return next;
         }
@@ -251,7 +311,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tick();
     const id = setInterval(tick, 60 * 1000);
     return () => clearInterval(id);
-  }, [session, showToast]);
+  }, [session, cloudActive, showToast]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
@@ -272,6 +332,50 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (name.length < 2 || !isValidEmail(email) || data.pass.length < 8 || data.pass !== data.pass2) {
         return false;
       }
+
+      if (isSupabaseConfigured()) {
+        const res = await cloudRegister({ name, business, email, pass: data.pass });
+        if (!res.ok || !res.session) {
+          setAuthError(res.msg || "Couldn't create your account.");
+          return false;
+        }
+        const sess = res.session;
+        setSessionState(sess);
+        setCloudActive(true);
+
+        // Auto-import any matching local (pre-cloud) data for this email,
+        // so nothing already saved on this device gets left behind.
+        const matches = findLegacyAccountsByEmail(email).filter((m) => m.orderCount > 0);
+        let importedOrders = 0;
+        for (const m of matches) {
+          try {
+            const { ordersImported } = await migrateLegacyAccountToCloud(m.localUserId, sess.userId);
+            importedOrders += ordersImported;
+          } catch {
+            /* ignore individual migration failures */
+          }
+        }
+
+        const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+          cloudLoadOrders(sess.userId),
+          cloudLoadNotifications(sess.userId),
+          cloudLoadPaySettings(sess.userId),
+          cloudLoadSmsTemplates(sess.userId),
+        ]);
+        setOrders(cOrders);
+        setNotifications(cNotifs);
+        if (cPay) setPaySettings(cPay);
+        if (cSms) setSmsTemplates(cSms);
+        setLegacyMatches([]);
+        showToast(
+          importedOrders > 0
+            ? `Welcome, ${name.split(" ")[0]}! Cloud account created and ${importedOrders} saved order${importedOrders !== 1 ? "s" : ""} backed up. ☁️`
+            : `Welcome, ${name.split(" ")[0]}! Cloud account created — your data now backs up automatically. ☁️`,
+          "success"
+        );
+        return true;
+      }
+
       const users = getUsers();
       if (users.some((u) => u.email === email)) {
         setAuthError("An account with that email already exists. Try logging in instead.");
@@ -292,6 +396,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const sess = toSession(user);
       authSetSession(sess);
       setSessionState(sess);
+      setCloudActive(false);
       setOrders(loadOrders(sess.userId));
       setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
@@ -310,10 +415,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setAuthError("Enter your email and password.");
         return false;
       }
+
+      if (isSupabaseConfigured()) {
+        const res = await cloudLogin({ email, pass: data.pass });
+        if (res.ok && res.session) {
+          const sess = res.session;
+          setSessionState(sess);
+          setCloudActive(true);
+          const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+            cloudLoadOrders(sess.userId),
+            cloudLoadNotifications(sess.userId),
+            cloudLoadPaySettings(sess.userId),
+            cloudLoadSmsTemplates(sess.userId),
+          ]);
+          setOrders(cOrders);
+          setNotifications(cNotifs);
+          if (cPay) setPaySettings(cPay);
+          if (cSms) setSmsTemplates(cSms);
+
+          // Surface any local-only data for this email so it can be
+          // imported with one click from Payment Methods, in case it
+          // wasn't picked up automatically at registration time.
+          const matches = findLegacyAccountsByEmail(email).filter((m) => m.orderCount > 0);
+          setLegacyMatches(cOrders.length === 0 ? matches : []);
+
+          showToast(`Welcome back, ${sess.name.split(" ")[0]}! ☁️`, "success");
+          return true;
+        }
+        // Fall through to legacy local login below (covers accounts
+        // created before cloud backup existed, or when the cloud
+        // account doesn't exist yet for this email).
+      }
+
       const users = getUsers();
       const user = users.find((u) => u.email === email);
       if (!user) {
-        setAuthError("No account found with that email.");
+        setAuthError(isSupabaseConfigured() ? "No account found with that email." : "No account found with that email.");
         return false;
       }
       const { hash } = await hashPassword(data.pass, user.salt || undefined);
@@ -324,11 +461,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const sess = toSession(user);
       authSetSession(sess);
       setSessionState(sess);
+      setCloudActive(false);
       setOrders(loadOrders(sess.userId));
       setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
-      showToast(`Welcome back, ${user.name.split(" ")[0]}!`, "success");
+      showToast(
+        isSupabaseConfigured()
+          ? `Welcome back, ${user.name.split(" ")[0]}! (Signed in locally — add Cloud Backup in Payment Methods.)`
+          : `Welcome back, ${user.name.split(" ")[0]}!`
+      );
       return true;
     },
     [showToast]
@@ -337,6 +479,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const forgotPassword = useCallback(async (data: { email: string; pass: string; pass2: string }) => {
     const email = data.email.trim().toLowerCase();
     if (!isValidEmail(email)) return { ok: false, msg: "Enter a valid email address." };
+
+    if (isSupabaseConfigured()) {
+      const res = await cloudSendPasswordReset(email);
+      if (res.ok) return { ok: true, msg: "Check your email for a password reset link." };
+      // fall through to local reset if this email isn't a cloud account
+    }
+
     if (data.pass.length < 8) return { ok: false, msg: "At least 8 characters." };
     if (data.pass !== data.pass2) return { ok: false, msg: "Passwords don't match." };
     const users = getUsers();
@@ -350,14 +499,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    if (cloudActive) cloudLogout().catch(() => {});
     authClearSession();
     setSessionState(null);
+    setCloudActive(false);
+    setLegacyMatches([]);
     setOrders([]);
     setCart([]);
     setNotifications([]);
     setActiveView("pos");
     showToast("Signed out");
-  }, [showToast]);
+  }, [cloudActive, showToast]);
+
+  const importLegacyAccount = useCallback(
+    async (localUserId: string) => {
+      if (!session || !cloudActive) return;
+      try {
+        const { ordersImported } = await migrateLegacyAccountToCloud(localUserId, session.userId);
+        const [cOrders, cPay, cSms] = await Promise.all([
+          cloudLoadOrders(session.userId),
+          cloudLoadPaySettings(session.userId),
+          cloudLoadSmsTemplates(session.userId),
+        ]);
+        setOrders(cOrders);
+        if (cPay) setPaySettings(cPay);
+        if (cSms) setSmsTemplates(cSms);
+        setLegacyMatches((prev) => prev.filter((m) => m.localUserId !== localUserId));
+        showToast(`☁️ Imported ${ordersImported} order${ordersImported !== 1 ? "s" : ""} into the cloud`, "success");
+      } catch (err: any) {
+        showToast("❌ Import failed: " + (err?.message || "unknown error"), "error");
+      }
+    },
+    [session, cloudActive, showToast]
+  );
 
   /* ─── CART ─── */
   const addToCart = useCallback(
@@ -448,11 +622,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const next = [order, ...orders];
       setOrders(next);
       saveOrders(session.userId, next);
+      if (cloudActive) cloudSaveOrder(session.userId, order).catch(() => {});
       showToast(`✅ ${id} placed for ${customer.name} · ₱${total.toLocaleString()}${!isPaid ? " (unpaid)" : ""}`, "success");
       clearCart(true);
       return order;
     },
-    [cart, cartTotal, orders, payment, session, showToast, clearCart]
+    [cart, cartTotal, orders, payment, session, cloudActive, showToast, clearCart]
   );
 
   const mutateOrder = useCallback(
@@ -460,10 +635,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setOrders((prev) => {
         const next = prev.map((o) => (o.id === id ? fn(o) : o));
         if (session) saveOrders(session.userId, next);
+        if (session && cloudActive) {
+          const updated = next.find((o) => o.id === id);
+          if (updated) cloudSaveOrder(session.userId, updated).catch(() => {});
+        }
         return next;
       });
     },
-    [session]
+    [session, cloudActive]
   );
 
   const cancelOrder = useCallback(
@@ -479,11 +658,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setOrders((prev) => {
         const next = prev.filter((o) => o.id !== id);
         if (session) saveOrders(session.userId, next);
+        if (session && cloudActive) cloudDeleteOrder(session.userId, id).catch(() => {});
         return next;
       });
       showToast("Order deleted", "error");
     },
-    [session, showToast]
+    [session, cloudActive, showToast]
   );
 
   const markOrderPaid = useCallback(
@@ -558,11 +738,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPaySettings((prev) => {
         const next = { ...prev, [method]: { qr: qr !== undefined ? qr : prev[method].qr, number } };
         persistPaySettings(session?.userId, next);
+        if (session && cloudActive) cloudSavePaySettings(session.userId, next).catch(() => {});
         return next;
       });
       showToast(`${method === "gcash" ? "GCash" : "Maya"} details saved`, "success");
     },
-    [session, showToast]
+    [session, cloudActive, showToast]
   );
 
   const clearPayMethod = useCallback(
@@ -570,11 +751,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setPaySettings((prev) => {
         const next = { ...prev, [method]: { qr: null, number: "" } };
         persistPaySettings(session?.userId, next);
+        if (session && cloudActive) cloudSavePaySettings(session.userId, next).catch(() => {});
         return next;
       });
       showToast("Removed");
     },
-    [session, showToast]
+    [session, cloudActive, showToast]
   );
 
   /* ─── SMS TEMPLATES ─── */
@@ -583,11 +765,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSmsTemplates((prev) => {
         const next = { ...prev, [which]: value.trim() || prev[which] };
         persistSmsTemplates(session?.userId, next);
+        if (session && cloudActive) cloudSaveSmsTemplates(session.userId, next).catch(() => {});
         return next;
       });
       showToast(`${which === "paid" ? "Paid" : "Unpaid"} SMS template saved`, "success");
     },
-    [session, showToast]
+    [session, cloudActive, showToast]
   );
 
   const resetSmsTemplate = useCallback(
@@ -596,11 +779,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSmsTemplates((prev) => {
         const next = { ...prev, [which]: which === "paid" ? DEFAULT_SMS_TEMPLATE_PAID : DEFAULT_SMS_TEMPLATE_UNPAID };
         persistSmsTemplates(session?.userId, next);
+        if (session && cloudActive) cloudSaveSmsTemplates(session.userId, next).catch(() => {});
         return next;
       });
       showToast(`${which === "paid" ? "Paid" : "Unpaid"} SMS template reset to default`);
     },
-    [session, showToast]
+    [session, cloudActive, showToast]
   );
 
   const sendPickupSms = useCallback(
@@ -659,6 +843,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     login,
     forgotPassword,
     logout,
+    cloudConfigured: isSupabaseConfigured(),
+    cloudActive,
+    legacyMatches,
+    importLegacyAccount,
     theme,
     toggleTheme,
     toast,
