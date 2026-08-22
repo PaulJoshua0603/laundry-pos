@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { CartLine, isExtraLine, isFeeLine, isLoadLine, Order, SERVICES, Service } from "@/lib/types";
+import { CartLine, getDailyOrderNo, isExtraLine, isFeeLine, isLoadLine, Order, SERVICES, Service } from "@/lib/types";
 import { peso } from "@/lib/format";
 
 function toDatetimeLocal(iso: string | null): string {
@@ -16,7 +16,7 @@ function toDatetimeLocal(iso: string | null): string {
 const ADDON_SERVICES = SERVICES.filter((s) => s.cat === "addon");
 
 export default function EditOrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
-  const { updateOrderDetails } = useApp();
+  const { updateOrderDetails, orders } = useApp();
   const [name, setName] = useState(order.name);
   const [phone, setPhone] = useState(order.phone || "");
   const [addr, setAddr] = useState(order.addr || "");
@@ -131,7 +131,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
         <div className="forgot-header">
           <div className="forgot-icon">✏️</div>
           <div className="forgot-title">Edit Order</div>
-          <div className="forgot-sub">{order.id}</div>
+          <div className="forgot-sub">Order #{getDailyOrderNo(order, orders)} <span style={{ opacity: 0.6, fontSize: 11 }}>({order.id})</span></div>
         </div>
 
         <div className="field-group">

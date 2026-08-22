@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { getLoadCount, isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
+import { getDailyOrderNo, getLoadCount, isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
 import { businessDayLabel, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 import EditOrderModal from "@/components/EditOrderModal";
 
@@ -27,7 +27,10 @@ export default function OrdersView() {
 
   const query = q.trim().toLowerCase();
   const filtered = orders.filter(
-    (o) => o.id.toLowerCase().includes(query) || o.name.toLowerCase().includes(query)
+    (o) =>
+      o.id.toLowerCase().includes(query) ||
+      o.name.toLowerCase().includes(query) ||
+      String(getDailyOrderNo(o, orders)).includes(query.replace(/^#/, ""))
   );
 
   // Group into business-day boxes, newest day first, orders within each
@@ -223,7 +226,10 @@ export default function OrdersView() {
                                   <span>{o.name}</span>
                                 </div>
                               </td>
-                              <td className="order-id-cell">{o.id}</td>
+                              <td className="order-id-cell" title={o.id}>
+                                <div style={{ fontWeight: 600 }}>#{getDailyOrderNo(o, orders)}</div>
+                                <div style={{ fontSize: 10, opacity: 0.6 }}>{o.id}</div>
+                              </td>
                               <td>
                                 <span className="type-badge">
                                   {typeInfo.icon} {typeInfo.label}

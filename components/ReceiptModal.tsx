@@ -2,18 +2,19 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { ORDER_TYPES, STATUS_MAP } from "@/lib/types";
+import { ORDER_TYPES, STATUS_MAP, getDailyOrderNo } from "@/lib/types";
 import { peso } from "@/lib/format";
 import { buildReceiptPDF } from "@/lib/receiptPdf";
 import { isPrinterConnected, isUsbConnected, isWebBluetoothSupported, isWebUsbSupported, printReceiptToPr21 } from "@/lib/printer";
 
 export default function ReceiptModal() {
-  const { receiptOrder, closeReceipt, printerMm, printerH, setPrinterWidth, paySettings, session, showToast } = useApp();
+  const { receiptOrder, closeReceipt, printerMm, printerH, setPrinterWidth, paySettings, session, showToast, orders } = useApp();
   const [pdfBusy, setPdfBusy] = useState(false);
   const [printBusy, setPrintBusy] = useState(false);
 
   if (!receiptOrder) return null;
   const order = receiptOrder;
+  const dailyNo = getDailyOrderNo(order, orders);
 
   const shopName = order.shop || session?.business || "WashHub Laundry";
   const payLabel = { cash: "Cash", gcash: "GCash", maya: "Maya", later: "Pay Later" }[order.payment] || order.payment;
@@ -28,7 +29,7 @@ export default function ReceiptModal() {
   async function saveReceiptPDF() {
     setPdfBusy(true);
     try {
-      const { doc, filename } = buildReceiptPDF(order, printerMm, shopName);
+      const { doc, filename } = buildReceiptPDF(order, printerMm, shopName, orders);
       doc.save(filename);
     } catch (err: any) {
       showToast("❌ PDF error: " + err.message, "error");
@@ -43,7 +44,7 @@ export default function ReceiptModal() {
       if (isUsbConnected() || isWebUsbSupported() || isPrinterConnected()) {
         await printReceiptToPr21({
           shop: shopName,
-          orderId: order.id,
+          orderId: `#${dailyNo}`,
           customer: order.name,
           phone: order.phone,
           type: typeInfo.label,
@@ -67,12 +68,12 @@ export default function ReceiptModal() {
       // No USB/Bluetooth support at all (typically iOS Safari) — build
       // the PDF and hand it to the native share sheet so the PR21
       // companion app can print it instead.
-      const { doc, filename } = buildReceiptPDF(order, printerMm, shopName);
+      const { doc, filename } = buildReceiptPDF(order, printerMm, shopName, orders);
       const blob = doc.output("blob");
       const file = new File([blob], filename, { type: "application/pdf" });
       const nav: any = navigator;
       if (nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title: "Receipt", text: `Receipt ${order.id}` });
+        await nav.share({ files: [file], title: "Receipt", text: `Receipt #${dailyNo}` });
       } else if (nav.share) {
         window.print();
       } else {
@@ -140,8 +141,12 @@ export default function ReceiptModal() {
             </div>
           )}
           <div className="receipt-row customer">
+            <span>Order #</span>
+            <span>{dailyNo}</span>
+          </div>
+          <div className="receipt-row customer">
             <span>Order ID</span>
-            <span>{order.id}</span>
+            <span style={{ fontSize: 10, opacity: 0.7 }}>{order.id}</span>
           </div>
           <div className="receipt-row customer">
             <span>Order Type</span>
@@ -216,7 +221,7 @@ export default function ReceiptModal() {
           {order.phone && <div className="tag-phone">{order.phone}</div>}
           <div className="tag-divider" />
           <div className="tag-row">
-            <span>{order.id}</span>
+            <span>#{dailyNo}</span>
             <span>
               {typeInfo.icon} {typeInfo.label}
             </span>

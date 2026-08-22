@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { businessDayLabel, getBusinessDayKey, peso } from "@/lib/format";
-import { getLoadCount, Order, STATUS_MAP } from "@/lib/types";
+import { getDailyOrderNo, getLoadCount, Order, STATUS_MAP } from "@/lib/types";
 
 export default function DailyOrdersView() {
   const { orders, showReceipt } = useApp();
@@ -105,7 +105,7 @@ export default function DailyOrdersView() {
                         >
                           <div>
                             <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-                              {o.name} <span style={{ color: "var(--text3)", fontWeight: 400 }}>· {o.id}</span>
+                              {o.name} <span style={{ color: "var(--text3)", fontWeight: 400 }}>· #{getDailyOrderNo(o, orders)}</span>
                             </div>
                             <div style={{ fontSize: 11, color: "var(--text3)" }}>
                               {status.icon} {status.label} · 🧺 {loadQty} load{loadQty !== 1 ? "s" : ""} ·{" "}

@@ -1,10 +1,12 @@
-import { Order } from "./types";
+import { Order, getDailyOrderNo } from "./types";
 
 /* Builds a thermal-sized receipt + basket tag PDF using jsPDF.
    Ported from the original app.js buildReceiptPDF(), unchanged in
    spirit — same layout, same paper-width math — just typed and
    fed from the React order model instead of the DOM. */
-export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
+export function buildReceiptPDF(order: Order, PW: number, shopName: string, allOrders: Order[] = []) {
+  const dailyNo = getDailyOrderNo(order, allOrders.length ? allOrders : [order]);
+  const displayNo = `#${dailyNo}`;
   // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { jsPDF } = require("jspdf");
   const ML = 3;
@@ -78,7 +80,7 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
 
   rowLR("Customer", order.name || "", true);
   rowLR("Phone", order.phone || "—", true);
-  rowLR("Order ID", order.id || "", true);
+  rowLR("Order #", displayNo, true);
   rowLR("Type", typeLabel, true);
   rowLR("Status", statusLabel, true);
   rowLR("Placed Order", pickupStr, true);
@@ -143,7 +145,7 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string) {
   drawDashed(y);
   y += 3;
   const totalQty = (order.items || []).reduce((n, c) => n + (c.qty || 1), 0);
-  rowLR(order.id || "", typeLabel, false);
+  rowLR(displayNo, typeLabel, false);
   rowLR(`${totalQty} item${totalQty !== 1 ? "s" : ""}`, pickupStr, false);
   y += 1;
   drawDashed(y);

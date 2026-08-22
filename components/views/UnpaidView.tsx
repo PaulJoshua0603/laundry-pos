@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
+import { getDailyOrderNo } from "@/lib/types";
 
 export default function UnpaidView() {
   const { orders, markOrderPaid, switchView } = useApp();
@@ -103,7 +104,7 @@ export default function UnpaidView() {
                         <div>
                           <div>{o.name}</div>
                           <div style={{ fontSize: 10.5, color: "var(--text3)" }} className="mono">
-                            {o.id}
+                            #{getDailyOrderNo(o, orders)} · {o.id}
                           </div>
                         </div>
                       </div>

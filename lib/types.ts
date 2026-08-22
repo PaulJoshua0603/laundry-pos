@@ -70,6 +70,18 @@ export interface Order {
   shop?: string;
 }
 
+// Cosmetic, receipt-friendly order number — sequential per calendar day,
+// purely for display. The real `order.id` remains the unique key used for
+// syncing/storage; this is never persisted, just derived at render time.
+export function getDailyOrderNo(order: Order, allOrders: Order[]): number {
+  const day = order.time.slice(0, 10); // YYYY-MM-DD
+  const sameDay = allOrders
+    .filter((o) => o.time.slice(0, 10) === day)
+    .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
+  const idx = sameDay.findIndex((o) => o.id === order.id);
+  return idx === -1 ? sameDay.length + 1 : idx + 1;
+}
+
 export interface PaySettingsEntry {
   qr: string | null;
   number: string;
