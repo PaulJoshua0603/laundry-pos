@@ -1,5 +1,9 @@
-const CACHE = "washhub-v2";
+const CACHE = "washhub-v3";
 const CORE_ASSETS = ["/", "/manifest.json", "/logo.png"];
+
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") self.skipWaiting();
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(

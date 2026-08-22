@@ -145,10 +145,6 @@ export default function ReceiptModal() {
             <span>{dailyNo}</span>
           </div>
           <div className="receipt-row customer">
-            <span>Order ID</span>
-            <span style={{ fontSize: 10, opacity: 0.7 }}>{order.id}</span>
-          </div>
-          <div className="receipt-row customer">
             <span>Order Type</span>
             <span>
               <span className="receipt-icon">{typeInfo.icon} </span>{typeInfo.label}
