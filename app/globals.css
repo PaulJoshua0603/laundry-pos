@@ -1413,7 +1413,11 @@ a:focus-visible, button:focus-visible, input:focus-visible,
      why prints looked "invisible"/erasable. We fix that with a
      text-stroke + text-shadow "fake bold" pass (thickens every glyph's
      strokes) rather than just cranking font-size, because oversized
-     text was overflowing the 48mm roll and getting truncated/wrapped. */
+     text was overflowing the 48mm roll and getting truncated/wrapped.
+     Widened further here (stroke .3px→.55px, 4-dir shadow→8-dir) plus
+     a print-only contrast/brightness filter — heavier 70gsm stock
+     needs noticeably more "ink" than the thin 48-53gsm rolls this was
+     originally tuned for. */
   #receiptBody{
     display:block !important;
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
@@ -1421,9 +1425,10 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     margin:0 !important;padding:1mm 1mm !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
-    font-size:12px !important;line-height:1.5 !important;font-weight:900 !important;
+    font-size:12.5px !important;line-height:1.5 !important;font-weight:900 !important;
     -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;
     -webkit-font-smoothing:none !important;text-rendering:optimizeSpeed !important;
+    filter:contrast(1.55) brightness(0.82) !important;
     overflow:hidden !important;
     page-break-inside:avoid !important;
     word-break:break-word !important;
@@ -1431,7 +1436,9 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   /* Make every element inside box-sizing and clipped to width. The
      text-shadow stack + text-stroke below is the "fake bold" pass —
      it redraws each glyph's edges in solid black so thin fonts print
-     as dense black instead of dithered grey, without inflating size. */
+     as dense black instead of dithered grey, without inflating size.
+     8-directional shadow (was 4) fills in the diagonals too, so curved
+     glyphs (0, 6, 8, S) don't come out thinner than straight strokes. */
   #receiptBody *{
     box-sizing:border-box !important;
     max-width:100% !important;
@@ -1439,8 +1446,10 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     word-break:break-word !important;
     font-weight:900 !important;
     color:#000 !important;
-    -webkit-text-stroke:.3px #000 !important;
-    text-shadow:.2px 0 0 #000,-.2px 0 0 #000,0 .2px 0 #000,0 -.2px 0 #000 !important;
+    -webkit-text-stroke:.55px #000 !important;
+    text-shadow:
+      .3px 0 0 #000,-.3px 0 0 #000,0 .3px 0 #000,0 -.3px 0 #000,
+      .3px .3px 0 #000,-.3px -.3px 0 #000,.3px -.3px 0 #000,-.3px .3px 0 #000 !important;
   }
   .receipt{padding:0 !important}
   .receipt::before{display:none !important}
@@ -1461,7 +1470,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     letter-spacing:.05em !important;text-transform:uppercase !important;
   }
   .receipt-divider{
-    border-top:2.5px solid #000 !important;
+    border-top:3px solid #000 !important;
     margin:4px 0 !important;border-bottom:none !important;
   }
   .receipt-row{
@@ -1505,7 +1514,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     font-size:10px !important;font-weight:900 !important;
     color:#000 !important;letter-spacing:.05em !important;
     margin:5mm 0 0 0 !important;padding:0 !important;
-    -webkit-text-stroke:.3px #000 !important;
+    -webkit-text-stroke:.5px #000 !important;
     white-space:nowrap !important;overflow:hidden !important;
   }
 
@@ -1520,15 +1529,17 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
     box-sizing:border-box !important;
     margin:3.5mm 0 0 0 !important;padding:2mm 1mm !important;
-    border:2.5px dashed #000 !important;
+    border:3px dashed #000 !important;
     text-align:center !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
   }
   .basket-tag,.basket-tag *{
     color:#000 !important;box-sizing:border-box !important;font-weight:900 !important;
-    -webkit-text-stroke:.35px #000 !important;
-    text-shadow:.22px 0 0 #000,-.22px 0 0 #000,0 .22px 0 #000,0 -.22px 0 #000 !important;
+    -webkit-text-stroke:.6px #000 !important;
+    text-shadow:
+      .3px 0 0 #000,-.3px 0 0 #000,0 .3px 0 #000,0 -.3px 0 #000,
+      .3px .3px 0 #000,-.3px -.3px 0 #000,.3px -.3px 0 #000,-.3px .3px 0 #000 !important;
   }
   .tag-label{font-size:10px;letter-spacing:.12em;font-weight:900;margin-bottom:3px;text-transform:uppercase}
   .tag-name{font-size:21px;font-weight:900;line-height:1.2;word-break:break-word;margin-bottom:2px;letter-spacing:.01em;text-transform:uppercase}
@@ -1795,3 +1806,63 @@ img.emoji{
 .cloud-legacy-row:first-of-type{border-top:none}
 .cloud-legacy-name{font-size:12.5px;font-weight:700;color:var(--text)}
 .cloud-legacy-sub{font-size:11px;color:var(--text3);margin-top:1px}
+
+/* ══════════════════════════════════════════
+   BOOT SPLASH SCREEN
+══════════════════════════════════════════ */
+.splash-screen{
+  position:fixed;inset:0;z-index:9999;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  background:var(--bg);
+  animation:splashFadeIn .3s ease;
+}
+.splash-screen.splash-out{
+  animation:splashFadeOut .45s ease forwards;
+}
+.splash-machine{
+  width:88px;height:88px;border-radius:50%;
+  border:5px solid var(--yellow);
+  display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+  background:var(--yellow-dim);
+  box-shadow:0 0 0 6px var(--yellow-dim);
+  animation:splashSpin 1.8s linear infinite;
+}
+.splash-drum{position:relative;width:100%;height:100%}
+.splash-bubble{
+  position:absolute;font-size:20px;
+  animation:splashFloat 1.6s ease-in-out infinite;
+}
+.splash-bubble.b1{top:18px;left:14px;animation-delay:0s}
+.splash-bubble.b2{top:34px;left:44px;animation-delay:.3s}
+.splash-bubble.b3{top:52px;left:20px;animation-delay:.6s}
+.splash-brand{
+  margin-top:14px;font-family:var(--font-display);font-size:22px;font-weight:700;
+  letter-spacing:-.01em;color:var(--text);
+  animation:splashRise .5s ease .1s both;
+}
+.splash-sub{
+  font-size:11px;font-weight:700;letter-spacing:.16em;color:var(--yellow);
+  text-transform:uppercase;
+  animation:splashRise .5s ease .2s both;
+}
+@keyframes splashSpin{
+  0%{transform:rotate(0deg)}
+  100%{transform:rotate(360deg)}
+}
+@keyframes splashFloat{
+  0%,100%{transform:translateY(0) scale(1);opacity:.7}
+  50%{transform:translateY(-6px) scale(1.15);opacity:1}
+}
+@keyframes splashFadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+@keyframes splashFadeOut{
+  from{opacity:1;transform:scale(1)}
+  to{opacity:0;transform:scale(1.03)}
+}
+@keyframes splashRise{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:translateY(0)}
+}
