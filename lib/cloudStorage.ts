@@ -65,7 +65,13 @@ export async function cloudDeleteOrder(userId: string, orderId: string) {
 
 export async function cloudSaveAllOrders(userId: string, orders: Order[]) {
   if (!isSupabaseConfigured() || orders.length === 0) return;
-  const { error } = await supabase.from("orders").upsert(orders.map((o) => orderToRow(userId, o)));
+  // Dedupe by id — a batch upsert fails if the same id appears twice
+  // (e.g. legacy local data with duplicate order ids). Keep the last
+  // occurrence of each id.
+  const byId = new Map<string, Order>();
+  for (const o of orders) byId.set(o.id, o);
+  const rows = Array.from(byId.values()).map((o) => orderToRow(userId, o));
+  const { error } = await supabase.from("orders").upsert(rows);
   if (error) throw error;
 }
 
