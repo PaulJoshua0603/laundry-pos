@@ -1428,7 +1428,6 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     font-size:12.5px !important;line-height:1.5 !important;font-weight:900 !important;
     -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;
     -webkit-font-smoothing:none !important;text-rendering:optimizeSpeed !important;
-    filter:contrast(1.55) brightness(0.82) !important;
     overflow:hidden !important;
     page-break-inside:avoid !important;
     word-break:break-word !important;
