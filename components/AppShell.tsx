@@ -14,6 +14,7 @@ import DailyOrdersView from "@/components/views/DailyOrdersView";
 import SummaryView from "@/components/views/SummaryView";
 import SalesView from "@/components/views/SalesView";
 import PaymentsView from "@/components/views/PaymentsView";
+import RawDataView from "@/components/views/RawDataView";
 
 export default function AppShell() {
   const { activeView, switchView } = useApp();
@@ -44,6 +45,7 @@ export default function AppShell() {
           {activeView === "summary" && <SummaryView />}
           {activeView === "sales" && <SalesView />}
           {activeView === "payments" && <PaymentsView />}
+          {activeView === "rawdata" && <RawDataView />}
         </main>
 
         <CartPanel mobileOpen={mobileCartOpen} onCartClose={() => setMobileCartOpen(false)} />

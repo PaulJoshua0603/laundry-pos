@@ -65,12 +65,23 @@ export async function cloudDeleteOrder(userId: string, orderId: string) {
 
 export async function cloudSaveAllOrders(userId: string, orders: Order[]) {
   if (!isSupabaseConfigured() || orders.length === 0) return;
-  // Dedupe by id — a batch upsert fails if the same id appears twice
-  // (e.g. legacy local data with duplicate order ids). Keep the last
-  // occurrence of each id.
-  const byId = new Map<string, Order>();
-  for (const o of orders) byId.set(o.id, o);
-  const rows = Array.from(byId.values()).map((o) => orderToRow(userId, o));
+  // Never drop an order. If two local records share the same id (a legacy
+  // bug), keep the first as-is and give the rest a new unique id so every
+  // distinct order is preserved instead of being overwritten.
+  const seen = new Set<string>();
+  const deduped: Order[] = [];
+  orders.forEach((o) => {
+    if (!seen.has(o.id)) {
+      seen.add(o.id);
+      deduped.push(o);
+    } else {
+      let newId = o.id + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+      while (seen.has(newId)) newId = o.id + "-" + Math.random().toString(36).slice(2, 6).toUpperCase();
+      seen.add(newId);
+      deduped.push({ ...o, id: newId });
+    }
+  });
+  const rows = deduped.map((o) => orderToRow(userId, o));
   const { error } = await supabase.from("orders").upsert(rows);
   if (error) throw error;
 }

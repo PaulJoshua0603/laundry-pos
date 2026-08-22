@@ -59,7 +59,7 @@ import {
 } from "@/lib/cloudStorage";
 import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCloud } from "@/lib/migrateLocalData";
 
-export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "payments";
+export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "payments" | "rawdata";
 export type ToastType = "" | "success" | "error";
 
 interface ToastState {
@@ -87,6 +87,7 @@ interface AppContextValue {
   cloudActive: boolean;
   legacyMatches: LegacyAccountMatch[];
   importLegacyAccount: (localUserId: string) => Promise<void>;
+  importPastedOrders: (raw: string) => Promise<{ ok: boolean; msg: string }>;
 
   // theme
   theme: "dark" | "light";
@@ -533,6 +534,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [session, cloudActive, showToast]
   );
 
+  // Import orders copy-pasted (as JSON) from another device/site's
+  // localStorage — used when the original data lives on a different
+  // domain (e.g. an old Netlify deploy) that this browser can't read.
+  const importPastedOrders = useCallback(
+    async (raw: string): Promise<{ ok: boolean; msg: string }> => {
+      if (!session || !cloudActive) return { ok: false, msg: "Log in with your cloud account first." };
+      let parsed: any;
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        return { ok: false, msg: "That doesn't look like valid JSON. Paste the exact array you copied." };
+      }
+      if (!Array.isArray(parsed) || parsed.length === 0) {
+        return { ok: false, msg: "Expected a non-empty array of orders." };
+      }
+      try {
+        await cloudSaveAllOrders(session.userId, parsed as Order[]);
+        const cOrders = await cloudLoadOrders(session.userId);
+        setOrders(cOrders);
+        showToast(`☁️ Imported ${parsed.length} pasted order${parsed.length !== 1 ? "s" : ""} into the cloud`, "success");
+        return { ok: true, msg: `Imported ${parsed.length} orders.` };
+      } catch (err: any) {
+        return { ok: false, msg: err?.message || "Import failed." };
+      }
+    },
+    [session, cloudActive, showToast]
+  );
+
   /* ─── CART ─── */
   const addToCart = useCallback(
     (id: string) => {
@@ -599,7 +628,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (customer: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string }) => {
       if (cart.length === 0 || !session) return null;
       const total = cartTotal;
-      const id = "ORD-" + String(orders.length + 1).padStart(4, "0");
+      const id = "ORD-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
       const time = new Date().toISOString();
       const isPaid = payment !== "later";
       const order: Order = {
@@ -847,6 +876,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cloudActive,
     legacyMatches,
     importLegacyAccount,
+    importPastedOrders,
     theme,
     toggleTheme,
     toast,

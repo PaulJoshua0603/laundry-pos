@@ -12,6 +12,7 @@ const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "summary", icon: "📊", label: "Daily Summary" },
   { id: "sales", icon: "📈", label: "Sales Tracking" },
   { id: "payments", icon: "💳", label: "Payment Methods" },
+  { id: "rawdata", icon: "🗂️", label: "All Data (Reference)" },
 ];
 
 export default function Sidebar() {

@@ -71,6 +71,15 @@ export default function MobileMoreSheet({
         >
           <span className="nav-icon">💳</span> Payment Methods
         </div>
+        <div
+          className="mobile-more-item"
+          onClick={() => {
+            onNav("rawdata");
+            onClose();
+          }}
+        >
+          <span className="nav-icon">🗂️</span> All Data (Reference)
+        </div>
         <div className="mobile-more-item danger" onClick={logout}>
           <span className="nav-icon">🚪</span> Sign out
         </div>
