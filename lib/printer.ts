@@ -311,6 +311,11 @@ export interface ReceiptData {
   status: string;
   pickup?: string;
   time: string;
+  /** Full date + time the order was placed (created), e.g. "Aug 23, 06:45 AM" —
+   *  distinct from `pickup`, which is the customer's scheduled pickup date. */
+  placedAt: string;
+  /** Total item quantity across all line items (sum of qty, not line count). */
+  itemCount: number;
   lines: ReceiptOrderLine[];
   total: string;
   paymentLabel: string;
@@ -333,8 +338,41 @@ function padRow(left: string, right: string, width: number): string {
   return left + " ".repeat(space) + right;
 }
 
+/** Compact single-tag ESC/POS layout for 57×50mm pre-cut label stock —
+ *  no separate cut-line/basket-tag section since the physical label
+ *  already ends at 50mm; combines receipt + basket identity in one. */
+function buildCompactTagEscPos(order: ReceiptData): Uint8Array {
+  const WIDTH = 30;
+  const b = new EscPosBuilder();
+  b.init();
+
+  b.align("center").bold(true).doubleSize(true).line(order.shop.toUpperCase());
+  b.doubleSize(false).line("* OFFICIAL RECEIPT *");
+  b.divider("=", WIDTH);
+
+  b.align("left").bold(true);
+  b.line(padRow(order.orderId, order.placedAt, WIDTH));
+  b.doubleSize(true).line(order.customer.toUpperCase()).doubleSize(false);
+  b.line(padRow(order.type, order.status, WIDTH));
+  b.bold(false);
+  b.divider("-", WIDTH);
+
+  order.lines.forEach((l) => b.line(padRow(l.label, l.price, WIDTH)));
+  b.divider("=", WIDTH);
+
+  b.bold(true).doubleSize(true).line(padRow("TOTAL", order.total, Math.round(WIDTH / 2))).doubleSize(false);
+  b.line(order.paymentLabel.toUpperCase());
+  if (order.balanceDue) b.line(padRow("Balance", order.balanceDue, WIDTH));
+  b.bold(false);
+
+  b.align("center").line("Thank you!");
+  b.cut();
+  return b.build();
+}
+
 /** Builds the raw ESC/POS byte stream for a WashHub receipt + basket tag. */
 export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8Array {
+  if (paperMm === 57) return buildCompactTagEscPos(order);
   const WIDTH = widthForMm(paperMm);
   const b = new EscPosBuilder();
   b.init();
@@ -349,8 +387,8 @@ export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8A
   b.line(padRow("Order ID", order.orderId, WIDTH));
   b.line(padRow("Type", order.type, WIDTH));
   b.line(padRow("Status", order.status, WIDTH));
-  if (order.pickup) b.line(padRow("Placed Order", order.pickup, WIDTH));
-  b.line(padRow("Time", order.time, WIDTH));
+  b.line(padRow("Placed", order.placedAt, WIDTH));
+  if (order.pickup) b.line(padRow("Pickup", order.pickup, WIDTH));
   b.divider("-", WIDTH);
 
   order.lines.forEach((l) => b.line(padRow(l.label, l.price, WIDTH)));
@@ -379,7 +417,10 @@ export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8A
   b.doubleSize(false);
   if (order.phone) b.line(order.phone);
   b.bold(false).divider("-", WIDTH);
-  b.align("left").line(padRow(order.orderId, order.type, WIDTH));
+  b.align("left");
+  b.line(`${order.orderId}: ${order.type}`);
+  b.line(`Items: ${order.itemCount} item${order.itemCount !== 1 ? "s" : ""}`);
+  b.line(`Placed Order: ${order.placedAt}`);
 
   b.cut();
   return b.build();

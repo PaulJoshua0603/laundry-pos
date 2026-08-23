@@ -1183,6 +1183,24 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .cut-line{display:none}
 
 /* ══════════════════════════════════════════
+   FIXED TAG — 57×50mm pre-cut label preview
+══════════════════════════════════════════ */
+.fixed-tag{
+  padding:20px;font-family:var(--mono);position:relative;
+  border:1.5px dashed var(--border2);border-radius:10px;margin:0 4px;
+}
+.fixed-tag-header{text-align:center;margin-bottom:10px}
+.fixed-tag-biz{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.01em}
+.fixed-tag-sub{font-size:9.5px;color:var(--yellow);margin-top:2px;letter-spacing:.08em;font-weight:700}
+.fixed-tag-rule{border:none;margin:7px 0}
+.fixed-tag-rule.thick{border-top:2px solid var(--text2)}
+.fixed-tag-rule.dash{border-top:1px dashed var(--border2)}
+.fixed-tag-row{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:var(--text2);margin-bottom:3px}
+.fixed-tag-name{font-size:15px;font-weight:800;color:var(--text);text-align:center;margin:4px 0;letter-spacing:.01em}
+.fixed-tag-total{font-size:15px;font-weight:800;color:var(--yellow);margin-top:2px}
+.fixed-tag-footer{text-align:center;font-size:9.5px;color:var(--text3);margin-top:8px;font-family:var(--font)}
+
+/* ══════════════════════════════════════════
    TOAST — bottom-right slide-in
 ══════════════════════════════════════════ */
 #toast{
@@ -1376,7 +1394,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   margin: 0;
 }
 @media print{
-  @page{ size: var(--receipt-w, 48mm) auto; margin: 0; }
+  @page{ size: var(--receipt-w, 48mm) var(--receipt-h, auto); margin: 0; }
 
   /* Hide everything, then surgically show only the receipt */
   html,body{
@@ -1545,6 +1563,42 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   .tag-phone{font-size:11px;margin-bottom:3px;font-weight:900}
   .tag-divider{border-top:2.5px dashed #000;margin:3px 0}
   .tag-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;font-weight:900;gap:4px}
+
+  /* Compact 57×50mm fixed-tag layout — same fake-bold thermal
+     treatment as the receipt, but everything sits on one card since
+     the physical stock ends at 50mm (no cut-line/basket-tag split). */
+  #fixedTagBody{
+    display:block !important;
+    width:var(--receipt-w, 54mm) !important;max-width:var(--receipt-w, 54mm) !important;
+    box-sizing:border-box !important;
+    margin:0 !important;padding:1mm !important;
+    font-family:'Courier New',monospace !important;
+    color:#000 !important;background:#fff !important;
+    font-size:10.5px !important;line-height:1.35 !important;font-weight:900 !important;
+    -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;
+    overflow:hidden !important;page-break-inside:avoid !important;
+    border:none !important;
+  }
+  #fixedTagBody *{
+    box-sizing:border-box !important;max-width:100% !important;
+    overflow-wrap:break-word !important;word-break:break-word !important;
+    font-weight:900 !important;color:#000 !important;
+    -webkit-text-stroke:.5px #000 !important;
+    text-shadow:
+      .3px 0 0 #000,-.3px 0 0 #000,0 .3px 0 #000,0 -.3px 0 #000,
+      .3px .3px 0 #000,-.3px -.3px 0 #000,.3px -.3px 0 #000,-.3px .3px 0 #000 !important;
+  }
+  .fixed-tag-biz{font-size:13px !important;text-transform:uppercase !important;letter-spacing:.02em !important}
+  .fixed-tag-sub{font-size:8.5px !important;letter-spacing:.08em !important;text-transform:uppercase !important}
+  .fixed-tag-rule.thick{border-top:2.5px solid #000 !important}
+  .fixed-tag-rule.dash{border-top:1.5px dashed #000 !important}
+  .fixed-tag-rule{margin:2.2mm 0 !important}
+  .fixed-tag-row{font-size:9.5px !important;margin-bottom:1.6px !important}
+  .fixed-tag-row span:first-child{flex:1 1 auto !important;overflow:hidden !important;white-space:nowrap !important;text-overflow:ellipsis !important}
+  .fixed-tag-row span:last-child{flex:0 0 auto !important;white-space:nowrap !important;text-align:right !important}
+  .fixed-tag-name{font-size:15px !important;text-transform:uppercase !important;margin:1.5mm 0 !important}
+  .fixed-tag-total{font-size:13px !important}
+  .fixed-tag-footer{font-size:8px !important;margin-top:1.5mm !important}
 }
 
 /* Twemoji images swapped in for emoji characters (consistent

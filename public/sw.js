@@ -1,5 +1,9 @@
-const CACHE = "washhub-v1";
+const CACHE = "washhub-v3";
 const CORE_ASSETS = ["/", "/manifest.json", "/logo.png"];
+
+self.addEventListener("message", (event) => {
+  if (event.data === "SKIP_WAITING") self.skipWaiting();
+});
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -17,7 +21,24 @@ self.addEventListener("activate", (event) => {
   self.clients.claim();
 });
 
-// Network-first for navigation, cache-first for static assets.
+// Requests that are safe to cache-first: same-origin, truly static build
+// output (hashed JS/CSS chunks, fonts, icons). Everything else — most
+// importantly cross-origin data calls to Supabase (order counts, etc.) —
+// must always hit the network, or the app silently shows stale data
+// (e.g. an old order count) until the user force-refreshes.
+function isStaticAsset(url) {
+  if (url.origin !== self.location.origin) return false;
+  return (
+    url.pathname.startsWith("/_next/static/") ||
+    url.pathname.startsWith("/icons/") ||
+    url.pathname === "/manifest.json" ||
+    url.pathname === "/logo.png" ||
+    /\.(?:png|jpg|jpeg|svg|webp|ico|woff2?)$/.test(url.pathname)
+  );
+}
+
+// Network-first for navigation, cache-first only for static assets,
+// network-only (never cached) for everything else — API/data calls.
 self.addEventListener("fetch", (event) => {
   const req = event.request;
   if (req.method !== "GET") return;
@@ -26,6 +47,13 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(req).catch(() => caches.match(req).then((r) => r || caches.match("/")))
     );
+    return;
+  }
+
+  const url = new URL(req.url);
+  if (!isStaticAsset(url)) {
+    // Data/API calls (Supabase, etc.) — always go to the network so the
+    // app never shows counts/records from a stale cache.
     return;
   }
 
