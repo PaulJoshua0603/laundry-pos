@@ -3,7 +3,48 @@
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
-import { getDailyOrderNo } from "@/lib/types";
+import { getBalance, getDailyOrderNo } from "@/lib/types";
+
+function PartialPayRow({ orderId, total, balance }: { orderId: string; total: number; balance: number }) {
+  const { addPartialPayment } = useApp();
+  const [amount, setAmount] = useState("");
+  const [method, setMethod] = useState<"cash" | "gcash" | "maya">("cash");
+
+  function handleAdd() {
+    const n = parseFloat(amount);
+    if (!n || n <= 0) return;
+    addPartialPayment(orderId, Math.min(n, balance), method);
+    setAmount("");
+  }
+
+  return (
+    <div className="unpaid-partial-row">
+      <div className="fee-input-row" style={{ flex: "0 0 auto" }}>
+        <span className="fee-input-peso">₱</span>
+        <input
+          className="fee-input"
+          style={{ width: 78 }}
+          type="number"
+          inputMode="decimal"
+          min={0}
+          max={balance}
+          placeholder={`e.g. ${Math.round(total / 2) || 0}`}
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+        />
+      </div>
+      <select className="pay-mark-select" value={method} onChange={(e) => setMethod(e.target.value as any)}>
+        <option value="cash">💵 Cash</option>
+        <option value="gcash">📱 GCash</option>
+        <option value="maya">💜 Maya</option>
+      </select>
+      <button className="btn btn-primary btn-sm" onClick={handleAdd} disabled={!amount || parseFloat(amount) <= 0}>
+        Add Payment
+      </button>
+    </div>
+  );
+}
 
 export default function UnpaidView() {
   const { orders, markOrderPaid, switchView } = useApp();
@@ -14,7 +55,7 @@ export default function UnpaidView() {
     .filter((o) => o.name.toLowerCase().includes(q.toLowerCase()) || o.id.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
-  const totalUnpaid = unpaid.reduce((s, o) => s + o.total, 0);
+  const totalUnpaid = unpaid.reduce((s, o) => s + getBalance(o), 0);
 
   return (
     <div className="view active" id="view-unpaid">
@@ -47,7 +88,7 @@ export default function UnpaidView() {
           <span className="orders-stat-icon">💰</span>
           <div>
             <div className="orders-stat-val">{peso(totalUnpaid)}</div>
-            <div className="orders-stat-label">Total Owed</div>
+            <div className="orders-stat-label">Total Balance Owed</div>
           </div>
         </div>
       </div>
@@ -71,15 +112,18 @@ export default function UnpaidView() {
             <tr>
               <th>Unpaid</th>
               <th>Customer Name</th>
-              <th>Amount</th>
+              <th>Total</th>
+              <th>Paid So Far</th>
+              <th>Balance</th>
               <th>Date</th>
+              <th>Record Payment</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             {unpaid.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: "center", padding: "48px 20px" }}>
+                <td colSpan={8} style={{ textAlign: "center", padding: "48px 20px" }}>
                   <div style={{ fontSize: 34, opacity: 0.3, marginBottom: 8 }}>🎉</div>
                   <div style={{ color: "var(--text3)", fontSize: 13 }}>No unpaid customers. Everyone's settled up!</div>
                 </td>
@@ -93,10 +137,11 @@ export default function UnpaidView() {
                     .slice(0, 2)
                     .map((p) => p[0]?.toUpperCase())
                     .join("") || "?";
+                const balance = getBalance(o);
                 return (
                   <tr key={o.id}>
                     <td>
-                      <span className="pay-badge pay-badge-unpaid">⏳ Unpaid</span>
+                      <span className="pay-badge pay-badge-unpaid">{o.amountPaid > 0 ? "◐ Partial" : "⏳ Unpaid"}</span>
                     </td>
                     <td>
                       <div className="customer-cell">
@@ -109,11 +154,20 @@ export default function UnpaidView() {
                         </div>
                       </div>
                     </td>
-                    <td className="mono" style={{ color: "var(--yellow)", fontWeight: 700 }}>
+                    <td className="mono" style={{ color: "var(--text2)" }}>
                       {peso(o.total)}
+                    </td>
+                    <td className="mono" style={{ color: "var(--green)" }}>
+                      {o.amountPaid > 0 ? peso(o.amountPaid) : "—"}
+                    </td>
+                    <td className="mono" style={{ color: "var(--yellow)", fontWeight: 700 }}>
+                      {peso(balance)}
                     </td>
                     <td className="mono" style={{ fontSize: 11 }}>
                       {new Date(o.time).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                    </td>
+                    <td>
+                      <PartialPayRow orderId={o.id} total={o.total} balance={balance} />
                     </td>
                     <td className="row-actions">
                       <select
@@ -123,7 +177,7 @@ export default function UnpaidView() {
                           if (e.target.value) markOrderPaid(o.id, e.target.value as any);
                         }}
                       >
-                        <option value="">✓ Mark as Paid…</option>
+                        <option value="">✓ Settle Full…</option>
                         <option value="cash">💵 Cash</option>
                         <option value="gcash">📱 GCash</option>
                         <option value="maya">💜 Maya</option>

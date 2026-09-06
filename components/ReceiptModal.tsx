@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { ORDER_TYPES, STATUS_MAP, getDailyOrderNo } from "@/lib/types";
+import { getBalance, ORDER_TYPES, STATUS_MAP, getDailyOrderNo } from "@/lib/types";
 import { peso } from "@/lib/format";
 import { buildReceiptPDF, buildFixedTagPDF } from "@/lib/receiptPdf";
 import { isPrinterConnected, isUsbConnected, isWebBluetoothSupported, isWebUsbSupported, printReceiptToPr21 } from "@/lib/printer";
@@ -106,8 +106,12 @@ export default function ReceiptModal() {
             price: peso(c.service.price * c.qty),
           })),
           total: peso(order.total),
-          paymentLabel: order.paid ? paidLabel || payLabel : "UNPAID — pay on pickup",
-          balanceDue: !order.paid ? peso(order.total) : undefined,
+          paymentLabel: order.paid
+            ? paidLabel || payLabel
+            : order.amountPaid > 0
+              ? `PARTIAL — ${peso(order.amountPaid)} paid via ${paidLabel || payLabel}`
+              : "UNPAID — pay on pickup",
+          balanceDue: !order.paid ? peso(getBalance(order)) : undefined,
         }, undefined, printerMm);
         showToast("🖨️ Sent to printer", "success");
         return;
@@ -222,12 +226,18 @@ export default function ReceiptModal() {
               <span>{peso(order.total)}</span>
             </div>
             <div className="fixed-tag-row" style={{ marginTop: 2 }}>
-              <span>{order.paid ? `✓ PAID · ${(paidLabel || payLabel || "").toString().toUpperCase()}` : "⏳ UNPAID"}</span>
+              <span>
+                {order.paid
+                  ? `✓ PAID · ${(paidLabel || payLabel || "").toString().toUpperCase()}`
+                  : order.amountPaid > 0
+                    ? `◐ PARTIAL · ${peso(order.amountPaid)} PAID`
+                    : "⏳ UNPAID"}
+              </span>
             </div>
             {!order.paid && (
               <div className="fixed-tag-row">
                 <span>Balance</span>
-                <span>{peso(order.total)}</span>
+                <span>{peso(getBalance(order))}</span>
               </div>
             )}
             <div className="fixed-tag-footer">Thank you for choosing us!</div>
@@ -302,7 +312,13 @@ export default function ReceiptModal() {
               </div>
               <div className="receipt-row" style={{ marginTop: 4 }}>
                 <span>Payment</span>
-                <span>{order.paid ? paidLabel || payLabel : "UNPAID — pay on pickup"}</span>
+                <span>
+                  {order.paid
+                    ? paidLabel || payLabel
+                    : order.amountPaid > 0
+                      ? `Partial · ${peso(order.amountPaid)} paid`
+                      : "UNPAID — pay on pickup"}
+                </span>
               </div>
               {payRefLine && (
                 <div className="receipt-row" style={{ marginTop: 2 }}>
@@ -313,7 +329,7 @@ export default function ReceiptModal() {
               {!order.paid && (
                 <div className="receipt-row" style={{ marginTop: 2, fontWeight: 700 }}>
                   <span>Balance due</span>
-                  <span>{peso(order.total)}</span>
+                  <span>{peso(getBalance(order))}</span>
                 </div>
               )}
               <div className="receipt-footer">

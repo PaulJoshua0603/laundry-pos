@@ -1,4 +1,4 @@
-import { Order, getDailyOrderNo } from "./types";
+import { getBalance, Order, getDailyOrderNo } from "./types";
 
 /* Builds a thermal-sized receipt + basket tag PDF using jsPDF.
    Ported from the original app.js buildReceiptPDF(), unchanged in
@@ -105,8 +105,17 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string, allO
   boldText(`P${(order.total || 0).toLocaleString()}`, PW - MR, y, { align: "right" });
   y += 6;
 
-  rowLR("Payment", order.paidMethod || order.payment || "Cash", true);
+  const paymentValue = order.paid
+    ? order.paidMethod || order.payment || "Cash"
+    : order.amountPaid > 0
+      ? `Partial - P${order.amountPaid.toLocaleString()} paid`
+      : "UNPAID";
+  rowLR("Payment", paymentValue, true);
   y += 2;
+  if (!order.paid) {
+    rowLR("Balance due", `P${getBalance(order).toLocaleString()}`, true);
+    y += 2;
+  }
 
   drawDashed(y);
   y += 4;
@@ -284,10 +293,15 @@ export function buildFixedTagPDF(order: Order, shopName: string, allOrders: Orde
   doc.setFontSize(6.6);
   const paid = order.paid;
   const payLabel = paid ? order.paidMethod || order.payment || "Cash" : "UNPAID";
-  boldText(paid ? `✓ PAID · ${String(payLabel).toUpperCase()}` : "⏳ UNPAID — pay on pickup", ML, y);
+  const statusLine = paid
+    ? `✓ PAID · ${String(payLabel).toUpperCase()}`
+    : order.amountPaid > 0
+      ? `◐ PARTIAL · P${order.amountPaid.toLocaleString()} PAID`
+      : "⏳ UNPAID — pay on pickup";
+  boldText(statusLine, ML, y);
   y += 2.8;
   if (!paid) {
-    boldText(`Balance: P${(order.total || 0).toLocaleString()}`, ML, y);
+    boldText(`Balance: P${getBalance(order).toLocaleString()}`, ML, y);
     y += 2.8;
   }
 

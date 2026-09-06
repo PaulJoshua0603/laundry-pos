@@ -2,7 +2,7 @@
 
 import { useApp } from "@/context/AppContext";
 import { isToday, peso } from "@/lib/format";
-import { Order } from "@/lib/types";
+import { getBalance, Order } from "@/lib/types";
 import { useMemo, useState } from "react";
 import { saveOrders } from "@/lib/storage";
 import { exportSalesExcel } from "@/lib/salesExcel";
@@ -14,11 +14,11 @@ export default function SummaryView() {
   const today = useMemo(() => orders.filter((o) => o.status !== "cancelled" && isToday(o.time)), [orders]);
   const paidOrders = today.filter((o) => o.paid);
   const unpaidOrders = today.filter((o) => !o.paid);
-  const rev = paidOrders.reduce((s, o) => s + o.total, 0);
+  const rev = today.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const avg = paidOrders.length ? Math.round(rev / paidOrders.length) : 0;
-  const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.total, 0);
+  const unpaidTotal = unpaidOrders.reduce((s, o) => s + getBalance(o), 0);
 
-  const svcMap: Record<string, { name: string; icon: string; desc: string; price: number; qty: number; rev: number }> = {};
+  const svcMap: Record<string, { id: string; name: string; icon: string; desc: string; price: number; qty: number; rev: number }> = {};
   today.forEach((o) =>
     o.items.forEach((c) => {
       const k = c.service.id;
@@ -31,9 +31,10 @@ export default function SummaryView() {
   const maxRev = sorted[0]?.rev || 1;
 
   const payMap: Record<string, number> = { cash: 0, gcash: 0, maya: 0 };
-  paidOrders.forEach((o) => {
+  today.forEach((o) => {
+    if (!o.amountPaid) return;
     const m = o.paidMethod || o.payment;
-    if (m && payMap[m] !== undefined) payMap[m] += o.total;
+    if (m && payMap[m] !== undefined) payMap[m] += o.amountPaid;
   });
   const payTotal = Object.values(payMap).reduce((a, b) => a + b, 0) || 1;
   const payIcons: Record<string, string> = { cash: "💵", gcash: "📱", maya: "💜" };
@@ -106,27 +107,27 @@ export default function SummaryView() {
         </div>
       </div>
 
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Top Services</span>
-          <span style={{ fontSize: 11, color: "var(--text3)" }}>by revenue</span>
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-card-title">🏆 Top Services</span>
+          <span className="report-card-hint">by revenue</span>
         </div>
-        <div style={{ padding: "8px 0" }}>
+        <div className="report-list">
           {sorted.length === 0 ? (
-            <div style={{ padding: "20px 16px", color: "var(--text3)", fontSize: 13, textAlign: "center" }}>No data yet.</div>
+            <div className="report-empty">No data yet.</div>
           ) : (
-            sorted.map((s) => (
-              <div key={s.name} style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 6, borderBottom: "1px solid var(--border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-                    {s.icon} {s.name} <span style={{ fontSize: 11, color: "var(--text3)", fontWeight: 400 }}>({s.desc})</span>
+            sorted.map((s, i) => (
+              <div className="report-row" key={`${s.id || s.name}-${i}`}>
+                <div className="report-row-top">
+                  <span className="report-row-label">
+                    {s.icon} {s.name} <span className="report-row-desc">({s.desc})</span>
                   </span>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--yellow)", fontWeight: 700 }}>{peso(s.rev)}</span>
+                  <span className="report-row-val">{peso(s.rev)}</span>
                 </div>
-                <div style={{ height: 4, background: "var(--surface2)", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${Math.round((s.rev / maxRev) * 100)}%`, background: "var(--blue)", borderRadius: 2 }} />
+                <div className="report-bar-track">
+                  <div className="report-bar-fill" style={{ width: `${Math.round((s.rev / maxRev) * 100)}%` }} />
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text3)" }}>
+                <div className="report-row-sub">
                   {s.qty} load{s.qty !== 1 ? "s" : ""} · {peso(s.price)} each
                 </div>
               </div>
@@ -135,21 +136,21 @@ export default function SummaryView() {
         </div>
       </div>
 
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)" }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Payment Methods</span>
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-card-title">💳 Payment Methods</span>
         </div>
-        <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 10 }}>
+        <div className="report-list report-list-padded">
           {Object.entries(payMap).map(([k, v]) => (
-            <div key={k} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <span style={{ fontSize: 13, color: "var(--text2)" }}>
+            <div className="report-pay-row" key={k}>
+              <div className="report-row-top">
+                <span className="report-row-label-plain">
                   {payIcons[k]} {k.charAt(0).toUpperCase() + k.slice(1)}
                 </span>
-                <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--text)", fontWeight: 600 }}>{peso(v)}</span>
+                <span className="report-row-val-plain">{peso(v)}</span>
               </div>
-              <div style={{ height: 4, background: "var(--surface2)", borderRadius: 2, overflow: "hidden" }}>
-                <div style={{ height: "100%", width: `${Math.round((v / payTotal) * 100)}%`, background: payColors[k], borderRadius: 2 }} />
+              <div className="report-bar-track">
+                <div className="report-bar-fill" style={{ width: `${Math.round((v / payTotal) * 100)}%`, background: payColors[k] }} />
               </div>
             </div>
           ))}

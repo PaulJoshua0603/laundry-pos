@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { getDailyOrderNo, getLoadCount, isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
+import { getBalance, getDailyOrderNo, getLoadCount, isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
 import { businessDayLabel, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 import EditOrderModal from "@/components/EditOrderModal";
 
@@ -273,7 +273,9 @@ export default function OrdersView() {
                                   </span>
                                 ) : (
                                   <div className="pay-unpaid-cell">
-                                    <span className="pay-badge pay-badge-unpaid">⏳ Unpaid</span>
+                                    <span className="pay-badge pay-badge-unpaid">
+                                      {o.amountPaid > 0 ? `◐ ${peso(getBalance(o))} left` : "⏳ Unpaid"}
+                                    </span>
                                     <select
                                       className="pay-mark-select"
                                       value=""
@@ -281,7 +283,7 @@ export default function OrdersView() {
                                         if (e.target.value) markOrderPaid(o.id, e.target.value as any);
                                       }}
                                     >
-                                      <option value="">Mark paid via…</option>
+                                      <option value="">Mark fully paid…</option>
                                       <option value="cash">💵 Cash</option>
                                       <option value="gcash">📱 GCash</option>
                                       <option value="maya">💜 Maya</option>

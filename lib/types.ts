@@ -64,10 +64,18 @@ export interface Order {
   time: string; // ISO string
   status: OrderStatus;
   paid: boolean;
+  amountPaid: number; // running total actually collected (supports partial/downpayment)
   paidMethod: Exclude<PaymentMethod, "later"> | null;
   paidAt: string | null;
   autoReady?: boolean;
   shop?: string;
+}
+
+export function getBalance(order: Order): number {
+  return Math.max(0, Math.round((order.total - (order.amountPaid || 0)) * 100) / 100);
+}
+export function isPartiallyPaid(order: Order): boolean {
+  return !order.paid && (order.amountPaid || 0) > 0;
 }
 
 // Cosmetic, receipt-friendly order number — sequential per calendar day,

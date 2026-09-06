@@ -25,6 +25,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
   const [nameErr, setNameErr] = useState(false);
   const [paid, setPaid] = useState(order.paid);
   const [paidMethod, setPaidMethod] = useState<"cash" | "gcash" | "maya">((order.paidMethod as any) || "cash");
+  const [amountPaidInput, setAmountPaidInput] = useState(order.amountPaid > 0 && !order.paid ? String(order.amountPaid) : "");
   const [loads, setLoads] = useState<CartLine[]>(order.items.filter(isLoadLine));
   const [extras, setExtras] = useState<CartLine[]>(order.items.filter(isExtraLine));
   const [addonPick, setAddonPick] = useState("");
@@ -40,6 +41,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
     setPickup(toDatetimeLocal(order.pickup));
     setPaid(order.paid);
     setPaidMethod((order.paidMethod as any) || "cash");
+    setAmountPaidInput(order.amountPaid > 0 && !order.paid ? String(order.amountPaid) : "");
     setLoads(order.items.filter(isLoadLine));
     setExtras(order.items.filter(isExtraLine));
   }, [order]);
@@ -103,6 +105,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
       setTimeout(() => setNameErr(false), 2000);
       return;
     }
+    const amountPaid = paid ? grandTotal : Math.max(0, Math.min(grandTotal, parseFloat(amountPaidInput) || 0));
     updateOrderDetails(order.id, {
       name: name.trim(),
       phone: phone.trim(),
@@ -111,7 +114,8 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
       pickup,
       items: [...loads, ...extras],
       paid,
-      paidMethod: paid ? paidMethod : null,
+      paidMethod: paid || amountPaid > 0 ? paidMethod : null,
+      amountPaid,
     });
     onClose();
   }
@@ -209,6 +213,44 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
               <option value="gcash">📱 GCash</option>
               <option value="maya">💜 Maya</option>
             </select>
+          )}
+          {!paid && (
+            <div className="partial-pay-field" style={{ marginTop: 10 }}>
+              <label className="field-label" htmlFor="editAmountPaidInput">
+                If Customer Paid Half of the Price <span className="field-label-optional">(optional)</span>
+              </label>
+              <div className="partial-pay-input-wrap">
+                <span className="partial-pay-peso">₱</span>
+                <input
+                  id="editAmountPaidInput"
+                  className="partial-pay-input"
+                  type="number"
+                  inputMode="decimal"
+                  min={0}
+                  max={grandTotal}
+                  placeholder={`e.g. ${Math.round(grandTotal / 2) || 0}`}
+                  value={amountPaidInput}
+                  onChange={(e) => setAmountPaidInput(e.target.value)}
+                />
+              </div>
+              {amountPaidInput.trim() !== "" && !Number.isNaN(parseFloat(amountPaidInput)) && parseFloat(amountPaidInput) > 0 && (
+                <>
+                  <select
+                    className="field-input"
+                    style={{ marginTop: 8 }}
+                    value={paidMethod}
+                    onChange={(e) => setPaidMethod(e.target.value as any)}
+                  >
+                    <option value="cash">💵 Cash</option>
+                    <option value="gcash">📱 GCash</option>
+                    <option value="maya">💜 Maya</option>
+                  </select>
+                  <div className="partial-pay-preview">
+                    Balance due: {peso(Math.max(0, grandTotal - parseFloat(amountPaidInput)))}
+                  </div>
+                </>
+              )}
+            </div>
           )}
         </div>
 

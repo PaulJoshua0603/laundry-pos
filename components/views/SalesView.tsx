@@ -91,7 +91,7 @@ export default function SalesView() {
     const t = new Date(o.time);
     return t >= start && t < end && o.status !== "cancelled";
   });
-  const rev = inRange.reduce((s, o) => s + (o.paid ? o.total : 0), 0);
+  const rev = inRange.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const avg = inRange.length ? Math.round(rev / inRange.length) : 0;
 
   const bucketRevs = buckets.map((b) =>
@@ -100,15 +100,15 @@ export default function SalesView() {
         const t = new Date(o.time);
         return t >= b.start && t < b.end && o.status !== "cancelled";
       })
-      .reduce((s, o) => s + (o.paid ? o.total : 0), 0)
+      .reduce((s, o) => s + (o.amountPaid || 0), 0)
   );
   const maxRev = Math.max(...bucketRevs, 1);
 
-  const svcMap: Record<string, { name: string; icon: string; qty: number; rev: number }> = {};
+  const svcMap: Record<string, { id: string; name: string; icon: string; qty: number; rev: number }> = {};
   inRange.forEach((o) =>
     o.items.forEach((c) => {
       const k = c.service.id;
-      if (!svcMap[k]) svcMap[k] = { name: c.service.name, icon: c.service.icon, qty: 0, rev: 0 };
+      if (!svcMap[k]) svcMap[k] = { id: k, name: c.service.name, icon: c.service.icon, qty: 0, rev: 0 };
       svcMap[k].qty += c.qty;
       svcMap[k].rev += c.service.price * c.qty;
     })
@@ -189,10 +189,10 @@ export default function SalesView() {
         </div>
       </div>
 
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Revenue Breakdown</span>
-          <span style={{ fontSize: 11, color: "var(--text3)" }}>{chartHint}</span>
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-card-title">📈 Revenue Breakdown</span>
+          <span className="report-card-hint">{chartHint}</span>
         </div>
         <div className="sales-chart">
           {buckets.map((b, i) => {
@@ -210,27 +210,27 @@ export default function SalesView() {
         </div>
       </div>
 
-      <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius)", overflow: "hidden" }}>
-        <div style={{ padding: "14px 16px", borderBottom: "1px solid var(--border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Top Services</span>
-          <span style={{ fontSize: 11, color: "var(--text3)" }}>this period</span>
+      <div className="report-card">
+        <div className="report-card-head">
+          <span className="report-card-title">🏆 Top Services</span>
+          <span className="report-card-hint">this period</span>
         </div>
-        <div style={{ padding: "8px 0" }}>
+        <div className="report-list">
           {sortedSvc.length === 0 ? (
-            <div style={{ padding: "20px 16px", color: "var(--text3)", fontSize: 13, textAlign: "center" }}>No sales in this period.</div>
+            <div className="report-empty">No sales in this period.</div>
           ) : (
-            sortedSvc.map((s) => (
-              <div key={s.name} style={{ padding: "10px 16px", display: "flex", flexDirection: "column", gap: 6, borderBottom: "1px solid var(--border)" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+            sortedSvc.map((s, i) => (
+              <div className="report-row" key={`${s.id || s.name}-${i}`}>
+                <div className="report-row-top">
+                  <span className="report-row-label">
                     {s.icon} {s.name}
                   </span>
-                  <span style={{ fontFamily: "var(--mono)", fontSize: 13, color: "var(--yellow)", fontWeight: 700 }}>{peso(s.rev)}</span>
+                  <span className="report-row-val">{peso(s.rev)}</span>
                 </div>
-                <div style={{ height: 4, background: "var(--surface2)", borderRadius: 2, overflow: "hidden" }}>
-                  <div style={{ height: "100%", width: `${Math.round((s.rev / maxSvcRev) * 100)}%`, background: "var(--blue)", borderRadius: 2 }} />
+                <div className="report-bar-track">
+                  <div className="report-bar-fill" style={{ width: `${Math.round((s.rev / maxSvcRev) * 100)}%` }} />
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text3)" }}>
+                <div className="report-row-sub">
                   {s.qty} load{s.qty !== 1 ? "s" : ""}
                 </div>
               </div>

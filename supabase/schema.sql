@@ -22,6 +22,7 @@ create table if not exists orders (
   time timestamptz not null default now(),
   status text not null default 'washing',
   paid boolean not null default false,
+  amount_paid numeric not null default 0,
   paid_method text,
   paid_at timestamptz,
   auto_ready boolean not null default false,
@@ -63,3 +64,8 @@ create policy "own orders" on orders for all using (auth.uid() = user_id) with c
 create policy "own pay_settings" on pay_settings for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own sms_templates" on sms_templates for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "own notifications" on notifications for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
+-- If you already ran this schema before (existing project), run this once
+-- to add partial-payment support to your existing orders table:
+-- alter table orders add column if not exists amount_paid numeric not null default 0;
+-- update orders set amount_paid = total where paid = true and amount_paid = 0;

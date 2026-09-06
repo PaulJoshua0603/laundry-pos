@@ -21,6 +21,7 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
   const [addr, setAddr] = useState("");
   const [type, setType] = useState<"walkin" | "delivery">("walkin");
   const [pickup, setPickup] = useState(nowForDatetimeLocal());
+  const [amountPaidInput, setAmountPaidInput] = useState("");
   const [nameErr, setNameErr] = useState(false);
 
   function resetCustomerFields() {
@@ -29,6 +30,7 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
     setAddr("");
     setType("walkin");
     setPickup(nowForDatetimeLocal());
+    setAmountPaidInput("");
   }
 
   function handleClear() {
@@ -44,7 +46,8 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
       setTimeout(() => setNameErr(false), 2000);
       return;
     }
-    const order = checkout({ name: name.trim(), phone: phone.trim(), addr: addr.trim(), type, pickup });
+    const typedAmount = amountPaidInput.trim() === "" ? undefined : parseFloat(amountPaidInput);
+    const order = checkout({ name: name.trim(), phone: phone.trim(), addr: addr.trim(), type, pickup, amountPaid: typedAmount });
     if (order) {
       showReceipt(order);
       resetCustomerFields();
@@ -196,6 +199,33 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
             This order will be marked <b>Unpaid</b>. Collect payment anytime from the Orders tab.
           </div>
         )}
+
+        <div className="partial-pay-field">
+          <label className="field-label" htmlFor="amountPaidInput">
+            If Customer Paid Half of the Price <span className="field-label-optional">(optional)</span>
+          </label>
+          <div className="partial-pay-input-wrap">
+            <span className="partial-pay-peso">₱</span>
+            <input
+              id="amountPaidInput"
+              className="partial-pay-input"
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={cartTotal}
+              placeholder={`e.g. ${Math.round(cartTotal / 2) || 0}`}
+              value={amountPaidInput}
+              onChange={(e) => setAmountPaidInput(e.target.value)}
+            />
+          </div>
+          {amountPaidInput.trim() !== "" && !Number.isNaN(parseFloat(amountPaidInput)) && (
+            <div className={`partial-pay-preview${parseFloat(amountPaidInput) >= cartTotal ? " full" : ""}`}>
+              {parseFloat(amountPaidInput) >= cartTotal
+                ? "✓ Fully paid"
+                : `Balance due: ${peso(Math.max(0, cartTotal - parseFloat(amountPaidInput)))}`}
+            </div>
+          )}
+        </div>
 
         <button className="btn-checkout" disabled={cart.length === 0} onClick={handleCheckout}>
           Charge {peso(cartTotal)}

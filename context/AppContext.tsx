@@ -126,10 +126,12 @@ interface AppContextValue {
     addr: string;
     type: "walkin" | "delivery";
     pickup: string;
+    amountPaid?: number;
   }) => Order | null;
   cancelOrder: (id: string) => void;
   deleteOrder: (id: string) => void;
   markOrderPaid: (id: string, method: "cash" | "gcash" | "maya") => void;
+  addPartialPayment: (id: string, amount: number, method: "cash" | "gcash" | "maya") => void;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
   updateOrderDetails: (
     id: string,
@@ -142,6 +144,7 @@ interface AppContextValue {
       items?: CartLine[];
       paid?: boolean;
       paidMethod?: "cash" | "gcash" | "maya" | null;
+      amountPaid?: number;
     }
   ) => void;
 
@@ -205,6 +208,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [salesOffset, setSalesOffset] = useState(0);
 
   const toastTimer = useRef<any>(null);
+  const feeCounter = useRef(0);
 
   const showToast = useCallback((msg: string, type: ToastType = "") => {
     setToast({ msg, type, key: Date.now() });
@@ -581,7 +585,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (amount: number, label?: string) => {
       if (!amount || amount <= 0) return;
       const service = {
-        id: `fee-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        id: `fee-${Date.now()}-${(feeCounter.current++).toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
         cat: "addon" as const,
         icon: "➕",
         name: label?.trim() || "Additional Fee",
@@ -625,12 +629,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   /* ─── CHECKOUT ─── */
   const checkout = useCallback(
-    (customer: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string }) => {
+    (customer: { name: string; phone: string; addr: string; type: "walkin" | "delivery"; pickup: string; amountPaid?: number }) => {
       if (cart.length === 0 || !session) return null;
       const total = cartTotal;
       const id = "ORD-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).slice(2, 6).toUpperCase();
       const time = new Date().toISOString();
-      const isPaid = payment !== "later";
+      const isLater = payment === "later";
+      // A partial/down-payment amount was typed in — clamp to [0, total].
+      const typedAmount =
+        customer.amountPaid !== undefined && customer.amountPaid !== null && !Number.isNaN(customer.amountPaid)
+          ? Math.max(0, Math.min(total, customer.amountPaid))
+          : undefined;
+      const amountPaid = isLater ? typedAmount ?? 0 : typedAmount ?? total;
+      const isPaid = amountPaid >= total && total > 0;
       const order: Order = {
         id,
         name: customer.name,
@@ -644,15 +655,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         time,
         status: "washing",
         paid: isPaid,
-        paidMethod: isPaid ? (payment as any) : null,
-        paidAt: isPaid ? time : null,
+        amountPaid,
+        paidMethod: amountPaid > 0 ? (payment === "later" ? "cash" : (payment as any)) : null,
+        paidAt: amountPaid > 0 ? time : null,
         shop: session.business,
       };
       const next = [order, ...orders];
       setOrders(next);
       saveOrders(session.userId, next);
       if (cloudActive) cloudSaveOrder(session.userId, order).catch(() => {});
-      showToast(`✅ ${id} placed for ${customer.name} · ₱${total.toLocaleString()}${!isPaid ? " (unpaid)" : ""}`, "success");
+      const balanceNote = !isPaid && amountPaid > 0 ? ` · ₱${amountPaid.toLocaleString()} paid, ₱${(total - amountPaid).toLocaleString()} balance` : !isPaid ? " (unpaid)" : "";
+      showToast(`✅ ${id} placed for ${customer.name} · ₱${total.toLocaleString()}${balanceNote}`, "success");
       clearCart(true);
       return order;
     },
@@ -697,11 +710,40 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const markOrderPaid = useCallback(
     (id: string, method: "cash" | "gcash" | "maya") => {
-      mutateOrder(id, (o) => (o.paid ? o : { ...o, paid: true, paidMethod: method, paidAt: new Date().toISOString() }));
+      mutateOrder(id, (o) =>
+        o.paid ? o : { ...o, paid: true, amountPaid: o.total, paidMethod: method, paidAt: new Date().toISOString() }
+      );
       const labels: any = { cash: "Cash", gcash: "GCash", maya: "Maya" };
       showToast(`${id} marked as paid · ${labels[method]}`);
     },
     [mutateOrder, showToast]
+  );
+
+  const addPartialPayment = useCallback(
+    (id: string, amount: number, method: "cash" | "gcash" | "maya") => {
+      if (!amount || amount <= 0) return;
+      mutateOrder(id, (o) => {
+        const nextAmountPaid = Math.min(o.total, (o.amountPaid || 0) + amount);
+        const nowPaid = nextAmountPaid >= o.total;
+        return {
+          ...o,
+          amountPaid: nextAmountPaid,
+          paid: nowPaid,
+          paidMethod: method,
+          paidAt: o.paidAt || new Date().toISOString(),
+        };
+      });
+      const order = orders.find((o) => o.id === id);
+      const newTotal = order ? Math.min(order.total, (order.amountPaid || 0) + amount) : amount;
+      const remaining = order ? Math.max(0, order.total - newTotal) : 0;
+      showToast(
+        remaining > 0
+          ? `${id}: ₱${amount.toLocaleString()} payment recorded · ₱${remaining.toLocaleString()} balance left`
+          : `${id}: fully paid ✅`,
+        "success"
+      );
+    },
+    [mutateOrder, orders, showToast]
   );
 
   const updateOrderStatus = useCallback(
@@ -725,12 +767,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         items?: CartLine[];
         paid?: boolean;
         paidMethod?: "cash" | "gcash" | "maya" | null;
+        amountPaid?: number;
       }
     ) => {
       mutateOrder(id, (o) => {
         const items = patch.items ?? o.items;
         const total = items.reduce((s, c) => s + c.service.price * c.qty, 0);
-        const paid = patch.paid ?? o.paid;
+        let amountPaid = patch.amountPaid !== undefined ? Math.max(0, Math.min(total, patch.amountPaid)) : Math.min(o.amountPaid || 0, total);
+        let paid = patch.paid ?? amountPaid >= total;
+        if (paid) amountPaid = total;
         return {
           ...o,
           name: patch.name,
@@ -741,8 +786,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           items,
           total,
           paid,
-          paidMethod: paid ? patch.paidMethod ?? o.paidMethod ?? "cash" : null,
-          paidAt: paid ? o.paidAt ?? new Date().toISOString() : null,
+          amountPaid,
+          paidMethod: amountPaid > 0 ? patch.paidMethod ?? o.paidMethod ?? "cash" : null,
+          paidAt: amountPaid > 0 ? o.paidAt ?? new Date().toISOString() : null,
         };
       });
       showToast(`${id} updated`, "success");
@@ -901,6 +947,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     cancelOrder,
     deleteOrder,
     markOrderPaid,
+    addPartialPayment,
     updateOrderStatus,
     updateOrderDetails,
     receiptOrder,

@@ -36,14 +36,18 @@ export function ordersKey(userId?: string | null) {
 export function loadOrders(userId?: string | null): Order[] {
   try {
     const raw = JSON.parse(localStorage.getItem(ordersKey(userId)) || "[]") || [];
-    return raw.map((o: any) => ({
-      ...o,
-      type: o.type || "walkin",
-      status: o.status === "done" ? "completed" : o.status === "pending" ? "washing" : o.status,
-      paid: o.paid === undefined ? o.payment !== "later" : o.paid,
-      paidMethod: o.paidMethod !== undefined ? o.paidMethod : o.paid === false ? null : o.payment,
-      paidAt: o.paidAt || (o.paid === false ? null : o.time),
-    }));
+    return raw.map((o: any) => {
+      const paid = o.paid === undefined ? o.payment !== "later" : o.paid;
+      return {
+        ...o,
+        type: o.type || "walkin",
+        status: o.status === "done" ? "completed" : o.status === "pending" ? "washing" : o.status,
+        paid,
+        amountPaid: o.amountPaid !== undefined ? o.amountPaid : paid ? o.total : 0,
+        paidMethod: o.paidMethod !== undefined ? o.paidMethod : o.paid === false ? null : o.payment,
+        paidAt: o.paidAt || (o.paid === false ? null : o.time),
+      };
+    });
   } catch {
     return [];
   }
