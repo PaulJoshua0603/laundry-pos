@@ -78,22 +78,52 @@ export function buildReceiptPDF(order: Order, PW: number, shopName: string, allO
   const typeLabel = order.type === "delivery" ? "Delivery" : "Walk-in";
   const statusLabel = (order.status || "").charAt(0).toUpperCase() + (order.status || "").slice(1);
 
-  rowLR("Customer", order.name || "", true);
-  rowLR("Phone", order.phone || "—", true);
-  rowLR("Order #", displayNo, true);
-  rowLR("Type", typeLabel, true);
-  rowLR("Status", statusLabel, true);
-  rowLR("Date", pickupStr, true);
+  // Customer headline, matching the on-screen/printed receipt: the name is
+  // what staff match against a basket, so it is centred and set large rather
+  // than tucked into a small right-aligned value column.
+  doc.setFont("Courier", "bold");
+  doc.setFontSize(6);
+  boldText("CUSTOMER", PW / 2, y, { align: "center" });
+  y += 3.6;
+
+  doc.setFontSize(13);
+  const custNameLines = doc.splitTextToSize((order.name || "Customer").toUpperCase(), CW);
+  custNameLines.slice(0, 2).forEach((l: string) => {
+    boldText(l, PW / 2, y, { align: "center" });
+    y += 5.6;
+  });
+
+  doc.setFontSize(7);
+  boldText(`${displayNo}  ·  ${typeLabel}`, PW / 2, y, { align: "center" });
+  y += 4;
+  if (order.phone) {
+    boldText(order.phone, PW / 2, y, { align: "center" });
+    y += 4;
+  }
 
   drawSolid(y);
   y += 3;
 
+  rowLR("Status", statusLabel, true);
+  rowLR("Date", new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" }), true);
+  rowLR("Time", new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }), true);
+  if (order.pickup) rowLR("Pickup", pickupStr, true);
+
+  drawSolid(y);
+  y += 3;
+
+  // Name + amount, then qty x unit price underneath so the arithmetic is
+  // checkable at a glance.
   (order.items || []).forEach((it) => {
     const svc = it.service;
     const name = svc.name || "Item";
     const price = svc.price || 0;
     const qty = it.qty || 1;
-    rowLR(`${name} x${qty}`, `P${(price * qty).toLocaleString()}`, false);
+    rowLR(name, `P${(price * qty).toLocaleString()}`, false);
+    doc.setFont("Courier", "bold");
+    doc.setFontSize(6.4);
+    boldText(`${qty} x P${price.toLocaleString()}`, ML, y - 2.4);
+    y += 0.6;
   });
 
   drawSolid(y);

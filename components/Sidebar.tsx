@@ -1,8 +1,8 @@
 "use client";
 
 import { useApp, ViewId } from "@/context/AppContext";
-import { BUSINESS_HOURS, getBalance } from "@/lib/types";
-import { isBusinessToday, peso } from "@/lib/format";
+import { BUSINESS_HOURS, getBalance, getLoadCount } from "@/lib/types";
+import { getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 
 const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "pos", icon: "🛒", label: "New Order" },
@@ -25,8 +25,28 @@ export default function Sidebar() {
   // partial payment and under-reported the day's takings.
   const rev = today.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const paidCount = today.filter((o) => o.paid).length;
+  const loads = today.reduce((n, o) => n + getLoadCount(o.items), 0);
   const target = 1000;
   const pct = Math.max(0, Math.min(100, Math.round((rev / target) * 100)));
+
+  // Same point in yesterday's business day, so the comparison is like-for-like
+  // rather than today-so-far against yesterday's full total.
+  const yesterdayKey = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    return getBusinessDayKey(d.toISOString());
+  })();
+  const msIntoDay = (iso: string) => {
+    const t = new Date(iso);
+    const h = t.getHours(), m = t.getMinutes();
+    // Hours since the 6AM business-day start, wrapping past midnight.
+    return ((h - 6 + 24) % 24) * 60 + m;
+  };
+  const nowInto = msIntoDay(new Date().toISOString());
+  const yesterdaySoFar = orders
+    .filter((o) => o.status !== "cancelled" && getBusinessDayKey(o.time) === yesterdayKey && msIntoDay(o.time) <= nowInto)
+    .reduce((s, o) => s + (o.amountPaid || 0), 0);
+  const deltaPct = yesterdaySoFar > 0 ? Math.round(((rev - yesterdaySoFar) / yesterdaySoFar) * 100) : null;
   const unpaidOrders = orders.filter((o) => o.status !== "cancelled" && !o.paid);
   // Only the outstanding balance is owed — summing the full order total
   // overstated the debt for any partially-paid order, and disagreed with the
@@ -62,13 +82,35 @@ export default function Sidebar() {
           </div>
           <span className="sidebar-stat-badge">TODAY</span>
         </div>
-        <div className="sidebar-stat-val">{peso(rev)}</div>
+        <div className="sidebar-stat-valrow">
+          <div className="sidebar-stat-val">{peso(rev)}</div>
+          {deltaPct !== null && (
+            <span
+              className={`sidebar-stat-delta${deltaPct >= 0 ? " up" : " down"}`}
+              title={`vs ${peso(yesterdaySoFar)} by this time yesterday`}
+            >
+              {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct)}%
+            </span>
+          )}
+        </div>
         <div className="sidebar-stat-sub">
           <span className="sidebar-stat-check">✓</span>
           {today.length} order{today.length !== 1 ? "s" : ""} · {paidCount} paid
         </div>
-        <div className="sidebar-stat-progress">
+
+        {/* At-a-glance shift numbers — what a till operator actually wants
+            without leaving the current screen. */}
+        <div className="sidebar-stat-chips">
+          <span className="sidebar-chip">🧺 {loads} load{loads !== 1 ? "s" : ""}</span>
+          <span className="sidebar-chip">🧾 {today.length ? peso(Math.round(rev / today.length)) : peso(0)} avg</span>
+        </div>
+
+        <div className="sidebar-stat-progress" title={`${pct}% of the ${peso(target)} daily target`}>
           <div className="sidebar-stat-progress-fill" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="sidebar-stat-target">
+          <span>{pct}% of daily target</span>
+          <span>{peso(target)}</span>
         </div>
         {unpaidTotal > 0 && (
           <div className="sidebar-stat-unpaid" onClick={() => switchView("unpaid")} role="button" tabIndex={0}>

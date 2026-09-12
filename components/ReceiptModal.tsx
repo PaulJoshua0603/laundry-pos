@@ -251,27 +251,24 @@ export default function ReceiptModal() {
                 <div className="receipt-sub">Official Receipt</div>
               </div>
               <hr className="receipt-divider" />
-              <div className="receipt-row customer">
-                <span>Customer</span>
-                <span>{order.name}</span>
-              </div>
-              {order.phone && (
-                <div className="receipt-row customer">
-                  <span>Phone</span>
-                  <span>{order.phone}</span>
+
+              {/* The customer's name is what staff and customers actually look
+                  for on the slip, so it leads rather than sitting in a small
+                  right-aligned key/value row. */}
+              <div className="receipt-customer-block">
+                <div className="receipt-customer-label">Customer</div>
+                <div className="receipt-customer-name">{order.name}</div>
+                <div className="receipt-customer-meta">
+                  <span className="receipt-order-no">#{dailyNo}</span>
+                  <span>
+                    <span className="receipt-icon">{typeInfo.icon} </span>
+                    {typeInfo.label}
+                  </span>
                 </div>
-              )}
-              <div className="receipt-row customer">
-                <span>Order #</span>
-                <span>{dailyNo}</span>
+                {order.phone && <div className="receipt-customer-phone">{order.phone}</div>}
               </div>
-              <div className="receipt-row customer">
-                <span>Order Type</span>
-                <span>
-                  <span className="receipt-icon">{typeInfo.icon} </span>
-                  {typeInfo.label}
-                </span>
-              </div>
+
+              <hr className="receipt-divider" />
               <div className="receipt-row customer">
                 <span>Status</span>
                 <span>
@@ -285,24 +282,41 @@ export default function ReceiptModal() {
                   )}
                 </span>
               </div>
-              {order.pickup && (
-                <div className="receipt-row customer">
-                  <span>Date</span>
-                  <span>{new Date(order.pickup).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</span>
-                </div>
-              )}
+              <div className="receipt-row customer">
+                <span>Date</span>
+                <span>
+                  {new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                </span>
+              </div>
               <div className="receipt-row customer">
                 <span>Time</span>
                 <span>{new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</span>
               </div>
-              <hr className="receipt-divider" />
-              {order.items.map((c, i) => (
-                <div className="receipt-row" key={i}>
+              {order.pickup && (
+                <div className="receipt-row customer">
+                  <span>Pickup</span>
                   <span>
-                    <span className="receipt-icon">{c.service.icon} </span>
-                    {c.service.name} × {c.qty}
+                    {new Date(order.pickup).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}{" "}
+                    {new Date(order.pickup).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                   </span>
-                  <span>{peso(c.service.price * c.qty)}</span>
+                </div>
+              )}
+              <hr className="receipt-divider" />
+
+              {/* Each line shows qty × unit price under the name, so a customer
+                  can check the arithmetic the way they can on a cafe receipt. */}
+              {order.items.map((c, i) => (
+                <div className="receipt-item" key={i}>
+                  <div className="receipt-item-top">
+                    <span className="receipt-item-name">
+                      <span className="receipt-icon">{c.service.icon} </span>
+                      {c.service.name}
+                    </span>
+                    <span className="receipt-item-amt">{peso(c.service.price * c.qty)}</span>
+                  </div>
+                  <div className="receipt-item-sub">
+                    {c.qty} × {peso(c.service.price)}
+                  </div>
                 </div>
               ))}
               <hr className="receipt-divider" />

@@ -559,6 +559,30 @@ button, input{ color-scheme: inherit; }
   background:var(--green-dim);color:var(--green);
   font-size:9px;font-weight:700;margin-right:5px;
 }
+/* Revenue headline sits on a row with a trend pill comparing against the same
+   point in yesterday's business day — a till operator's most useful glance. */
+.sidebar-stat-valrow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.sidebar-stat-delta{
+  font-family:var(--mono);font-size:11px;font-weight:700;
+  padding:2px 7px;border-radius:999px;white-space:nowrap;
+  border:1px solid transparent;
+}
+.sidebar-stat-delta.up{color:var(--green);background:var(--green-dim);border-color:rgba(16,185,129,.3)}
+.sidebar-stat-delta.down{color:var(--yellow);background:rgba(234,179,8,.12);border-color:rgba(234,179,8,.3)}
+
+.sidebar-stat-chips{display:flex;gap:6px;margin:8px 0 2px;flex-wrap:wrap}
+.sidebar-chip{
+  font-size:10.5px;font-weight:600;color:var(--text2);
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:999px;padding:3px 9px;white-space:nowrap;
+}
+
+.sidebar-stat-target{
+  display:flex;justify-content:space-between;gap:8px;
+  font-size:10px;color:var(--text3);margin-top:5px;
+  font-family:var(--mono);letter-spacing:.01em;
+}
+
 .sidebar-stat-progress{
   margin-top:10px;height:4px;border-radius:999px;
   background:var(--border);overflow:hidden;position:relative;
@@ -1202,6 +1226,36 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .receipt-row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;color:var(--text2)}
 .receipt-row.total{color:var(--yellow);font-size:14px;font-weight:700;margin-top:8px}
 .receipt-row.customer{color:var(--text);font-size:12px;margin-bottom:2px}
+
+/* Customer headline — the name is the thing everyone reads first, so it gets
+   real size instead of being a small right-aligned value. */
+.receipt-customer-block{text-align:center;margin:2px 0 4px}
+.receipt-customer-label{
+  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--text3);font-weight:700;margin-bottom:3px;
+}
+.receipt-customer-name{
+  font-family:var(--font-display);font-size:22px;font-weight:700;
+  line-height:1.15;color:var(--text);text-transform:uppercase;
+  letter-spacing:.01em;word-break:break-word;
+}
+.receipt-customer-meta{
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:5px;font-size:11px;color:var(--text2);flex-wrap:wrap;
+}
+.receipt-order-no{
+  font-family:var(--mono);font-weight:700;color:var(--text);
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:999px;padding:1px 8px;
+}
+.receipt-customer-phone{font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
+
+/* Line items: name + amount on top, qty × unit price beneath. */
+.receipt-item{margin-bottom:7px}
+.receipt-item-top{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--text)}
+.receipt-item-name{flex:1 1 auto;min-width:0}
+.receipt-item-amt{flex:0 0 auto;font-family:var(--mono);font-weight:600;white-space:nowrap}
+.receipt-item-sub{font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-top:1px}
 .receipt-footer{text-align:center;font-size:11px;color:var(--text3);margin-top:20px;font-family:var(--font)}
 .modal-actions{padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:8px}
 .modal-actions .btn{flex:1 1 130px;justify-content:center}
@@ -1534,6 +1588,56 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     text-align:right !important;
   }
   .receipt-row.customer{font-size:11px !important;color:#000 !important}
+
+  /* Customer headline on paper. Thermal heads render thin strokes badly, so
+     everything here is heavy-weight pure black. The name is the largest thing
+     on the slip after the total — staff match a basket to a person by it. */
+  .receipt-customer-block{
+    text-align:center !important;
+    margin:1.5mm 0 !important;
+    color:#000 !important;
+  }
+  .receipt-customer-label{
+    font-size:8px !important;letter-spacing:.16em !important;
+    text-transform:uppercase !important;font-weight:900 !important;
+    color:#000 !important;margin-bottom:0.8mm !important;
+  }
+  .receipt-customer-name{
+    font-size:19px !important;font-weight:900 !important;line-height:1.15 !important;
+    text-transform:uppercase !important;color:#000 !important;
+    word-break:break-word !important;letter-spacing:.01em !important;
+  }
+  .receipt-customer-meta{
+    display:flex !important;justify-content:center !important;gap:2.5mm !important;
+    margin-top:1mm !important;font-size:10px !important;font-weight:900 !important;
+    color:#000 !important;flex-wrap:wrap !important;
+  }
+  .receipt-order-no{
+    border:1.5px solid #000 !important;border-radius:0 !important;
+    padding:0 1.4mm !important;font-weight:900 !important;
+    background:transparent !important;color:#000 !important;
+  }
+  .receipt-customer-phone{
+    font-size:10px !important;font-weight:900 !important;
+    color:#000 !important;margin-top:0.6mm !important;
+  }
+
+  /* Line items — amount hard right, qty × unit price on its own line. */
+  .receipt-item{margin-bottom:1.6mm !important;color:#000 !important}
+  .receipt-item-top{
+    display:flex !important;justify-content:space-between !important;
+    gap:2mm !important;font-size:11px !important;font-weight:900 !important;
+    color:#000 !important;
+  }
+  .receipt-item-name{
+    flex:1 1 auto !important;min-width:0 !important;
+    overflow:hidden !important;text-overflow:ellipsis !important;
+  }
+  .receipt-item-amt{flex:0 0 auto !important;white-space:nowrap !important;text-align:right !important}
+  .receipt-item-sub{
+    font-size:9.5px !important;font-weight:700 !important;
+    color:#000 !important;margin-top:0.3mm !important;
+  }
   .receipt-row.total{
     font-weight:900 !important;font-size:14px !important;
     color:#000 !important;margin-top:4px !important;
