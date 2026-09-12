@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { peso } from "@/lib/format";
+import { BUSINESS_DAY_START_HOUR, businessDayStart, peso } from "@/lib/format";
 import { exportSalesExcel } from "@/lib/salesExcel";
 
 function startOfWeek(d: Date) {
@@ -12,28 +12,37 @@ function startOfWeek(d: Date) {
   return x;
 }
 
+function hourLabel(h: number) {
+  return h === 0 ? "12AM" : h < 12 ? `${h}AM` : h === 12 ? "12PM" : `${h - 12}PM`;
+}
+
 function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: number) {
   const now = new Date();
+  // Every boundary below starts at the 6AM business-day mark so these totals
+  // match Orders, Daily Orders, Summary and the Sidebar exactly. Previously
+  // this screen alone used midnight, and late-night orders were counted on a
+  // different day here than everywhere else.
   if (period === "today") {
-    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    start.setDate(start.getDate() + offset);
+    const base = new Date(now);
+    // Before 6AM we are still inside yesterday's business day.
+    if (now.getHours() < BUSINESS_DAY_START_HOUR) base.setDate(base.getDate() - 1);
+    base.setDate(base.getDate() + offset);
+    const start = businessDayStart(base);
     const end = new Date(start);
     end.setDate(end.getDate() + 1);
     const buckets = [];
     for (let h = 0; h < 24; h++) {
       const bStart = new Date(start);
-      bStart.setHours(h, 0, 0, 0);
+      bStart.setHours(start.getHours() + h, 0, 0, 0);
       const bEnd = new Date(bStart);
-      bEnd.setHours(h + 1, 0, 0, 0);
-      const label = h === 0 ? "12AM" : h < 12 ? `${h}AM` : h === 12 ? "12PM" : `${h - 12}PM`;
-      buckets.push({ start: bStart, end: bEnd, label });
+      bEnd.setHours(bStart.getHours() + 1, 0, 0, 0);
+      buckets.push({ start: bStart, end: bEnd, label: hourLabel(bStart.getHours()) });
     }
-    const isToday = offset === 0;
-    const label = isToday ? "Today" : start.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    return { start, end, buckets, label, chartHint: "by hour" };
+    const label = offset === 0 ? "Today" : start.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    return { start, end, buckets, label, chartHint: "by hour (6AM–6AM)" };
   }
   if (period === "week") {
-    const start = startOfWeek(now);
+    const start = businessDayStart(startOfWeek(now));
     start.setDate(start.getDate() + offset * 7);
     const end = new Date(start);
     end.setDate(end.getDate() + 7);
@@ -52,8 +61,8 @@ function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: nu
   }
   if (period === "month") {
     const base = new Date(now.getFullYear(), now.getMonth() + offset, 1);
-    const start = new Date(base.getFullYear(), base.getMonth(), 1);
-    const end = new Date(base.getFullYear(), base.getMonth() + 1, 1);
+    const start = businessDayStart(base);
+    const end = businessDayStart(new Date(base.getFullYear(), base.getMonth() + 1, 1));
     const daysInMonth = Math.round((end.getTime() - start.getTime()) / 86400000);
     const buckets = [];
     for (let i = 0; i < daysInMonth; i++) {
@@ -67,12 +76,12 @@ function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: nu
     return { start, end, buckets, label, chartHint: "by day" };
   }
   const y = now.getFullYear() + offset;
-  const start = new Date(y, 0, 1);
-  const end = new Date(y + 1, 0, 1);
+  const start = businessDayStart(new Date(y, 0, 1));
+  const end = businessDayStart(new Date(y + 1, 0, 1));
   const buckets = [];
   for (let m = 0; m < 12; m++) {
-    const bStart = new Date(y, m, 1);
-    const bEnd = new Date(y, m + 1, 1);
+    const bStart = businessDayStart(new Date(y, m, 1));
+    const bEnd = businessDayStart(new Date(y, m + 1, 1));
     buckets.push({ start: bStart, end: bEnd, label: bStart.toLocaleDateString("en-PH", { month: "short" }) });
   }
   return { start, end, buckets, label: String(y), chartHint: "by month" };

@@ -61,7 +61,17 @@ import {
   cloudSaveSmsTemplates,
   subscribeToOrders,
 } from "@/lib/cloudStorage";
-import { flushQueue, onPendingChange, pendingCount, pendingOps, queueDeleteOrder, queueSaveOrder, stopRetries } from "@/lib/syncQueue";
+import {
+  flushQueue,
+  onPendingChange,
+  pendingCount,
+  pendingOps,
+  queueDeleteOrder,
+  queueSaveOrder,
+  readConfirmedCloudIds,
+  stopRetries,
+  writeConfirmedCloudIds,
+} from "@/lib/syncQueue";
 import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCloud } from "@/lib/migrateLocalData";
 import { isBusinessToday } from "@/lib/format";
 
@@ -388,19 +398,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       await flushQueue(s.userId);
       const fresh = await cloudLoadOrders(s.userId);
 
-      // Anything STILL queued didn't make it (offline, or a failing request).
-      // Reconcile so those orders don't blink out of the UI just because the
-      // server doesn't know about them yet.
+      const freshIds = new Set(fresh.map((o) => o.id));
       const stillQueued = pendingOps(s.userId);
-      let merged = fresh;
-      if (stillQueued.length > 0) {
-        const deleted = new Set(stillQueued.filter((op) => op.kind === "delete").map((op) => op.orderId));
-        const unsaved = stillQueued.filter((op): op is Extract<typeof op, { kind: "save" }> => op.kind === "save");
-        const unsavedIds = new Set(unsaved.map((op) => op.orderId));
-        merged = [
-          ...unsaved.map((op) => op.order),
-          ...fresh.filter((o) => !unsavedIds.has(o.id) && !deleted.has(o.id)),
-        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      const queuedDeletes = new Set(stillQueued.filter((op) => op.kind === "delete").map((op) => op.orderId));
+      const queuedSaves = stillQueued.filter((op): op is Extract<typeof op, { kind: "save" }> => op.kind === "save");
+      const queuedSaveIds = new Set(queuedSaves.map((op) => op.orderId));
+
+      // SELF-HEALING RECONCILIATION
+      //
+      // For every order we hold locally that the cloud doesn't have, decide
+      // which of two very different things happened — see the ledger in
+      // syncQueue.ts. Getting this wrong either loses real orders or
+      // resurrects deleted ones.
+      const confirmed = readConfirmedCloudIds(s.userId);
+      const strays: Order[] = [];
+      ordersRef.current.forEach((o) => {
+        if (freshIds.has(o.id) || queuedSaveIds.has(o.id) || queuedDeletes.has(o.id)) return;
+        if (confirmed.has(o.id)) return; // was in the cloud before → deleted elsewhere → honour it
+        // Never seen in the cloud: this local copy is the only one. Keep it on
+        // screen and push it back up rather than letting the refetch erase it.
+        strays.push(o);
+        queueSaveOrder(s.userId, o);
+      });
+
+      const merged = [
+        ...queuedSaves.map((op) => op.order),
+        ...strays,
+        ...fresh.filter((o) => !queuedSaveIds.has(o.id) && !queuedDeletes.has(o.id)),
+      ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+      // Record what the cloud definitely holds, for the next reconciliation.
+      writeConfirmedCloudIds(s.userId, freshIds);
+
+      if (strays.length > 0) {
+        showToastRef.current?.(
+          `⚠️ Found ${strays.length} order${strays.length !== 1 ? "s" : ""} not backed up yet — re-uploading now.`,
+          "error"
+        );
       }
 
       // Only touch state when something actually differs. A blind setOrders on

@@ -100,7 +100,7 @@ export default function Topbar() {
           onClick={() => void refreshFromCloud()}
           title={
             pendingSync > 0
-              ? `${pendingSync} change${pendingSync !== 1 ? "s" : ""} waiting to upload — click to retry now`
+              ? `${pendingSync} change${pendingSync !== 1 ? "s" : ""} still waiting to upload. They are kept safely on this device and retried automatically — click to retry now. Do not clear this browser's data while this shows.`
               : "All changes synced — click to refresh from the cloud"
           }
         >

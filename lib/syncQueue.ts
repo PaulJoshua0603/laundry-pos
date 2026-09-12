@@ -19,7 +19,9 @@ import { cloudDeleteOrder, cloudSaveOrder } from "./cloudStorage";
    ══════════════════════════════════════════════════════════════════ */
 
 const QUEUE_KEY = "sudsup_sync_queue_";
-const MAX_ATTEMPTS = 8;
+// After this many failures an operation is flagged so the UI can shout about
+// it. It is NEVER discarded — see flushQueue.
+const WARN_AFTER_ATTEMPTS = 5;
 
 export type PendingOp =
   | { kind: "save"; orderId: string; order: Order; attempts: number; queuedAt: number }
@@ -78,6 +80,15 @@ export function pendingOps(userId: string): PendingOp[] {
   return read(userId);
 }
 
+/**
+ * Operations that have failed repeatedly. These are still queued and still
+ * being retried — they are surfaced so a stuck sync becomes visible instead
+ * of quietly sitting there.
+ */
+export function failingOps(userId: string): PendingOp[] {
+  return read(userId).filter((o) => o.attempts >= WARN_AFTER_ATTEMPTS);
+}
+
 /** Queues an order upsert. The newest write for an id replaces any older one. */
 export function queueSaveOrder(userId: string, order: Order) {
   const ops = read(userId).filter((o) => o.orderId !== order.id);
@@ -121,12 +132,13 @@ export async function flushQueue(userId: string): Promise<number> {
         else await cloudDeleteOrder(userId, op.orderId);
         done.add(op);
       } catch {
-        const attempts = op.attempts + 1;
-        // Give up only after many tries, so a genuinely bad row (e.g. one
-        // rejected by a schema constraint) can't block the whole queue
-        // forever and stall every later order behind it.
-        if (attempts < MAX_ATTEMPTS) failed.push({ ...op, attempts });
-        else done.add(op);
+        // NEVER discard. An earlier version gave up after 8 attempts and
+        // dropped the operation silently — which could lose a real order for
+        // good once the local mirror had been refreshed from the cloud.
+        // A stuck op can't block the others (every op is attempted on every
+        // pass), so the safe behaviour is to keep retrying forever and let
+        // the pending counter stay visible until someone deals with it.
+        failed.push({ ...op, attempts: op.attempts + 1 });
       }
     }
 
@@ -173,4 +185,40 @@ export function stopRetries() {
 export function clearQueue(userId: string) {
   write(userId, []);
   notify(userId);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   CONFIRMED-IN-CLOUD LEDGER
+
+   Needed to tell two very different situations apart when an order is
+   present locally but absent from the cloud:
+
+     · we have SEEN it in the cloud before  → someone deleted it on
+       another device, and this device should honour that deletion;
+     · we have NEVER seen it in the cloud   → it never uploaded, and
+       dropping it would destroy the only copy.
+
+   Without this distinction a refetch had to either lose real orders or
+   resurrect deleted ones. The ledger records every id confirmed present
+   on the last successful fetch, so reconciliation can do the right
+   thing in both cases.
+   ══════════════════════════════════════════════════════════════════ */
+
+const CONFIRMED_KEY = "sudsup_cloud_confirmed_";
+
+export function readConfirmedCloudIds(userId: string): Set<string> {
+  try {
+    const raw = JSON.parse(localStorage.getItem(CONFIRMED_KEY + userId) || "[]");
+    return new Set(Array.isArray(raw) ? raw : []);
+  } catch {
+    return new Set();
+  }
+}
+
+export function writeConfirmedCloudIds(userId: string, ids: Iterable<string>) {
+  try {
+    localStorage.setItem(CONFIRMED_KEY + userId, JSON.stringify(Array.from(ids)));
+  } catch {
+    /* non-fatal: we simply fall back to the conservative "keep it" branch */
+  }
 }

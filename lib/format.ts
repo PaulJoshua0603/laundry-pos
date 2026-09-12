@@ -22,7 +22,19 @@ export function isToday(iso: string): boolean {
 // Business day = 6:00 AM to 11:59:59 PM (midnight). Anything before 6AM
 // belongs to the previous business day (late-night orders), so it never
 // leaks into "today"'s totals once the shop re-opens.
-const BUSINESS_DAY_START_HOUR = 6;
+export const BUSINESS_DAY_START_HOUR = 6;
+
+/**
+ * The instant the business day beginning on this calendar date starts (06:00).
+ *
+ * Sales Tracking used raw midnight-to-midnight ranges while Orders, Daily
+ * Orders, Summary and the Sidebar all used the business day, so a load taken
+ * at 2AM landed in different buckets depending on which screen you looked at.
+ * Every period boundary now goes through here.
+ */
+export function businessDayStart(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), BUSINESS_DAY_START_HOUR, 0, 0, 0);
+}
 
 export function getBusinessDayKey(iso: string): string {
   const d = new Date(iso);

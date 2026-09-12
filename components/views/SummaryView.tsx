@@ -44,7 +44,23 @@ export default function SummaryView() {
   const payColors: Record<string, string> = { cash: "var(--green)", gcash: "var(--blue)", maya: "#A855F7" };
 
   function clearDayData() {
-    if (!window.confirm("Clear all order data for today? This cannot be undone. (Past days stay in Sales Tracking.)")) return;
+    // This permanently deletes from the cloud now, so it takes a deliberate
+    // typed confirmation rather than a single OK — one stray click used to be
+    // enough to wipe a trading day.
+    if (today.length === 0) {
+      window.alert("There are no orders from today to clear.");
+      return;
+    }
+    const typed = window.prompt(
+      `This permanently DELETES today's ${today.length} order(s) — ${peso(rev)} collected — from this device AND the cloud.\n\n` +
+        `It cannot be undone. Past days are not affected.\n\n` +
+        `Type DELETE to confirm:`
+    );
+    if (typed === null) return;
+    if (typed.trim().toUpperCase() !== "DELETE") {
+      window.alert("Not cleared — you didn't type DELETE.");
+      return;
+    }
     // Goes through the context so the rows are removed from the cloud as well
     // as locally, and the UI updates in place. The old version only rewrote
     // localStorage and then reloaded — in cloud mode the orders were re-fetched
