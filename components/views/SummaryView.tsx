@@ -1,17 +1,20 @@
 "use client";
 
 import { useApp } from "@/context/AppContext";
-import { isToday, peso } from "@/lib/format";
-import { getBalance, Order } from "@/lib/types";
+import { isBusinessToday, peso } from "@/lib/format";
+import { getBalance } from "@/lib/types";
 import { useMemo, useState } from "react";
-import { saveOrders } from "@/lib/storage";
 import { exportSalesExcel } from "@/lib/salesExcel";
 
 export default function SummaryView() {
-  const { orders, session } = useApp();
+  const { orders, session, clearDayOrders } = useApp();
   const [exporting, setExporting] = useState(false);
 
-  const today = useMemo(() => orders.filter((o) => o.status !== "cancelled" && isToday(o.time)), [orders]);
+  // Use the 6AM–midnight business day, matching the Orders and Sidebar views.
+  // This screen used the raw calendar day, so a load taken at 2AM counted
+  // toward a different day here than it did everywhere else and the totals
+  // disagreed.
+  const today = useMemo(() => orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time)), [orders]);
   const paidOrders = today.filter((o) => o.paid);
   const unpaidOrders = today.filter((o) => !o.paid);
   const rev = today.reduce((s, o) => s + (o.amountPaid || 0), 0);
@@ -42,9 +45,11 @@ export default function SummaryView() {
 
   function clearDayData() {
     if (!window.confirm("Clear all order data for today? This cannot be undone. (Past days stay in Sales Tracking.)")) return;
-    const next = orders.filter((o) => !isToday(o.time));
-    if (session) saveOrders(session.userId, next);
-    window.location.reload();
+    // Goes through the context so the rows are removed from the cloud as well
+    // as locally, and the UI updates in place. The old version only rewrote
+    // localStorage and then reloaded — in cloud mode the orders were re-fetched
+    // straight back from the server, so the button appeared to do nothing.
+    clearDayOrders();
   }
 
   async function handleExport() {

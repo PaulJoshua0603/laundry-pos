@@ -37,9 +37,20 @@
   --radius-sm:  8px;
   --radius-lg:  16px;
 
-  --font:       'Inter', sans-serif;
-  --font-display: 'Fraunces', 'Inter', serif;
-  --mono:       'JetBrains Mono', monospace;
+  /* 'Noto Color Emoji' is appended to every stack so emoji added to Unicode
+     after the Segoe UI Emoji build shipped with many Windows 10 installs
+     (🫧 in particular) render properly instead of as a blank box. It only
+     supplies glyphs the earlier fonts don't have, so normal text is
+     unaffected. This replaces the old twemoji DOM-rewriting approach, which
+     corrupted React's view of the document and caused stale UI. */
+  /* Emoji families sit BEFORE the generic family: a generic like `sans-serif`
+     always resolves, so anything listed after it may never be consulted for a
+     missing glyph. Emoji fonts carry no Latin glyphs, so putting them earlier
+     does not affect normal text. */
+  --emoji:      'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
+  --font:       'Inter', var(--emoji), sans-serif;
+  --font-display: 'Fraunces', 'Inter', var(--emoji), serif;
+  --mono:       'JetBrains Mono', var(--emoji), monospace;
 
   --transition: .18s cubic-bezier(.4,0,.2,1);
   --shadow:     0 4px 24px rgba(0,0,0,.4);
@@ -404,6 +415,26 @@ button, input{ color-scheme: inherit; }
   background:var(--green);
   box-shadow:0 0 6px var(--green);
   animation:pulse 2s infinite;
+}
+
+/* Cloud sync indicator — shows the outbox so a queued or failed upload is
+   visible instead of silently swallowed. Also acts as a "sync now" button. */
+.sync-badge{
+  display:flex;align-items:center;gap:6px;
+  background:var(--surface2);
+  border:1px solid var(--border);
+  border-radius:999px;padding:4px 12px;
+  font-size:11px;font-weight:600;color:var(--text3);
+  letter-spacing:.03em;white-space:nowrap;flex-shrink:0;
+  cursor:pointer;font-family:var(--font);
+  transition:all var(--transition);
+}
+.sync-badge:hover{color:var(--text2);border-color:var(--text3)}
+.sync-badge.is-busy{color:var(--blue);border-color:rgba(59,130,246,.35)}
+.sync-badge.is-pending{
+  color:var(--yellow);
+  background:rgba(234,179,8,.1);
+  border-color:rgba(234,179,8,.35);
 }
 .topbar-badge.is-closed{
   background:var(--red-dim);border-color:rgba(239,68,68,.25);color:var(--red);
@@ -1596,9 +1627,9 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   .fixed-tag-footer{font-size:8px !important;margin-top:1.5mm !important}
 }
 
-/* Twemoji images swapped in for emoji characters (consistent
-   rendering across OS/browser, fixes missing glyphs on older
-   Windows 10 emoji-font versions). Sized to match surrounding text. */
+/* Emoji are rendered by the font stack (see --emoji above), not by swapping
+   in <img> elements. This rule is kept only so any emoji image that still
+   comes from saved/exported markup stays sized to the surrounding text. */
 img.emoji{
   height: 1.1em;
   width: 1.1em;

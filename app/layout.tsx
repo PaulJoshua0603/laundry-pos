@@ -38,6 +38,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap"
           rel="stylesheet"
         />
+        {/* Noto Color Emoji covers the newer emoji (🫧 etc.) that the Segoe UI
+            Emoji font bundled with many Windows 10 builds is missing, which
+            otherwise render as blank boxes. Loading it as a font replaces the
+            old twemoji DOM-rewriting hack — see components/EmojiParser.tsx. */}
+        <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{

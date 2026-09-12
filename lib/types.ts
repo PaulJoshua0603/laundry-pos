@@ -90,6 +90,32 @@ export function getDailyOrderNo(order: Order, allOrders: Order[]): number {
   return idx === -1 ? sameDay.length + 1 : idx + 1;
 }
 
+/**
+ * Builds every order's daily number in one pass.
+ *
+ * `getDailyOrderNo` re-filters and re-sorts the whole order list per call, so
+ * rendering a table of N orders was O(N² log N) — with a few hundred orders
+ * that made searching and re-rendering visibly laggy. Build the map once per
+ * render instead and look numbers up from it.
+ */
+export function buildDailyOrderNoMap(allOrders: Order[]): Map<string, number> {
+  const byDay = new Map<string, Order[]>();
+  allOrders.forEach((o) => {
+    const day = o.time.slice(0, 10);
+    const list = byDay.get(day);
+    if (list) list.push(o);
+    else byDay.set(day, [o]);
+  });
+  const result = new Map<string, number>();
+  byDay.forEach((list) => {
+    list
+      .slice()
+      .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime())
+      .forEach((o, i) => result.set(o.id, i + 1));
+  });
+  return result;
+}
+
 export interface PaySettingsEntry {
   qr: string | null;
   number: string;

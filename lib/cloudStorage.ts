@@ -1,6 +1,12 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient";
 import { NotificationEntry, Order, PaySettings, SmsTemplates } from "./types";
 
+// The orders/notifications tables use a COMPOSITE primary key (user_id, id).
+// PostgREST only infers the conflict target reliably when we name it, so be
+// explicit — otherwise an upsert of an order that already exists can fail and
+// the change silently never reaches the cloud.
+const ORDER_CONFLICT = "user_id,id";
+
 function rowToOrder(row: any): Order {
   return {
     id: row.id,
@@ -55,7 +61,7 @@ export async function cloudLoadOrders(userId: string): Promise<Order[]> {
 
 export async function cloudSaveOrder(userId: string, order: Order) {
   if (!isSupabaseConfigured()) return;
-  const { error } = await supabase.from("orders").upsert(orderToRow(userId, order));
+  const { error } = await supabase.from("orders").upsert(orderToRow(userId, order), { onConflict: ORDER_CONFLICT });
   if (error) throw error;
 }
 
@@ -84,8 +90,20 @@ export async function cloudSaveAllOrders(userId: string, orders: Order[]) {
     }
   });
   const rows = deduped.map((o) => orderToRow(userId, o));
-  const { error } = await supabase.from("orders").upsert(rows);
-  if (error) throw error;
+  // Chunk large imports so one oversized request can't fail the whole migration.
+  for (let i = 0; i < rows.length; i += 200) {
+    const { error } = await supabase.from("orders").upsert(rows.slice(i, i + 200), { onConflict: ORDER_CONFLICT });
+    if (error) throw error;
+  }
+}
+
+/** Deletes many orders in one round trip (used by "Clear Day"). */
+export async function cloudDeleteOrders(userId: string, orderIds: string[]) {
+  if (!isSupabaseConfigured() || orderIds.length === 0) return;
+  for (let i = 0; i < orderIds.length; i += 200) {
+    const { error } = await supabase.from("orders").delete().eq("user_id", userId).in("id", orderIds.slice(i, i + 200));
+    if (error) throw error;
+  }
 }
 
 export async function cloudLoadPaySettings(userId: string): Promise<PaySettings | null> {
@@ -97,7 +115,10 @@ export async function cloudLoadPaySettings(userId: string): Promise<PaySettings 
 
 export async function cloudSavePaySettings(userId: string, settings: PaySettings) {
   if (!isSupabaseConfigured()) return;
-  await supabase.from("pay_settings").upsert({ user_id: userId, gcash: settings.gcash, maya: settings.maya });
+  const { error } = await supabase
+    .from("pay_settings")
+    .upsert({ user_id: userId, gcash: settings.gcash, maya: settings.maya }, { onConflict: "user_id" });
+  if (error) throw error;
 }
 
 export async function cloudLoadSmsTemplates(userId: string): Promise<SmsTemplates | null> {
@@ -109,7 +130,10 @@ export async function cloudLoadSmsTemplates(userId: string): Promise<SmsTemplate
 
 export async function cloudSaveSmsTemplates(userId: string, templates: SmsTemplates) {
   if (!isSupabaseConfigured()) return;
-  await supabase.from("sms_templates").upsert({ user_id: userId, paid: templates.paid, unpaid: templates.unpaid });
+  const { error } = await supabase
+    .from("sms_templates")
+    .upsert({ user_id: userId, paid: templates.paid, unpaid: templates.unpaid }, { onConflict: "user_id" });
+  if (error) throw error;
 }
 
 export async function cloudLoadNotifications(userId: string): Promise<NotificationEntry[]> {
@@ -125,7 +149,49 @@ export async function cloudLoadNotifications(userId: string): Promise<Notificati
 
 export async function cloudSaveNotifications(userId: string, entries: NotificationEntry[]) {
   if (!isSupabaseConfigured() || entries.length === 0) return;
-  await supabase
+  const { error } = await supabase
     .from("notifications")
-    .upsert(entries.slice(0, 200).map((n) => ({ id: n.id, user_id: userId, message: n.message, type: n.type, time: n.time, read: n.read })));
+    .upsert(
+      entries.slice(0, 200).map((n) => ({ id: n.id, user_id: userId, message: n.message, type: n.type, time: n.time, read: n.read })),
+      { onConflict: ORDER_CONFLICT }
+    );
+  if (error) throw error;
+}
+
+export async function cloudClearNotifications(userId: string) {
+  if (!isSupabaseConfigured()) return;
+  const { error } = await supabase.from("notifications").delete().eq("user_id", userId);
+  if (error) throw error;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   REALTIME
+   Without this a device only ever shows the orders it loaded at
+   boot: an order placed on the phone never appeared on the counter
+   PC until a manual hard refresh — exactly the "orders don't sync"
+   symptom. We subscribe to this user's own rows and let the caller
+   refetch whenever anything changes.
+
+   Requires realtime to be enabled for the orders table in Supabase
+   (see supabase/schema.sql). If it isn't, the app still stays fresh
+   via the focus/interval polling fallback in AppContext.
+   ═══════════════════════════════════════════════════════════════ */
+export function subscribeToOrders(userId: string, onChange: () => void): () => void {
+  if (!isSupabaseConfigured()) return () => {};
+  let channel: ReturnType<typeof supabase.channel> | null = null;
+  try {
+    channel = supabase
+      .channel(`orders-${userId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "orders", filter: `user_id=eq.${userId}` }, () => onChange())
+      .subscribe();
+  } catch {
+    return () => {};
+  }
+  return () => {
+    try {
+      if (channel) supabase.removeChannel(channel);
+    } catch {
+      /* ignore teardown failures */
+    }
+  };
 }

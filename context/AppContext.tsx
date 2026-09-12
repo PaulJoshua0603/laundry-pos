@@ -4,6 +4,8 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import {
   AUTO_READY_MS,
   CartLine,
+  DEFAULT_SMS_TEMPLATE_PAID,
+  DEFAULT_SMS_TEMPLATE_UNPAID,
   NotificationEntry,
   Order,
   OrderStatus,
@@ -47,17 +49,21 @@ import {
   isSupabaseConfigured,
 } from "@/lib/cloudAuth";
 import {
-  cloudDeleteOrder,
+  cloudClearNotifications,
+  cloudDeleteOrders,
   cloudLoadNotifications,
   cloudLoadOrders,
   cloudLoadPaySettings,
   cloudLoadSmsTemplates,
   cloudSaveAllOrders,
-  cloudSaveOrder,
+  cloudSaveNotifications,
   cloudSavePaySettings,
   cloudSaveSmsTemplates,
+  subscribeToOrders,
 } from "@/lib/cloudStorage";
+import { flushQueue, onPendingChange, pendingCount, pendingOps, queueDeleteOrder, queueSaveOrder, stopRetries } from "@/lib/syncQueue";
 import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCloud } from "@/lib/migrateLocalData";
+import { isBusinessToday } from "@/lib/format";
 
 export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "payments" | "rawdata";
 export type ToastType = "" | "success" | "error";
@@ -85,6 +91,12 @@ interface AppContextValue {
   // cloud backup
   cloudConfigured: boolean;
   cloudActive: boolean;
+  /** Orders still waiting to reach the cloud (queued offline / after a failure). */
+  pendingSync: number;
+  /** True while orders are being refetched from the cloud. */
+  refreshing: boolean;
+  /** Pulls the latest orders from the cloud and flushes any queued writes. */
+  refreshFromCloud: () => Promise<void>;
   legacyMatches: LegacyAccountMatch[];
   importLegacyAccount: (localUserId: string) => Promise<void>;
   importPastedOrders: (raw: string) => Promise<{ ok: boolean; msg: string }>;
@@ -130,6 +142,8 @@ interface AppContextValue {
   }) => Order | null;
   cancelOrder: (id: string) => void;
   deleteOrder: (id: string) => void;
+  /** Deletes every order from the current business day, locally AND in the cloud. */
+  clearDayOrders: () => void;
   markOrderPaid: (id: string, method: "cash" | "gcash" | "maya") => void;
   addPartialPayment: (id: string, amount: number, method: "cash" | "gcash" | "maya") => void;
   updateOrderStatus: (id: string, status: OrderStatus) => void;
@@ -203,32 +217,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [printerMm, setPrinterMm] = useState(58);
   const [printerH, setPrinterH] = useState(210);
   const [paySettings, setPaySettings] = useState<PaySettings>({ gcash: { qr: null, number: "" }, maya: { qr: null, number: "" } });
-  const [smsTemplates, setSmsTemplates] = useState<SmsTemplates>(loadSmsTemplates());
+  // Lazy initialiser: reading localStorage during every render is wasted work
+  // and runs on the server too, where it can only ever return the defaults.
+  const [smsTemplates, setSmsTemplates] = useState<SmsTemplates>(() => loadSmsTemplates());
   const [salesPeriod, setSalesPeriod] = useState<"today" | "week" | "month" | "year">("today");
   const [salesOffset, setSalesOffset] = useState(0);
+  const [pendingSync, setPendingSync] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const toastTimer = useRef<any>(null);
   const feeCounter = useRef(0);
+  const autoReadyNotice = useRef(0);
+  // Persistence needs the *current* session, but must not re-create every
+  // callback whenever the session object changes identity. A ref keeps the
+  // callbacks stable while still reading fresh values.
+  const sessionRef = useRef<Session | null>(null);
+  const cloudRef = useRef(false);
+  const ordersRef = useRef<Order[]>([]);
+  const paySettingsRef = useRef<PaySettings>(paySettings);
+  const smsTemplatesRef = useRef<SmsTemplates>(smsTemplates);
+  const showToastRef = useRef<((msg: string, type?: ToastType) => void) | null>(null);
+  sessionRef.current = session;
+  cloudRef.current = cloudActive;
+  ordersRef.current = orders;
+  paySettingsRef.current = paySettings;
+  smsTemplatesRef.current = smsTemplates;
 
   const showToast = useCallback((msg: string, type: ToastType = "") => {
     setToast({ msg, type, key: Date.now() });
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
 
-    setNotifications((prev) => {
-      const entry: NotificationEntry = {
-        id: "n_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-        message: msg,
-        type,
-        time: new Date().toISOString(),
-        read: false,
-      };
-      const next = [entry, ...prev].slice(0, 200);
-      const s = getSession();
-      if (s) saveNotifications(s.userId, next);
-      return next;
-    });
+    const entry: NotificationEntry = {
+      id: "n_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
+      message: msg,
+      type,
+      time: new Date().toISOString(),
+      read: false,
+    };
+    // Pure updater — persistence happens in the effect below. Doing I/O inside
+    // a state updater double-fires under React StrictMode and wrote to the
+    // wrong place in cloud mode (getSession() is null for cloud sessions, so
+    // notifications were never saved at all).
+    setNotifications((prev) => [entry, ...prev].slice(0, 200));
   }, []);
+  showToastRef.current = showToast;
 
   /* ─── BOOT: restore theme + session ─── */
   useEffect(() => {
@@ -253,6 +286,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (cloudSession) {
             setSessionState(cloudSession);
             setCloudActive(true);
+            // Push anything left in the outbox from a previous session (orders
+            // taken while offline, or writes that failed last time) BEFORE
+            // reading, or the fetch below would overwrite them and the orders
+            // would appear to have vanished.
+            await flushQueue(cloudSession.userId);
             const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
               cloudLoadOrders(cloudSession.userId),
               cloudLoadNotifications(cloudSession.userId),
@@ -286,37 +324,167 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  /* ─── PERSISTENCE ───
+     Orders and notifications are mirrored to localStorage from an effect
+     rather than from inside state updaters. Updaters must stay pure: React
+     StrictMode invokes them twice, which previously meant duplicate writes
+     and duplicate cloud requests for a single user action. */
+  useEffect(() => {
+    if (!booted || !session) return;
+    saveOrders(session.userId, orders);
+  }, [booted, session, orders]);
+
+  useEffect(() => {
+    if (!booted || !session) return;
+    saveNotifications(session.userId, notifications);
+    if (!cloudActive || notifications.length === 0) return;
+    // Debounced: every toast appends a notification, and each cloud write
+    // upserts the whole (up to 200 row) history. Without this, a busy minute
+    // at the till fires a large request per toast.
+    const userId = session.userId;
+    const id = setTimeout(() => {
+      cloudSaveNotifications(userId, notifications).catch(() => {
+        /* history is non-critical — the next change retries it */
+      });
+    }, 3000);
+    return () => clearTimeout(id);
+  }, [booted, session, cloudActive, notifications]);
+
+  /* ─── OUTBOX ───
+     Surface how many order writes are still waiting to reach the cloud, and
+     drain the queue whenever the connection comes back. */
+  useEffect(() => {
+    if (!session || !cloudActive) {
+      setPendingSync(0);
+      return;
+    }
+    setPendingSync(pendingCount(session.userId));
+    const off = onPendingChange(setPendingSync);
+    void flushQueue(session.userId);
+
+    const onOnline = () => void flushQueue(session.userId);
+    window.addEventListener("online", onOnline);
+    const id = setInterval(onOnline, 60 * 1000);
+    return () => {
+      off();
+      window.removeEventListener("online", onOnline);
+      clearInterval(id);
+      stopRetries();
+    };
+  }, [session, cloudActive]);
+
+  /* ─── LIVE REFRESH ───
+     Pull the authoritative order list back down from the cloud. Called on a
+     realtime change, when the tab regains focus, and on a slow poll. Without
+     this the only way to see an order placed on another device was a manual
+     hard refresh (Ctrl+Shift+R). */
+  const refreshFromCloud = useCallback(async () => {
+    const s = sessionRef.current;
+    if (!s || !cloudRef.current) return;
+    setRefreshing(true);
+    try {
+      // Push anything queued first, so a refetch can't overwrite local work
+      // that hasn't been uploaded yet.
+      await flushQueue(s.userId);
+      const fresh = await cloudLoadOrders(s.userId);
+
+      // Anything STILL queued didn't make it (offline, or a failing request).
+      // Reconcile so those orders don't blink out of the UI just because the
+      // server doesn't know about them yet.
+      const stillQueued = pendingOps(s.userId);
+      let merged = fresh;
+      if (stillQueued.length > 0) {
+        const deleted = new Set(stillQueued.filter((op) => op.kind === "delete").map((op) => op.orderId));
+        const unsaved = stillQueued.filter((op): op is Extract<typeof op, { kind: "save" }> => op.kind === "save");
+        const unsavedIds = new Set(unsaved.map((op) => op.orderId));
+        merged = [
+          ...unsaved.map((op) => op.order),
+          ...fresh.filter((o) => !unsavedIds.has(o.id) && !deleted.has(o.id)),
+        ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+      }
+
+      // Only touch state when something actually differs. A blind setOrders on
+      // every poll re-rendered the whole app (and every object identity) twice
+      // a minute for no reason.
+      if (JSON.stringify(merged) !== JSON.stringify(ordersRef.current)) {
+        ordersRef.current = merged;
+        setOrders(merged);
+      }
+    } catch {
+      /* offline or transient — the next trigger tries again */
+    } finally {
+      setRefreshing(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!booted || !session || !cloudActive) return;
+
+    const unsubscribe = subscribeToOrders(session.userId, () => {
+      void refreshFromCloud();
+    });
+
+    // Belt-and-braces fallback for when realtime isn't enabled on the table
+    // or the socket drops: refetch on focus/visibility and on a slow poll.
+    const onFocus = () => {
+      if (document.visibilityState === "visible") void refreshFromCloud();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("online", onFocus);
+    const id = setInterval(() => void refreshFromCloud(), 90 * 1000);
+
+    return () => {
+      unsubscribe();
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("online", onFocus);
+      clearInterval(id);
+    };
+  }, [booted, session, cloudActive, refreshFromCloud]);
+
   /* ─── Auto-advance washing/drying -> ready after 1hr ─── */
   useEffect(() => {
     if (!session) return;
     const tick = () => {
+      const now = Date.now();
       setOrders((prev) => {
-        const now = Date.now();
-        let changed = false;
+        const promoted: Order[] = [];
         const next = prev.map((o) => {
           if ((o.status === "washing" || o.status === "drying") && now - new Date(o.time).getTime() >= AUTO_READY_MS) {
-            changed = true;
-            return { ...o, status: "ready" as OrderStatus, autoReady: true };
+            const updated = { ...o, status: "ready" as OrderStatus, autoReady: true };
+            promoted.push(updated);
+            return updated;
           }
           return o;
         });
-        if (changed) {
-          saveOrders(session.userId, next);
-          if (cloudActive) {
-            next
-              .filter((o) => o.autoReady && (o.status as OrderStatus) === "ready")
-              .forEach((o) => cloudSaveOrder(session.userId, o).catch(() => {}));
-          }
-          showToast("✅ An order was auto-marked Ready for Pickup (1 hr elapsed)", "success");
-          return next;
-        }
-        return prev;
+        if (promoted.length === 0) return prev;
+        // Only the orders promoted on THIS tick get uploaded. The old code
+        // re-uploaded every order ever auto-readied, every single tick.
+        if (cloudRef.current) promoted.forEach((o) => queueSaveOrder(session.userId, o));
+        autoReadyNotice.current = promoted.length;
+        return next;
       });
     };
     tick();
     const id = setInterval(tick, 60 * 1000);
     return () => clearInterval(id);
-  }, [session, cloudActive, showToast]);
+  }, [session]);
+
+  // Toasting from inside the updater above would fire twice under StrictMode,
+  // so the tick just records what happened and we announce it here.
+  useEffect(() => {
+    if (autoReadyNotice.current > 0) {
+      const n = autoReadyNotice.current;
+      autoReadyNotice.current = 0;
+      showToast(
+        n === 1
+          ? "✅ An order was auto-marked Ready for Pickup (1 hr elapsed)"
+          : `✅ ${n} orders were auto-marked Ready for Pickup (1 hr elapsed)`,
+        "success"
+      );
+    }
+  }, [orders, showToast]);
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
@@ -427,6 +595,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           const sess = res.session;
           setSessionState(sess);
           setCloudActive(true);
+          await flushQueue(sess.userId);
           const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
             cloudLoadOrders(sess.userId),
             cloudLoadNotifications(sess.userId),
@@ -504,7 +673,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(() => {
+    const s = sessionRef.current;
+    // Flush anything still queued before dropping the session, so a sign-out
+    // at closing time can't strand the day's last orders on this device.
+    if (cloudActive && s) void flushQueue(s.userId);
     if (cloudActive) cloudLogout().catch(() => {});
+    stopRetries();
     authClearSession();
     setSessionState(null);
     setCloudActive(false);
@@ -513,6 +687,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setCart([]);
     setNotifications([]);
     setActiveView("pos");
+    // Reset per-account settings too — these used to persist across a sign-out,
+    // so the next person to log in saw the previous shop's QR codes and
+    // SMS templates.
+    setPaySettings({ gcash: { qr: null, number: "" }, maya: { qr: null, number: "" } });
+    setSmsTemplates({ paid: DEFAULT_SMS_TEMPLATE_PAID, unpaid: DEFAULT_SMS_TEMPLATE_UNPAID });
+    setPendingSync(0);
     showToast("Signed out");
   }, [cloudActive, showToast]);
 
@@ -660,31 +840,47 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         paidAt: amountPaid > 0 ? time : null,
         shop: session.business,
       };
-      const next = [order, ...orders];
-      setOrders(next);
-      saveOrders(session.userId, next);
-      if (cloudActive) cloudSaveOrder(session.userId, order).catch(() => {});
+      // Build from the live ref, not from the `orders` captured in this
+      // closure: the old code dropped any change made since the last render —
+      // an order auto-advanced to Ready, or one that arrived from another
+      // till, was silently reverted by the very next checkout.
+      ordersRef.current = [order, ...ordersRef.current.filter((o) => o.id !== order.id)];
+      setOrders(ordersRef.current);
+      if (cloudActive) queueSaveOrder(session.userId, order);
       const balanceNote = !isPaid && amountPaid > 0 ? ` · ₱${amountPaid.toLocaleString()} paid, ₱${(total - amountPaid).toLocaleString()} balance` : !isPaid ? " (unpaid)" : "";
       showToast(`✅ ${id} placed for ${customer.name} · ₱${total.toLocaleString()}${balanceNote}`, "success");
       clearCart(true);
       return order;
     },
-    [cart, cartTotal, orders, payment, session, cloudActive, showToast, clearCart]
+    [cart, cartTotal, payment, session, cloudActive, showToast, clearCart]
   );
+
+  /**
+   * Applies a change to one order.
+   *
+   * Works off `ordersRef` rather than a `setOrders` updater so we know
+   * synchronously which row changed and can queue exactly that row for the
+   * cloud. The ref is kept current both by render and by `applyOrders`, so a
+   * burst of edits in a single tick still builds on each other instead of
+   * each one overwriting the last.
+   */
+  const applyOrders = useCallback((next: Order[]) => {
+    ordersRef.current = next;
+    setOrders(next);
+  }, []);
 
   const mutateOrder = useCallback(
     (id: string, fn: (o: Order) => Order) => {
-      setOrders((prev) => {
-        const next = prev.map((o) => (o.id === id ? fn(o) : o));
-        if (session) saveOrders(session.userId, next);
-        if (session && cloudActive) {
-          const updated = next.find((o) => o.id === id);
-          if (updated) cloudSaveOrder(session.userId, updated).catch(() => {});
-        }
-        return next;
-      });
+      const prev = ordersRef.current;
+      const target = prev.find((o) => o.id === id);
+      if (!target) return;
+      const updated = fn(target);
+      if (updated === target) return;
+      applyOrders(prev.map((o) => (o.id === id ? updated : o)));
+      const s = sessionRef.current;
+      if (s && cloudRef.current) queueSaveOrder(s.userId, updated);
     },
-    [session, cloudActive]
+    [applyOrders]
   );
 
   const cancelOrder = useCallback(
@@ -697,16 +893,43 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const deleteOrder = useCallback(
     (id: string) => {
-      setOrders((prev) => {
-        const next = prev.filter((o) => o.id !== id);
-        if (session) saveOrders(session.userId, next);
-        if (session && cloudActive) cloudDeleteOrder(session.userId, id).catch(() => {});
-        return next;
-      });
+      applyOrders(ordersRef.current.filter((o) => o.id !== id));
+      const s = sessionRef.current;
+      if (s && cloudRef.current) queueDeleteOrder(s.userId, id);
       showToast("Order deleted", "error");
     },
-    [session, cloudActive, showToast]
+    [applyOrders, showToast]
   );
+
+  /**
+   * "Clear Day" — removes every order from the current business day.
+   *
+   * This used to write the trimmed list straight to localStorage and then
+   * `window.location.reload()`. In cloud mode that did nothing at all: the
+   * rows were never deleted server-side, so boot fetched them straight back
+   * and it looked like the button was broken. It also relied on a full page
+   * reload to update the UI, which is what made a hard refresh feel necessary.
+   */
+  const clearDayOrders = useCallback(() => {
+    const s = sessionRef.current;
+    if (!s) return;
+    const doomed = ordersRef.current.filter((o) => isBusinessToday(o.time));
+    if (doomed.length === 0) {
+      showToast("No orders from today to clear");
+      return;
+    }
+    applyOrders(ordersRef.current.filter((o) => !isBusinessToday(o.time)));
+    if (cloudRef.current) {
+      cloudDeleteOrders(
+        s.userId,
+        doomed.map((o) => o.id)
+      ).catch(() => {
+        // Fall back to the per-order retry queue so the deletes still land.
+        doomed.forEach((o) => queueDeleteOrder(s.userId, o.id));
+      });
+    }
+    showToast(`Cleared ${doomed.length} order${doomed.length !== 1 ? "s" : ""} from today`, "success");
+  }, [applyOrders, showToast]);
 
   const markOrderPaid = useCallback(
     (id: string, method: "cash" | "gcash" | "maya") => {
@@ -733,9 +956,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           paidAt: o.paidAt || new Date().toISOString(),
         };
       });
-      const order = orders.find((o) => o.id === id);
-      const newTotal = order ? Math.min(order.total, (order.amountPaid || 0) + amount) : amount;
-      const remaining = order ? Math.max(0, order.total - newTotal) : 0;
+      // Read back the row we just wrote, rather than the pre-mutation copy
+      // from the render closure, so the balance in the toast is the real one.
+      const order = ordersRef.current.find((o) => o.id === id);
+      const remaining = order ? Math.max(0, order.total - (order.amountPaid || 0)) : 0;
       showToast(
         remaining > 0
           ? `${id}: ₱${amount.toLocaleString()} payment recorded · ₱${remaining.toLocaleString()} balance left`
@@ -743,7 +967,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         "success"
       );
     },
-    [mutateOrder, orders, showToast]
+    [mutateOrder, showToast]
   );
 
   const updateOrderStatus = useCallback(
@@ -808,58 +1032,69 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /* ─── PAY SETTINGS ─── */
+  // Persisting from inside the updater ran twice under StrictMode and fired a
+  // duplicate network request per save. Compute the next value first, persist
+  // once, then set state.
+  const persistPay = useCallback((next: PaySettings) => {
+    const s = sessionRef.current;
+    paySettingsRef.current = next;
+    persistPaySettings(s?.userId, next);
+    if (s && cloudRef.current) {
+      cloudSavePaySettings(s.userId, next).catch(() => {
+        showToastRef.current?.("⚠️ Payment details saved on this device but not yet synced to the cloud.", "error");
+      });
+    }
+    setPaySettings(next);
+  }, []);
+
   const saveGcashMaya = useCallback(
     (method: "gcash" | "maya", number: string, qr?: string | null) => {
-      setPaySettings((prev) => {
-        const next = { ...prev, [method]: { qr: qr !== undefined ? qr : prev[method].qr, number } };
-        persistPaySettings(session?.userId, next);
-        if (session && cloudActive) cloudSavePaySettings(session.userId, next).catch(() => {});
-        return next;
-      });
+      const prev = paySettingsRef.current;
+      persistPay({ ...prev, [method]: { qr: qr !== undefined ? qr : prev[method].qr, number } });
       showToast(`${method === "gcash" ? "GCash" : "Maya"} details saved`, "success");
     },
-    [session, cloudActive, showToast]
+    [persistPay, showToast]
   );
 
   const clearPayMethod = useCallback(
     (method: "gcash" | "maya") => {
-      setPaySettings((prev) => {
-        const next = { ...prev, [method]: { qr: null, number: "" } };
-        persistPaySettings(session?.userId, next);
-        if (session && cloudActive) cloudSavePaySettings(session.userId, next).catch(() => {});
-        return next;
-      });
+      persistPay({ ...paySettingsRef.current, [method]: { qr: null, number: "" } });
       showToast("Removed");
     },
-    [session, cloudActive, showToast]
+    [persistPay, showToast]
   );
 
   /* ─── SMS TEMPLATES ─── */
+  const persistSms = useCallback((next: SmsTemplates) => {
+    const s = sessionRef.current;
+    smsTemplatesRef.current = next;
+    persistSmsTemplates(s?.userId, next);
+    if (s && cloudRef.current) {
+      cloudSaveSmsTemplates(s.userId, next).catch(() => {
+        showToastRef.current?.("⚠️ Template saved on this device but not yet synced to the cloud.", "error");
+      });
+    }
+    setSmsTemplates(next);
+  }, []);
+
   const saveSmsTemplate = useCallback(
     (which: "paid" | "unpaid", value: string) => {
-      setSmsTemplates((prev) => {
-        const next = { ...prev, [which]: value.trim() || prev[which] };
-        persistSmsTemplates(session?.userId, next);
-        if (session && cloudActive) cloudSaveSmsTemplates(session.userId, next).catch(() => {});
-        return next;
-      });
+      const prev = smsTemplatesRef.current;
+      persistSms({ ...prev, [which]: value.trim() || prev[which] });
       showToast(`${which === "paid" ? "Paid" : "Unpaid"} SMS template saved`, "success");
     },
-    [session, cloudActive, showToast]
+    [persistSms, showToast]
   );
 
   const resetSmsTemplate = useCallback(
     (which: "paid" | "unpaid") => {
-      const { DEFAULT_SMS_TEMPLATE_PAID, DEFAULT_SMS_TEMPLATE_UNPAID } = require("@/lib/types");
-      setSmsTemplates((prev) => {
-        const next = { ...prev, [which]: which === "paid" ? DEFAULT_SMS_TEMPLATE_PAID : DEFAULT_SMS_TEMPLATE_UNPAID };
-        persistSmsTemplates(session?.userId, next);
-        if (session && cloudActive) cloudSaveSmsTemplates(session.userId, next).catch(() => {});
-        return next;
+      persistSms({
+        ...smsTemplatesRef.current,
+        [which]: which === "paid" ? DEFAULT_SMS_TEMPLATE_PAID : DEFAULT_SMS_TEMPLATE_UNPAID,
       });
       showToast(`${which === "paid" ? "Paid" : "Unpaid"} SMS template reset to default`);
     },
-    [session, cloudActive, showToast]
+    [persistSms, showToast]
   );
 
   const sendPickupSms = useCallback(
@@ -888,20 +1123,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /* ─── VIEW ─── */
   const switchView = useCallback((v: ViewId) => setActiveView(v), []);
 
+  // `getSession()` only ever returns legacy local sessions — it is null for a
+  // cloud login, so notification state was silently never persisted for cloud
+  // users. Persistence now runs from the effect keyed on `session`, which is
+  // correct for both account types.
   const markNotificationsRead = useCallback(() => {
-    setNotifications((prev) => {
-      if (prev.every((n) => n.read)) return prev;
-      const next = prev.map((n) => ({ ...n, read: true }));
-      const s = getSession();
-      if (s) saveNotifications(s.userId, next);
-      return next;
-    });
+    setNotifications((prev) => (prev.every((n) => n.read) ? prev : prev.map((n) => ({ ...n, read: true }))));
   }, []);
 
   const clearNotifications = useCallback(() => {
+    const s = sessionRef.current;
     setNotifications([]);
-    const s = getSession();
-    if (s) saveNotifications(s.userId, []);
+    if (s) {
+      saveNotifications(s.userId, []);
+      if (cloudRef.current) cloudClearNotifications(s.userId).catch(() => {});
+    }
   }, []);
 
   const unreadCount = notifications.filter((n) => !n.read).length;
@@ -920,6 +1156,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     logout,
     cloudConfigured: isSupabaseConfigured(),
     cloudActive,
+    pendingSync,
+    refreshing,
+    refreshFromCloud,
     legacyMatches,
     importLegacyAccount,
     importPastedOrders,
@@ -946,6 +1185,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     checkout,
     cancelOrder,
     deleteOrder,
+    clearDayOrders,
     markOrderPaid,
     addPartialPayment,
     updateOrderStatus,

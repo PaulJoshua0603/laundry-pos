@@ -24,7 +24,20 @@ function timeAgo(iso: string): string {
 }
 
 export default function Topbar() {
-  const { session, theme, toggleTheme, logout, notifications, unreadCount, markNotificationsRead, clearNotifications, showToast } = useApp();
+  const {
+    session,
+    theme,
+    toggleTheme,
+    logout,
+    notifications,
+    unreadCount,
+    markNotificationsRead,
+    clearNotifications,
+    cloudActive,
+    pendingSync,
+    refreshing,
+    refreshFromCloud,
+  } = useApp();
   const [now, setNow] = useState<Date | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [bellOpen, setBellOpen] = useState(false);
@@ -50,14 +63,13 @@ export default function Topbar() {
   }, []);
 
   function handleToggleBell() {
-    setBellOpen((v) => {
-      const next = !v;
-      if (next) {
-        showToast("🔔 Notification history opened");
-        markNotificationsRead();
-      }
-      return next;
-    });
+    // Side effects belong outside the updater: React StrictMode invokes
+    // updaters twice, which fired the toast twice. Opening the panel also no
+    // longer records a notification about itself — that filled the history
+    // with "Notification history opened" entries and re-flagged it unread.
+    const next = !bellOpen;
+    setBellOpen(next);
+    if (next) markNotificationsRead();
   }
 
   const open = now ? isShopOpen(now) : true;
@@ -78,6 +90,23 @@ export default function Topbar() {
       <div className={`topbar-badge${open ? "" : " is-closed"}`} title={BUSINESS_HOURS.label}>
         {open ? "OPEN" : "CLOSED"}
       </div>
+
+      {/* Sync state used to be completely invisible: a failed upload was
+          swallowed, so an order could silently never reach the cloud. Now the
+          outbox is shown, and the badge doubles as a manual "sync now". */}
+      {cloudActive && (
+        <button
+          className={`sync-badge${pendingSync > 0 ? " is-pending" : ""}${refreshing ? " is-busy" : ""}`}
+          onClick={() => void refreshFromCloud()}
+          title={
+            pendingSync > 0
+              ? `${pendingSync} change${pendingSync !== 1 ? "s" : ""} waiting to upload — click to retry now`
+              : "All changes synced — click to refresh from the cloud"
+          }
+        >
+          {refreshing ? "⟳ Syncing…" : pendingSync > 0 ? `⚠ ${pendingSync} to sync` : "☁ Synced"}
+        </button>
+      )}
 
       <div className="notif-wrap">
         <button className="theme-toggle" id="notifBellBtn" aria-label="Notifications" title="Notifications" onClick={handleToggleBell}>

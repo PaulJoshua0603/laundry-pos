@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { getBalance, getDailyOrderNo, getLoadCount, isExtraLine, isLoadLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
+import { buildDailyOrderNoMap, getBalance, getLoadCount, isExtraLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
 import { businessDayLabel, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 import EditOrderModal from "@/components/EditOrderModal";
 
@@ -21,17 +21,34 @@ export default function OrdersView() {
   } = useApp();
   const [q, setQ] = useState("");
   const [sortOrder, setSortOrder] = useState<"newest" | "oldest">("newest");
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  // Track the order being edited by id, not by object. Holding the object
+  // froze a snapshot: if the order changed underneath (auto-advanced to Ready,
+  // or edited on another till) the modal kept showing — and could save back —
+  // stale values.
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
   const [daysShown, setDaysShown] = useState(INITIAL_DAYS_SHOWN);
 
   const query = q.trim().toLowerCase();
-  const filtered = orders.filter(
-    (o) =>
-      o.id.toLowerCase().includes(query) ||
-      o.name.toLowerCase().includes(query) ||
-      String(getDailyOrderNo(o, orders)).includes(query.replace(/^#/, ""))
-  );
+  // Computed once per order-list change instead of once per row (and once per
+  // row per keystroke inside the filter below), which was quadratic.
+  const dailyNos = useMemo(() => buildDailyOrderNoMap(orders), [orders]);
+  const dailyNoOf = (o: Order) => dailyNos.get(o.id) ?? 0;
+  // Resolved from the live list every render, so the modal always reflects the
+  // current order — and closes itself if that order is deleted elsewhere.
+  const editingOrder = editingId ? orders.find((o) => o.id === editingId) ?? null : null;
+
+  const filtered = useMemo(() => {
+    if (!query) return orders;
+    const numQuery = query.replace(/^#/, "");
+    return orders.filter(
+      (o) =>
+        o.id.toLowerCase().includes(query) ||
+        o.name.toLowerCase().includes(query) ||
+        String(dailyNoOf(o)).includes(numQuery)
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orders, query, dailyNos]);
 
   // Group into business-day boxes, newest day first, orders within each
   // day sorted per the chosen sort order.
@@ -227,7 +244,7 @@ export default function OrdersView() {
                                 </div>
                               </td>
                               <td className="order-id-cell" title={o.id}>
-                                <div style={{ fontWeight: 600 }}>#{getDailyOrderNo(o, orders)}</div>
+                                <div style={{ fontWeight: 600 }}>#{dailyNoOf(o)}</div>
                                 <div style={{ fontSize: 10, opacity: 0.6 }}>{o.id}</div>
                               </td>
                               <td>
@@ -298,7 +315,7 @@ export default function OrdersView() {
                                 {new Date(o.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                               </td>
                               <td className="row-actions">
-                                <button className="btn btn-ghost btn-sm" onClick={() => setEditingOrder(o)} title="Edit order details">
+                                <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(o.id)} title="Edit order details">
                                   ✏️
                                 </button>
                                 <button className="btn btn-ghost btn-sm" onClick={() => showReceipt(o)} title="View receipt">
@@ -344,7 +361,7 @@ export default function OrdersView() {
         </>
       )}
 
-      {editingOrder && <EditOrderModal order={editingOrder} onClose={() => setEditingOrder(null)} />}
+      {editingOrder && <EditOrderModal order={editingOrder} onClose={() => setEditingId(null)} />}
     </div>
   );
 }

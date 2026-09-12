@@ -3,13 +3,18 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { businessDayLabel, getBusinessDayKey, peso } from "@/lib/format";
-import { getBalance, getDailyOrderNo, getLoadCount, Order, STATUS_MAP } from "@/lib/types";
+import { buildDailyOrderNoMap, getBalance, getLoadCount, Order, STATUS_MAP } from "@/lib/types";
 import EditOrderModal from "@/components/EditOrderModal";
 
 export default function DailyOrdersView() {
   const { orders, showReceipt } = useApp();
   const [openDay, setOpenDay] = useState<string | null>(null);
-  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  // Tracked by id so the modal always shows the live order rather than a
+  // snapshot frozen at the moment it was opened.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  // One pass instead of a filter+sort of the whole list per rendered row.
+  const dailyNos = useMemo(() => buildDailyOrderNoMap(orders), [orders]);
+  const editingOrder = editingId ? orders.find((o) => o.id === editingId) ?? null : null;
 
   const days = useMemo(() => {
     const groups: Record<string, Order[]> = {};
@@ -83,7 +88,7 @@ export default function DailyOrdersView() {
                         <div key={o.id} className="daily-order-row">
                           <div className="daily-order-info" onClick={() => showReceipt(o)}>
                             <div className="daily-order-name">
-                              {o.name} <span className="daily-order-no">· #{getDailyOrderNo(o, orders)}</span>
+                              {o.name} <span className="daily-order-no">· #{dailyNos.get(o.id) ?? 0}</span>
                             </div>
                             <div className="daily-order-meta">
                               {status.icon} {status.label} · 🧺 {loadQty} load{loadQty !== 1 ? "s" : ""} ·{" "}
@@ -99,7 +104,7 @@ export default function DailyOrdersView() {
                             <span className={`daily-order-amount${o.status === "cancelled" ? " cancelled" : ""}`} onClick={() => showReceipt(o)}>
                               {o.status === "cancelled" ? "cancelled" : peso(o.total)}
                             </span>
-                            <button className="btn btn-ghost btn-sm" onClick={() => setEditingOrder(o)} title="Edit order">
+                            <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(o.id)} title="Edit order">
                               ✏️
                             </button>
                           </div>
@@ -114,7 +119,7 @@ export default function DailyOrdersView() {
         </div>
       )}
 
-      {editingOrder && <EditOrderModal order={editingOrder} onClose={() => setEditingOrder(null)} />}
+      {editingOrder && <EditOrderModal order={editingOrder} onClose={() => setEditingId(null)} />}
     </div>
   );
 }

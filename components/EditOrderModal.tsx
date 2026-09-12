@@ -33,6 +33,12 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
   const [feeAmount, setFeeAmount] = useState("");
   const mouseDownOnOverlay = useRef(false);
 
+  // Re-seed the form only when a DIFFERENT order is opened.
+  //
+  // Keyed on `order` (the object) this fired whenever the order's identity
+  // changed — which now happens on every background refresh from the cloud —
+  // and wiped whatever the user was in the middle of typing. Keying on the id
+  // keeps the original intent without destroying in-progress edits.
   useEffect(() => {
     setName(order.name);
     setPhone(order.phone || "");
@@ -44,7 +50,8 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
     setAmountPaidInput(order.amountPaid > 0 && !order.paid ? String(order.amountPaid) : "");
     setLoads(order.items.filter(isLoadLine));
     setExtras(order.items.filter(isExtraLine));
-  }, [order]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [order.id]);
 
   function changeLoadQty(id: string, delta: number) {
     setLoads((prev) => prev.map((l) => (l.service.id === id ? { ...l, qty: Math.max(0, l.qty + delta) } : l)).filter((l) => l.qty > 0));

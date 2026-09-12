@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
-import { getBalance, getDailyOrderNo } from "@/lib/types";
+import { buildDailyOrderNoMap, getBalance } from "@/lib/types";
 
 function PartialPayRow({ orderId, total, balance }: { orderId: string; total: number; balance: number }) {
   const { addPartialPayment } = useApp();
@@ -49,6 +49,8 @@ function PartialPayRow({ orderId, total, balance }: { orderId: string; total: nu
 export default function UnpaidView() {
   const { orders, markOrderPaid, switchView } = useApp();
   const [q, setQ] = useState("");
+  // One pass instead of a filter+sort of the whole list per rendered row.
+  const dailyNos = useMemo(() => buildDailyOrderNoMap(orders), [orders]);
 
   const unpaid = orders
     .filter((o) => !o.paid && o.status !== "cancelled")
@@ -149,7 +151,7 @@ export default function UnpaidView() {
                         <div>
                           <div>{o.name}</div>
                           <div style={{ fontSize: 10.5, color: "var(--text3)" }} className="mono">
-                            #{getDailyOrderNo(o, orders)} · {o.id}
+                            #{dailyNos.get(o.id) ?? 0} · {o.id}
                           </div>
                         </div>
                       </div>

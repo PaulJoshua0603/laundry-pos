@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import PrinterSettingsCard from "@/components/PrinterSettingsCard";
 import CloudBackupCard from "@/components/CloudBackupCard";
@@ -10,6 +10,13 @@ function QrCard({ method, label, icon }: { method: "gcash" | "maya"; label: stri
   const info = paySettings[method];
   const [number, setNumber] = useState(info.number);
   const [pendingQr, setPendingQr] = useState<string | null>(null);
+
+  // Settings arrive asynchronously (cloud load at boot, or an import). The
+  // field was seeded once on mount and then never updated, so a saved number
+  // showed as blank until the page was reloaded.
+  useEffect(() => {
+    setNumber(info.number);
+  }, [info.number]);
 
   function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -83,6 +90,14 @@ function SmsTemplateCard({ which, label, badgeClass, icon }: { which: "paid" | "
   const { smsTemplates, saveSmsTemplate, resetSmsTemplate } = useApp();
   const [value, setValue] = useState(smsTemplates[which]);
 
+  // Mirror the template whenever it changes in context — on the cloud load at
+  // boot, and after Reset. The Reset button used to call resetSmsTemplate()
+  // and then read smsTemplates from the same render, which still held the
+  // pre-reset value, so the textarea snapped back to the old text.
+  useEffect(() => {
+    setValue(smsTemplates[which]);
+  }, [smsTemplates, which]);
+
   return (
     <div className="sms-template-card">
       <div className="sms-template-label">
@@ -100,13 +115,7 @@ function SmsTemplateCard({ which, label, badgeClass, icon }: { which: "paid" | "
         <button className="btn btn-primary btn-sm" style={{ flex: 1, justifyContent: "center" }} onClick={() => saveSmsTemplate(which, value)}>
           Save
         </button>
-        <button
-          className="btn btn-ghost btn-sm"
-          onClick={() => {
-            resetSmsTemplate(which);
-            setValue(which === "paid" ? smsTemplates.paid : smsTemplates.unpaid);
-          }}
-        >
+        <button className="btn btn-ghost btn-sm" onClick={() => resetSmsTemplate(which)}>
           Reset
         </button>
       </div>

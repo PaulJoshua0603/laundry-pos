@@ -1,8 +1,8 @@
 "use client";
 
 import { useApp, ViewId } from "@/context/AppContext";
-import { BUSINESS_HOURS } from "@/lib/types";
-import { isToday, peso } from "@/lib/format";
+import { BUSINESS_HOURS, getBalance } from "@/lib/types";
+import { isBusinessToday, peso } from "@/lib/format";
 
 const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "pos", icon: "🛒", label: "New Order" },
@@ -17,13 +17,21 @@ const NAV: { id: ViewId; icon: string; label: string }[] = [
 
 export default function Sidebar() {
   const { activeView, switchView, orders } = useApp();
-  const today = orders.filter((o) => o.status !== "cancelled" && isToday(o.time));
-  const rev = today.reduce((s, o) => s + (o.paid ? o.total : 0), 0);
+  // Business day (6AM–midnight), matching Orders and Daily Summary. This used
+  // the raw calendar day, so the sidebar disagreed with every other screen.
+  const today = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
+  // Count what was actually collected, including down-payments on orders that
+  // aren't fully settled yet. Counting only `paid ? total : 0` hid every
+  // partial payment and under-reported the day's takings.
+  const rev = today.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const paidCount = today.filter((o) => o.paid).length;
   const target = 1000;
   const pct = Math.max(0, Math.min(100, Math.round((rev / target) * 100)));
   const unpaidOrders = orders.filter((o) => o.status !== "cancelled" && !o.paid);
-  const unpaidTotal = unpaidOrders.reduce((s, o) => s + o.total, 0);
+  // Only the outstanding balance is owed — summing the full order total
+  // overstated the debt for any partially-paid order, and disagreed with the
+  // figure on the Unpaid Customers screen.
+  const unpaidTotal = unpaidOrders.reduce((s, o) => s + getBalance(o), 0);
 
   return (
     <nav className="sidebar">
