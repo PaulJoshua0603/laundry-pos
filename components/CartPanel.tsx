@@ -73,6 +73,11 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
         </div>
       </div>
 
+      {/* Phone and Address were removed from the till at the owner's request —
+          on a 1366x768 screen they cost two rows that the item list needs, and
+          they were optional in practice. Both fields still exist on the order
+          and can be filled in from Edit Order when a delivery needs them, so
+          nothing is lost from the data model. */}
       <div className="customer-strip">
         <div className="customer-row">
           <input
@@ -84,15 +89,7 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
             style={nameErr ? { borderColor: "var(--red)" } : undefined}
             required
           />
-          <input
-            className="customer-field"
-            type="tel"
-            placeholder="Phone (optional)"
-            value={phone}
-            onChange={(e) => setPhone(e.target.value)}
-          />
         </div>
-        <input className="customer-field" type="text" placeholder="Address (optional)" value={addr} onChange={(e) => setAddr(e.target.value)} />
         <div className="customer-row">
           <select className="customer-field customer-field-type" value={type} onChange={(e) => setType(e.target.value as any)}>
             <option value="walkin">🚶 Walk-in</option>

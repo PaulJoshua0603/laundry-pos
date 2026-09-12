@@ -4,8 +4,6 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { getBalance, ORDER_TYPES, STATUS_MAP, getDailyOrderNo } from "@/lib/types";
 import { peso } from "@/lib/format";
-import { buildReceiptPDF, buildFixedTagPDF } from "@/lib/receiptPdf";
-import { isPrinterConnected, isUsbConnected, isWebBluetoothSupported, isWebUsbSupported, printReceiptToPr21 } from "@/lib/printer";
 
 // The "POS58 Printer" Windows driver ships with a fixed list of custom
 // paper lengths (48mm × 210/297/600/1200mm — visible in the system print
@@ -15,13 +13,16 @@ import { isPrinterConnected, isUsbConnected, isWebBluetoothSupported, isWebUsbSu
 const POS58_PAGE_LENGTHS_MM = [210, 297, 600, 1200];
 
 export default function ReceiptModal() {
-  const { receiptOrder, closeReceipt, printerMm, printerH, setPrinterWidth, paySettings, session, showToast, orders } = useApp();
-  const [pdfBusy, setPdfBusy] = useState(false);
-  const [printBusy, setPrintBusy] = useState(false);
+  const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session, orders } = useApp();
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
 
-  const printableMm = printerMm === 58 ? 48 : printerMm === 80 ? 72 : printerMm === 57 ? 54 : printerMm;
+  // Printable width is limited by the PRINT HEAD, not the paper. A 58mm-class
+  // printer (PR21 / POS58 / ZJ-58) has a 384-dot head at 203dpi = 48mm, so
+  // 48mm is the ceiling no matter whether 57mm or 58mm paper is loaded.
+  // The old table claimed 54mm for the 57mm setting, which is wider than the
+  // head can reach — the right-hand column was being clipped off the paper.
+  const printableMm = printerMm === 80 ? 72 : 48;
   const isFixedTag = printerMm === 57;
 
   // Measure the actual rendered receipt (header + items + basket tag) and
@@ -71,81 +72,6 @@ export default function ReceiptModal() {
       ? paySettings[order.payment as "gcash" | "maya"].number
       : null;
 
-  async function saveReceiptPDF() {
-    setPdfBusy(true);
-    try {
-      const { doc, filename } =
-        printerMm === 57 ? buildFixedTagPDF(order, shopName, orders) : buildReceiptPDF(order, printerMm, shopName, orders);
-      doc.save(filename);
-    } catch (err: any) {
-      showToast("❌ PDF error: " + err.message, "error");
-    } finally {
-      setPdfBusy(false);
-    }
-  }
-
-  async function printToPr21() {
-    setPrintBusy(true);
-    try {
-      if (isUsbConnected() || isWebUsbSupported() || isPrinterConnected()) {
-        await printReceiptToPr21({
-          shop: shopName,
-          orderId: `#${dailyNo}`,
-          customer: order.name,
-          phone: order.phone,
-          type: typeInfo.label,
-          status: statusInfo ? statusInfo.label : order.status,
-          pickup: order.pickup
-            ? new Date(order.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
-            : undefined,
-          time: new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }),
-          placedAt: new Date(order.time).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
-          itemCount: order.items.reduce((n, c) => n + c.qty, 0),
-          lines: order.items.map((c) => ({
-            label: `${c.service.name} x${c.qty}`,
-            price: peso(c.service.price * c.qty),
-          })),
-          total: peso(order.total),
-          paymentLabel: order.paid
-            ? paidLabel || payLabel
-            : order.amountPaid > 0
-              ? `PARTIAL — ${peso(order.amountPaid)} paid via ${paidLabel || payLabel}`
-              : "UNPAID — pay on pickup",
-          balanceDue: !order.paid ? peso(getBalance(order)) : undefined,
-        }, undefined, printerMm);
-        showToast("🖨️ Sent to printer", "success");
-        return;
-      }
-
-      // No USB/Bluetooth support at all (typically iOS Safari) — build
-      // the PDF and hand it to the native share sheet so the PR21
-      // companion app can print it instead.
-      const { doc, filename } =
-        printerMm === 57 ? buildFixedTagPDF(order, shopName, orders) : buildReceiptPDF(order, printerMm, shopName, orders);
-      const blob = doc.output("blob");
-      const file = new File([blob], filename, { type: "application/pdf" });
-      const nav: any = navigator;
-      if (nav.canShare && nav.canShare({ files: [file] })) {
-        await nav.share({ files: [file], title: "Receipt", text: `Receipt #${dailyNo}` });
-      } else if (nav.share) {
-        window.print();
-      } else {
-        doc.save(filename);
-      }
-    } catch (err: any) {
-      if (err?.name === "AbortError" || err?.name === "NotFoundError") return; // user cancelled the picker
-      const raw = String(err?.message || "");
-      let friendly = raw || "Couldn't print. Try Save PDF instead.";
-      if (/globally disabled/i.test(raw)) {
-        friendly = "Bluetooth is turned off on this device — enable Bluetooth in Windows, or plug the PR21 in via USB and connect it under Payment Methods → Thermal Printer.";
-      } else if (/not supported/i.test(raw)) {
-        friendly = "This browser can't print directly. Use Save PDF, or open this page in Chrome/Edge and connect the PR21 via USB under Payment Methods.";
-      }
-      showToast("❌ " + friendly, "error");
-    } finally {
-      setPrintBusy(false);
-    }
-  }
 
   return (
     <div className="modal-overlay show" id="receiptModal" onClick={(e) => e.target === e.currentTarget && closeReceipt()}>
@@ -157,59 +83,63 @@ export default function ReceiptModal() {
           ["--receipt-h" as any]: isFixedTag ? "50mm" : autoHeightMm ? `${autoHeightMm}mm` : "297mm",
         }}
       >
-        <div className="printer-size-row">
-          <span className="printer-size-label">Printer paper</span>
-          <div className="pills">
-            <div className={`pill${printerMm === 58 ? " active" : ""}`} onClick={() => setPrinterWidth(58, 210)}>
-              58mm (PR21)
-            </div>
-            <div className={`pill${printerMm === 57 ? " active" : ""}`} onClick={() => setPrinterWidth(57, 50)}>
-              57×50mm (Fixed Tag)
-            </div>
-            <div className={`pill${printerMm === 80 ? " active" : ""}`} onClick={() => setPrinterWidth(80)}>
-              80mm
-            </div>
-            <div className={`pill${printerMm === 48 ? " active" : ""}`} onClick={() => setPrinterWidth(48, 210)}>
-              48mm (ZPrinter)
-            </div>
+        {/* Equal-width segments instead of pills that wrapped onto a second
+            row at odd widths. Each carries its own sub-label so the choice
+            doesn't need a paragraph underneath to explain it. */}
+        <div className="paper-picker">
+          <div className="paper-picker-label">Printer paper</div>
+          <div className="paper-seg">
+            <button
+              className={`paper-opt${printerMm === 58 ? " active" : ""}`}
+              onClick={() => setPrinterWidth(58, 210)}
+            >
+              <span className="paper-opt-name">57 / 58mm</span>
+              <span className="paper-opt-sub">roll · 48mm print</span>
+            </button>
+            <button className={`paper-opt${printerMm === 80 ? " active" : ""}`} onClick={() => setPrinterWidth(80)}>
+              <span className="paper-opt-name">80mm</span>
+              <span className="paper-opt-sub">roll · 72mm print</span>
+            </button>
+            <button
+              className={`paper-opt${printerMm === 57 ? " active" : ""}`}
+              onClick={() => setPrinterWidth(57, 50)}
+            >
+              <span className="paper-opt-name">Pre-cut</span>
+              <span className="paper-opt-sub">57×50mm label</span>
+            </button>
           </div>
         </div>
-        <div className="printer-size-hint">
-          {isFixedTag ? (
-            <>
-              Using <b>pre-cut 57×50mm label stock</b> instead of a roll? This mode prints one compact tag per
-              order — receipt + basket ID combined, sized to fit the fixed 50mm length exactly.
-            </>
-          ) : (
-            <>
-              Using the <b>PR21 / POS58 58mm</b> printer? Keep <b>58mm (PR21)</b> selected. If you installed a Windows
-              driver for it (shows up as &quot;POS58 Printer&quot;), Windows now owns that USB port — use{" "}
-              <b>🖨️ Print (Windows)</b> below and pick it from the print dialog. USB/Bluetooth direct-print only works if{" "}
-              <b>no</b> Windows printer driver is installed for it.
-            </>
-          )}
-        </div>
+        {/* The page height the app asks for must match the "Paper size" chosen
+            in the Windows print dialog. They agree at 210mm for a normal
+            receipt, but a long order can push past it — and then Windows
+            splits the receipt across two pages instead of printing one longer
+            one. Say so rather than letting it happen silently. */}
+        {!isFixedTag && printerMm === 58 && autoHeightMm !== null && autoHeightMm > 210 && (
+          <div className="printer-size-warn">
+            ⚠️ This order is long. In the print dialog set <b>Paper size</b> to{" "}
+            <b>Printer 58 (48mm×{autoHeightMm}mm)</b>, otherwise it will be split across two pages.
+          </div>
+        )}
+
+        {/* The long explainer that lived here is now carried by the segment
+            sub-labels. Only the genuinely risky case still warrants words. */}
+        {isFixedTag && (
+          <div className="printer-size-warn">
+            ⚠️ Only for die-cut 50mm label sheets. A roll labelled <b>57×50</b> is 57mm wide × 50mm diameter —
+            continuous paper — and should use <b>57 / 58mm</b>.
+          </div>
+        )}
 
         {isFixedTag ? (
           <div className="fixed-tag" id="fixedTagBody">
-            <div className="fixed-tag-header">
-              <div className="fixed-tag-biz">{shopName}</div>
-              <div className="fixed-tag-sub">★ OFFICIAL RECEIPT ★</div>
-            </div>
-            <hr className="fixed-tag-rule thick" />
-            <div className="fixed-tag-row">
-              <span>{`#${dailyNo}`}</span>
-              <span>
-                {new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}{" "}
-                {new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
-              </span>
-            </div>
+            {/* 57x50mm pre-cut stock: same stripped-back treatment as the roll
+                receipt — the name leads, the shop header and status rows are
+                gone. There is only 50mm of length here, so every removed line
+                buys size for the name. */}
             <div className="fixed-tag-name">{order.name}</div>
             <div className="fixed-tag-row">
-              <span>
-                {typeInfo.icon} {typeInfo.label}
-              </span>
-              <span>{statusInfo ? `${statusInfo.icon} ${statusInfo.label}` : order.status}</span>
+              <span>{new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</span>
+              <span>{new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
             <hr className="fixed-tag-rule dash" />
             {order.items.map((c, i) => (
@@ -245,62 +175,22 @@ export default function ReceiptModal() {
         ) : (
           <div ref={contentRef}>
             <div className="receipt" id="receiptBody">
-              <div className="receipt-header">
-                <div className="receipt-logo receipt-icon">🫧</div>
-                <div className="receipt-biz">{shopName}</div>
-                <div className="receipt-sub">Official Receipt</div>
-              </div>
-              <hr className="receipt-divider" />
-
-              {/* The customer's name is what staff and customers actually look
-                  for on the slip, so it leads rather than sitting in a small
-                  right-aligned key/value row. */}
+              {/* Deliberately minimal: the shop header, "Official Receipt"
+                  banner, status/time/pickup rows and the thank-you footer were
+                  all removed at the owner's request. On a 48mm roll every line
+                  is paper, and the only things staff and customers actually
+                  read are the name, what was charged, and the total. */}
               <div className="receipt-customer-block">
-                <div className="receipt-customer-label">Customer</div>
                 <div className="receipt-customer-name">{order.name}</div>
-                <div className="receipt-customer-meta">
-                  <span className="receipt-order-no">#{dailyNo}</span>
-                  <span>
-                    <span className="receipt-icon">{typeInfo.icon} </span>
-                    {typeInfo.label}
-                  </span>
-                </div>
-                {order.phone && <div className="receipt-customer-phone">{order.phone}</div>}
               </div>
 
               <hr className="receipt-divider" />
-              <div className="receipt-row customer">
-                <span>Status</span>
-                <span>
-                  {statusInfo ? (
-                    <>
-                      <span className="receipt-icon">{statusInfo.icon} </span>
-                      {statusInfo.label}
-                    </>
-                  ) : (
-                    order.status
-                  )}
-                </span>
-              </div>
               <div className="receipt-row customer">
                 <span>Date</span>
                 <span>
                   {new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
                 </span>
               </div>
-              <div className="receipt-row customer">
-                <span>Time</span>
-                <span>{new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</span>
-              </div>
-              {order.pickup && (
-                <div className="receipt-row customer">
-                  <span>Pickup</span>
-                  <span>
-                    {new Date(order.pickup).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}{" "}
-                    {new Date(order.pickup).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </div>
-              )}
               <hr className="receipt-divider" />
 
               {/* Each line shows qty × unit price under the name, so a customer
@@ -346,52 +236,30 @@ export default function ReceiptModal() {
                   <span>{peso(getBalance(order))}</span>
                 </div>
               )}
-              <div className="receipt-footer">
-                Thank you for choosing {shopName}! <span className="receipt-icon">🫧</span>
-                <br />
-                <span style={{ fontSize: 10 }}>Keep this receipt for reference.</span>
-              </div>
             </div>
 
             <div className="cut-line">✂ - - - - - - - CUT HERE - - - - - - - ✂</div>
 
+            {/* Basket tag: the customer's name and nothing else. It gets cut off
+                and dropped into the laundry basket, where the only job is being
+                readable across the room — every other line stole size from it. */}
             <div className="basket-tag" id="basketTag">
-              <div className="tag-label">BASKET TAG</div>
               <div className="tag-name">{order.name}</div>
-              {order.phone && <div className="tag-phone">{order.phone}</div>}
-              <div className="tag-divider" />
-              <div className="tag-row">
-                <span>
-                  #{dailyNo}: {typeInfo.label}
-                </span>
-              </div>
-              <div className="tag-row">
-                <span>
-                  Items: {order.items.reduce((n, c) => n + c.qty, 0)} item{order.items.reduce((n, c) => n + c.qty, 0) !== 1 ? "s" : ""}
-                </span>
-              </div>
-              <div className="tag-row">
-                <span>
-                  Placed Order: {new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}{" "}
-                  {new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
-                </span>
-              </div>
             </div>
           </div>
         )}
 
+        {/* One print action. The direct USB/Bluetooth ESC/POS path and the
+            PDF export were removed at the owner's request: the shop prints
+            through the installed Windows POS58 driver, and with that driver
+            attached the browser is blocked from the USB port anyway, so the
+            direct button could only ever fail on this setup. */}
         <div className="modal-actions">
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={closeReceipt}>
+          <button className="btn btn-primary" onClick={() => window.print()}>
+            🖨️ Print Receipt
+          </button>
+          <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
-          </button>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={saveReceiptPDF} disabled={pdfBusy}>
-            {pdfBusy ? "⏳ Generating…" : "📄 Save PDF"}
-          </button>
-          <button className="btn btn-ghost" style={{ flex: 1 }} onClick={() => window.print()} title="Prints via the Windows printer driver (POS58/PR21 shows here once installed)">
-            🖨️ Print (Windows)
-          </button>
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={printToPr21} disabled={printBusy}>
-            {printBusy ? "⏳ Printing…" : "🖨️ Print to PR21 (USB/BT)"}
           </button>
         </div>
       </div>

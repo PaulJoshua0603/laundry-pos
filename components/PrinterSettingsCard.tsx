@@ -151,17 +151,22 @@ export default function PrinterSettingsCard() {
       </div>
 
       <div className="field-group" style={{ marginTop: 14 }}>
-        <label className="field-label">Default receipt paper width</label>
+        <label className="field-label">Default receipt paper</label>
         <div className="pills">
           <div className={`pill${printerMm === 58 ? " active" : ""}`} onClick={() => setPrinterWidth(58, 210)}>
-            58mm (PR21)
+            57/58mm roll ✓
           </div>
           <div className={`pill${printerMm === 80 ? " active" : ""}`} onClick={() => setPrinterWidth(80)}>
-            80mm
+            80mm roll
           </div>
-          <div className={`pill${printerMm === 48 ? " active" : ""}`} onClick={() => setPrinterWidth(48, 210)}>
-            48mm (ZPrinter)
-          </div>
+        </div>
+        {/* The "48mm (ZPrinter)" option was removed: it produced the same 48mm
+            printable width as the 58mm setting, so it only ever caused doubt
+            about which one was correct. */}
+        <div className="paysettings-note" style={{ marginTop: 8 }}>
+          Rolls are sold as <b>width × roll diameter</b>, so a <b>57×50mm</b> roll is 57mm wide with a 50mm
+          diameter — continuous paper, not 50mm sheets. That is the <b>57/58mm roll</b> setting. The PR21 prints
+          48mm wide whichever of 57mm or 58mm paper you load.
         </div>
       </div>
     </div>

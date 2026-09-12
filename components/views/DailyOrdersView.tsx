@@ -78,6 +78,24 @@ export default function DailyOrdersView() {
                   </div>
                 </div>
 
+                {/* How much of the day's billing was actually collected —
+                    visible without opening the day. */}
+                <div className="daily-day-meter">
+                  <div className="svc-track">
+                    <div
+                      className="svc-fill"
+                      style={{
+                        width: `${d.total > 0 ? Math.round((d.paidTotal / d.total) * 100) : 0}%`,
+                        background: d.paidTotal >= d.total ? "var(--green)" : "var(--yellow)",
+                      }}
+                    />
+                  </div>
+                  <span className="daily-day-meter-label">
+                    {d.total > 0 ? `${Math.round((d.paidTotal / d.total) * 100)}% collected` : "—"}
+                    {d.total - d.paidTotal > 0 ? ` · ${peso(d.total - d.paidTotal)} owed` : ""}
+                  </span>
+                </div>
+
                 {isOpen && (
                   <div>
                     {d.orders.map((o) => {

@@ -58,6 +58,14 @@ export default function UnpaidView() {
     .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
 
   const totalUnpaid = unpaid.reduce((s, o) => s + getBalance(o), 0);
+  const partialCount = unpaid.filter((o) => (o.amountPaid || 0) > 0).length;
+  const collectedSoFar = unpaid.reduce((s, o) => s + (o.amountPaid || 0), 0);
+
+  // Age drives collection priority far more than order sequence does, so it is
+  // shown per row and used to flag the ones going stale.
+  const daysOld = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  const staleCount = unpaid.filter((o) => daysOld(o.time) >= 7).length;
+  const oldest = unpaid.reduce((m, o) => Math.max(m, daysOld(o.time)), 0);
 
   return (
     <div className="view active" id="view-unpaid">
@@ -71,27 +79,29 @@ export default function UnpaidView() {
         </button>
       </div>
 
-      <div className="orders-stat-row">
-        <div className="orders-stat-chip">
-          <span className="orders-stat-icon">⏳</span>
-          <div>
-            <div className="orders-stat-val">{unpaid.length}</div>
-            <div className="orders-stat-label">Unpaid Order{unpaid.length !== 1 ? "s" : ""}</div>
+      <div className="kpi-row">
+        <div className="kpi-card kpi-card-hero">
+          <div className="kpi-label">Total still owed</div>
+          <div className="kpi-valrow">
+            <div className="kpi-val" style={{ color: "var(--yellow)" }}>
+              {peso(totalUnpaid)}
+            </div>
+            {staleCount > 0 && <span className="kpi-delta down">{staleCount} over 7 days</span>}
+          </div>
+          <div className="kpi-sub">
+            across {unpaid.length} order{unpaid.length !== 1 ? "s" : ""}
+            {oldest > 0 ? ` · oldest ${oldest} day${oldest !== 1 ? "s" : ""}` : ""}
           </div>
         </div>
-        <div className="orders-stat-chip">
-          <span className="orders-stat-icon">🙋</span>
-          <div>
-            <div className="orders-stat-val">{new Set(unpaid.map((o) => o.name.trim().toLowerCase())).size}</div>
-            <div className="orders-stat-label">Customers</div>
-          </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Customers</div>
+          <div className="kpi-val">{new Set(unpaid.map((o) => o.name.trim().toLowerCase())).size}</div>
+          <div className="kpi-sub">with a balance</div>
         </div>
-        <div className="orders-stat-chip orders-stat-chip-total">
-          <span className="orders-stat-icon">💰</span>
-          <div>
-            <div className="orders-stat-val">{peso(totalUnpaid)}</div>
-            <div className="orders-stat-label">Total Balance Owed</div>
-          </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Part-paid</div>
+          <div className="kpi-val">{partialCount}</div>
+          <div className="kpi-sub">{peso(collectedSoFar)} already in</div>
         </div>
       </div>
 
@@ -140,10 +150,13 @@ export default function UnpaidView() {
                     .map((p) => p[0]?.toUpperCase())
                     .join("") || "?";
                 const balance = getBalance(o);
+                const age = daysOld(o.time);
+                const paidPct = o.total > 0 ? Math.round(((o.amountPaid || 0) / o.total) * 100) : 0;
                 return (
-                  <tr key={o.id}>
+                  <tr key={o.id} className={age >= 7 ? "is-stale" : undefined}>
                     <td>
-                      <span className="pay-badge pay-badge-unpaid">{o.amountPaid > 0 ? "◐ Partial" : "⏳ Unpaid"}</span>
+                      <span className="pay-badge pay-badge-unpaid">{o.amountPaid > 0 ? `◐ ${paidPct}% paid` : "⏳ Unpaid"}</span>
+                      {age >= 7 && <div className="age-flag">{age}d old</div>}
                     </td>
                     <td>
                       <div className="customer-cell">
@@ -166,7 +179,10 @@ export default function UnpaidView() {
                       {peso(balance)}
                     </td>
                     <td className="mono" style={{ fontSize: 11 }}>
-                      {new Date(o.time).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}
+                      <div>{new Date(o.time).toLocaleDateString("en-PH", { month: "short", day: "numeric", year: "numeric" })}</div>
+                      <div style={{ color: "var(--text3)", fontSize: 10 }}>
+                        {age === 0 ? "today" : age === 1 ? "yesterday" : `${age} days ago`}
+                      </div>
                     </td>
                     <td>
                       <PartialPayRow orderId={o.id} total={o.total} balance={balance} />

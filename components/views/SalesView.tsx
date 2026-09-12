@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { BUSINESS_DAY_START_HOUR, businessDayStart, peso } from "@/lib/format";
+import { getLoadCount } from "@/lib/types";
 import { exportSalesExcel } from "@/lib/salesExcel";
 
 function startOfWeek(d: Date) {
@@ -14,6 +15,20 @@ function startOfWeek(d: Date) {
 
 function hourLabel(h: number) {
   return h === 0 ? "12AM" : h < 12 ? `${h}AM` : h === 12 ? "12PM" : `${h - 12}PM`;
+}
+
+/** Rounds an axis maximum up to a clean 1 / 2 / 2.5 / 5 / 10 × power of ten. */
+function niceMax(v: number): number {
+  if (v <= 0) return 100;
+  const mag = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / mag;
+  const step = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return step * mag;
+}
+
+function compactPeso(n: number): string {
+  if (n >= 1000) return `₱${(n / 1000).toFixed(n % 1000 === 0 ? 0 : 1)}k`;
+  return `₱${Math.round(n)}`;
 }
 
 function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: number) {
@@ -90,6 +105,7 @@ function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: nu
 export default function SalesView() {
   const { orders, salesPeriod, setSalesPeriod, salesOffset, setSalesOffset, session } = useApp();
   const [exporting, setExporting] = useState(false);
+  const [hovered, setHovered] = useState<number | null>(null);
 
   const { start, end, buckets, label, chartHint } = useMemo(
     () => getPeriodBounds(salesPeriod, salesOffset),
@@ -103,15 +119,43 @@ export default function SalesView() {
   const rev = inRange.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const avg = inRange.length ? Math.round(rev / inRange.length) : 0;
 
-  const bucketRevs = buckets.map((b) =>
-    orders
-      .filter((o) => {
-        const t = new Date(o.time);
-        return t >= b.start && t < b.end && o.status !== "cancelled";
-      })
-      .reduce((s, o) => s + (o.amountPaid || 0), 0)
+  // One pass per bucket, carrying the order count too so the tooltip can show
+  // it without re-scanning.
+  const bucketData = useMemo(
+    () =>
+      buckets.map((b) => {
+        let rev = 0;
+        let count = 0;
+        orders.forEach((o) => {
+          if (o.status === "cancelled") return;
+          const t = new Date(o.time);
+          if (t < b.start || t >= b.end) return;
+          rev += o.amountPaid || 0;
+          count++;
+        });
+        return { ...b, rev, count };
+      }),
+    [buckets, orders]
   );
-  const maxRev = Math.max(...bucketRevs, 1);
+  const bucketRevs = bucketData.map((b) => b.rev);
+  const maxRev = Math.max(...bucketRevs, 0);
+  // Round the axis top to a clean number so the ticks read 0 / 2,000 / 4,000
+  // rather than 0 / 1,847 / 3,694.
+  const axisMax = niceMax(maxRev);
+  const peakIndex = maxRev > 0 ? bucketRevs.indexOf(maxRev) : -1;
+  // With 30+ day buckets an x-label under every column is unreadable, so thin
+  // them to roughly 8 across the axis.
+  const labelEvery = Math.max(1, Math.ceil(buckets.length / 8));
+
+  // Same window, one period earlier — the honest comparison for the delta.
+  const prevBounds = useMemo(() => getPeriodBounds(salesPeriod, salesOffset - 1), [salesPeriod, salesOffset]);
+  const prevRev = orders.reduce((s, o) => {
+    if (o.status === "cancelled") return s;
+    const t = new Date(o.time);
+    return t >= prevBounds.start && t < prevBounds.end ? s + (o.amountPaid || 0) : s;
+  }, 0);
+  const deltaPct = prevRev > 0 ? Math.round(((rev - prevRev) / prevRev) * 100) : null;
+  const loads = inRange.reduce((n, o) => n + getLoadCount(o.items), 0);
 
   const svcMap: Record<string, { id: string; name: string; icon: string; qty: number; rev: number }> = {};
   inRange.forEach((o) =>
@@ -178,45 +222,100 @@ export default function SalesView() {
         </button>
       </div>
 
-      <div className="stats-row">
-        <div className="stat-card">
-          <div className="stat-card-label">Revenue</div>
-          <div className="stat-card-val">{peso(rev)}</div>
-          <div className="stat-card-sub">
-            {salesPeriod === "today" ? "Today" : salesPeriod === "week" ? "This week" : salesPeriod === "month" ? "This month" : "This year"}
+      {/* Revenue is the headline, so it gets a wider tile and the comparison.
+          The rest are supporting figures at equal weight. */}
+      <div className="kpi-row">
+        <div className="kpi-card kpi-card-hero">
+          <div className="kpi-label">Revenue collected</div>
+          <div className="kpi-valrow">
+            <div className="kpi-val">{peso(rev)}</div>
+            {deltaPct !== null && (
+              <span
+                className={`kpi-delta${deltaPct >= 0 ? " up" : " down"}`}
+                title={`Previous ${salesPeriod}: ${peso(prevRev)}`}
+              >
+                {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct)}%
+              </span>
+            )}
+          </div>
+          <div className="kpi-sub">
+            {deltaPct !== null ? `vs ${peso(prevRev)} previous ${salesPeriod}` : "No comparable previous period"}
           </div>
         </div>
-        <div className="stat-card">
-          <div className="stat-card-label">Orders</div>
-          <div className="stat-card-val">{inRange.length}</div>
-          <div className="stat-card-sub">Completed</div>
+
+        <div className="kpi-card">
+          <div className="kpi-label">Orders</div>
+          <div className="kpi-val">{inRange.length}</div>
+          <div className="kpi-sub">excl. cancelled</div>
         </div>
-        <div className="stat-card">
-          <div className="stat-card-label">Avg Order</div>
-          <div className="stat-card-val">{peso(avg)}</div>
-          <div className="stat-card-sub">Per transaction</div>
+        <div className="kpi-card">
+          <div className="kpi-label">Avg order</div>
+          <div className="kpi-val">{peso(avg)}</div>
+          <div className="kpi-sub">per transaction</div>
+        </div>
+        <div className="kpi-card">
+          <div className="kpi-label">Loads</div>
+          <div className="kpi-val">{loads}</div>
+          <div className="kpi-sub">washed &amp; dried</div>
         </div>
       </div>
 
       <div className="report-card">
         <div className="report-card-head">
-          <span className="report-card-title">📈 Revenue Breakdown</span>
+          <span className="report-card-title">Revenue Breakdown</span>
           <span className="report-card-hint">{chartHint}</span>
         </div>
-        <div className="sales-chart">
-          {buckets.map((b, i) => {
-            const v = bucketRevs[i];
-            const h = Math.max(Math.round((v / maxRev) * 100), v > 0 ? 4 : 1);
-            const isPeak = v === maxRev && v > 0;
-            return (
-              <div key={i} className={`sales-bar-col${isPeak ? " is-peak" : ""}`}>
-                <span className="sales-bar-val">{peso(v)}</span>
-                <div className={`sales-bar${v === 0 ? " empty" : ""}`} style={{ height: `${h}%` }} />
-                <span className="sales-bar-label">{b.label}</span>
+
+        {/* Single series, so no legend — the card title names what is plotted.
+            Values live on the axis and in the tooltip; only the peak is
+            direct-labelled, because a number on every column is unreadable
+            (the previous version labelled all 30). */}
+        <div className="chart">
+          <div className="chart-grid" aria-hidden="true">
+            {[1, 0.75, 0.5, 0.25, 0].map((f) => (
+              <div className="chart-gridline" key={f}>
+                <span className="chart-tick">{compactPeso(axisMax * f)}</span>
               </div>
-            );
-          })}
+            ))}
+          </div>
+
+          <div className="chart-plot" role="img" aria-label={`Revenue ${chartHint}, total ${peso(rev)}`}>
+            {bucketData.map((b, i) => {
+              const pct = axisMax > 0 ? (b.rev / axisMax) * 100 : 0;
+              const isPeak = i === peakIndex;
+              const showLabel = i % labelEvery === 0 || isPeak;
+              return (
+                <div
+                  className={`chart-col${isPeak ? " is-peak" : ""}${hovered === i ? " is-hover" : ""}`}
+                  key={i}
+                  onMouseEnter={() => setHovered(i)}
+                  onMouseLeave={() => setHovered((h) => (h === i ? null : h))}
+                >
+                  {isPeak && b.rev > 0 && <span className="chart-peak-label">{compactPeso(b.rev)}</span>}
+                  <div className="chart-bar-track">
+                    <div
+                      className={`chart-bar${b.rev === 0 ? " is-empty" : ""}`}
+                      style={{ height: b.rev > 0 ? `max(3px, ${pct}%)` : "2px" }}
+                    />
+                  </div>
+                  <span className={`chart-xlabel${showLabel ? "" : " is-hidden"}`}>{b.label}</span>
+
+                  {hovered === i && (
+                    <div className="chart-tip" role="tooltip">
+                      <div className="chart-tip-label">{b.label}</div>
+                      <div className="chart-tip-val">{peso(b.rev)}</div>
+                      <div className="chart-tip-sub">
+                        {b.count} order{b.count !== 1 ? "s" : ""}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
+
+        {maxRev === 0 && <div className="report-empty">No revenue recorded in this period.</div>}
       </div>
 
       <div className="report-card">

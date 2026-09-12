@@ -21,7 +21,8 @@ interface RawRow {
   isDup: boolean;
 }
 
-export default function RawDataView() {
+// Rendered inside the Tools view's Data tab, not as a standalone screen.
+export default function DataToolsPanel() {
   const { session, cloudActive, importLegacyAccount, importPastedOrders, showToast, refreshFromCloud } = useApp();
   const [report, setReport] = useState<MissingOrdersReport | null>(null);
   const [scanningCloud, setScanningCloud] = useState(false);
@@ -143,12 +144,12 @@ export default function RawDataView() {
   }
 
   return (
-    <div className="view active" id="view-rawdata">
+    <div id="view-rawdata">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
         <div>
-          <h2 style={{ margin: 0 }}>All Local Data (Reference)</h2>
-          <p style={{ margin: "4px 0 0", opacity: 0.7, fontSize: 13 }}>
-            Raw scan of every order saved in this browser's storage — includes duplicates. Last scanned: {scannedAt || "—"}
+          <div className="tool-card-title">Local records on this device</div>
+          <p style={{ margin: "4px 0 0", opacity: 0.7, fontSize: 12.5 }}>
+            Raw scan of every order in this browser&apos;s storage — duplicates included. Last scanned: {scannedAt || "—"}
           </p>
         </div>
         <button className="btn" onClick={scan}>

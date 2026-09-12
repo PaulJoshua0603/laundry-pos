@@ -477,12 +477,14 @@ button, input{ color-scheme: inherit; }
   background:var(--surface);
   border-right:1px solid var(--border);
   display:flex;flex-direction:column;
-  overflow:hidden;
+  /* Scroll rather than clip if the viewport is very short — on a 768px-tall
+     laptop the nav + stats card is close to the available height. */
+  overflow-y:auto;overflow-x:hidden;
 }
 .sidebar-section-label{
   font-size:10px;font-weight:700;
   letter-spacing:.12em;text-transform:uppercase;
-  color:var(--text3);padding:20px 16px 8px;
+  color:var(--text3);padding:14px 16px 6px;
 }
 .nav-item{
   display:flex;align-items:center;gap:10px;
@@ -510,7 +512,11 @@ button, input{ color-scheme: inherit; }
 .nav-badge-warn{background:var(--yellow);color:#1a1305}
 
 .sidebar-stats{
-  margin:auto 12px 12px;
+  /* `margin-top:auto` used to dump every leftover pixel above this card,
+     leaving a large dead gap between the TODAY label and the card itself.
+     The sidebar now flows top-down and the leftover space collects at the
+     bottom, where it isn't read as a layout bug. */
+  margin:0 12px 12px;
   background:var(--surface2);
   border:1px solid var(--border);
   border-radius:var(--radius);
@@ -601,7 +607,9 @@ button, input{ color-scheme: inherit; }
 }
 .sidebar-stat-unpaid:hover{border-color:var(--yellow);transform:translateY(-1px)}
 .sidebar-hours{
-  margin-top:auto;padding-top:14px;
+  /* Sits directly under the stats card rather than being pinned to the very
+     bottom of a tall column, which opened a second dead gap. */
+  margin-top:0;padding:0 16px 14px;
   font-size:10.5px;color:var(--text3);font-weight:500;
   display:flex;align-items:center;gap:5px;
 }
@@ -1202,16 +1210,31 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   box-shadow:var(--shadow-lg);
 }
 .modal-overlay.show .modal{transform:translateY(0)}
-.printer-size-row{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:14px 20px 0;
+/* Paper picker — three equal segments. The old pills sat on one flex row and
+   wrapped the third option onto its own line at the modal's width. */
+.paper-picker{padding:16px 20px 0}
+.paper-picker-label{
+  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text3);margin-bottom:8px;
 }
-.printer-size-label{font-size:11px;font-weight:600;color:var(--text3)}
-.printer-size-hint{
-  font-size:11px;line-height:1.5;color:var(--text3);
-  padding:8px 20px 0;
+.paper-seg{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
 }
-.printer-size-hint b{color:var(--text2)}
+.paper-opt{
+  display:flex;flex-direction:column;align-items:center;gap:2px;
+  padding:9px 6px;border-radius:var(--radius-sm);
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text2);cursor:pointer;font-family:var(--font);
+  transition:all var(--transition);text-align:center;min-width:0;
+}
+.paper-opt:hover{border-color:var(--text3);color:var(--text)}
+.paper-opt.active{
+  background:var(--blue-muted);border-color:var(--blue);
+  color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset;
+}
+.paper-opt-name{font-size:12.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.paper-opt-sub{font-size:9.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.printer-size-warn{margin:10px 20px 0}
 .receipt{padding:24px;font-family:var(--mono);position:relative}
 .receipt::before{
   content:'';position:absolute;top:0;left:0;right:0;height:10px;
@@ -1229,15 +1252,21 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 
 /* Customer headline — the name is the thing everyone reads first, so it gets
    real size instead of being a small right-aligned value. */
-.receipt-customer-block{text-align:center;margin:2px 0 4px}
+.receipt-customer-block{text-align:center;margin:2px 0 6px}
 .receipt-customer-label{
   font-size:9px;letter-spacing:.18em;text-transform:uppercase;
   color:var(--text3);font-weight:700;margin-bottom:3px;
 }
 .receipt-customer-name{
-  font-family:var(--font-display);font-size:22px;font-weight:700;
-  line-height:1.15;color:var(--text);text-transform:uppercase;
-  letter-spacing:.01em;word-break:break-word;
+  font-family:var(--font-display);font-size:26px;font-weight:700;
+  line-height:1.1;color:var(--text);text-transform:uppercase;
+  letter-spacing:.01em;word-break:break-word;overflow-wrap:anywhere;
+}
+/* On-screen preview of the tag mirrors the printed one: name only, centred. */
+.basket-tag .tag-name{
+  font-family:var(--font-display);font-size:26px;font-weight:800;
+  text-transform:uppercase;text-align:center;color:var(--text);
+  word-break:break-word;overflow-wrap:anywhere;
 }
 .receipt-customer-meta{
   display:flex;align-items:center;justify-content:center;gap:8px;
@@ -1257,10 +1286,32 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .receipt-item-amt{flex:0 0 auto;font-family:var(--mono);font-weight:600;white-space:nowrap}
 .receipt-item-sub{font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-top:1px}
 .receipt-footer{text-align:center;font-size:11px;color:var(--text3);margin-top:20px;font-family:var(--font)}
-.modal-actions{padding:0 16px 16px;display:flex;flex-wrap:wrap;gap:8px}
-.modal-actions .btn{flex:1 1 130px;justify-content:center}
-.basket-tag{display:none}
-.cut-line{display:none}
+/* Receipt actions: a 2x2 grid instead of a wrapping flex row, so the four
+   buttons form even columns rather than an uneven 2-then-1-then-1 stack. */
+.modal-actions{
+  padding:14px 20px 20px;display:grid;gap:8px;
+  grid-template-columns:1fr 1fr;
+  border-top:1px solid var(--border);margin-top:4px;
+}
+.modal-actions .btn{width:100%;justify-content:center}
+/* Print is the action people came for, so it leads at full width; Close
+   closes the row the same way. */
+.modal-actions .btn-primary,
+.modal-actions .modal-close-btn{grid-column:1 / -1}
+/* Previewed on screen too. These print on the same strip, so hiding them
+   meant you couldn't see what the basket tag would look like until a sheet
+   came out of the printer. */
+.cut-line{
+  display:block;text-align:center;
+  font-family:var(--mono);font-size:10px;color:var(--text3);
+  letter-spacing:.06em;padding:2px 24px 12px;user-select:none;
+}
+.basket-tag{
+  display:flex;align-items:center;justify-content:center;
+  margin:0 24px 20px;padding:22px 12px;
+  border:2px dashed var(--border2);border-radius:var(--radius-sm);
+  background:var(--surface2);min-height:84px;
+}
 
 /* ══════════════════════════════════════════
    FIXED TAG — 57×50mm pre-cut label preview
@@ -1502,7 +1553,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     background:#fff !important;overflow:visible !important;
     transform:none !important;max-height:none !important;
   }
-  .printer-size-row,.printer-size-hint,.modal-actions{display:none !important}
+  .paper-picker,.printer-size-warn,.modal-actions{display:none !important}
   .receipt-icon{display:none !important}
 
   /* Receipt body — compact for narrow thermal rolls. Thermal printer
@@ -1592,35 +1643,22 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   /* Customer headline on paper. Thermal heads render thin strokes badly, so
      everything here is heavy-weight pure black. The name is the largest thing
      on the slip after the total — staff match a basket to a person by it. */
+  /* The name is now the first thing on the slip and carries it, so it takes
+     the space the removed shop header used to occupy. */
   .receipt-customer-block{
     text-align:center !important;
-    margin:1.5mm 0 !important;
+    margin:0 0 1.5mm !important;
     color:#000 !important;
   }
-  .receipt-customer-label{
-    font-size:8px !important;letter-spacing:.16em !important;
-    text-transform:uppercase !important;font-weight:900 !important;
-    color:#000 !important;margin-bottom:0.8mm !important;
-  }
   .receipt-customer-name{
-    font-size:19px !important;font-weight:900 !important;line-height:1.15 !important;
+    font-size:24px !important;font-weight:900 !important;line-height:1.1 !important;
     text-transform:uppercase !important;color:#000 !important;
-    word-break:break-word !important;letter-spacing:.01em !important;
+    word-break:break-word !important;overflow-wrap:anywhere !important;
+    letter-spacing:0 !important;
   }
-  .receipt-customer-meta{
-    display:flex !important;justify-content:center !important;gap:2.5mm !important;
-    margin-top:1mm !important;font-size:10px !important;font-weight:900 !important;
-    color:#000 !important;flex-wrap:wrap !important;
-  }
-  .receipt-order-no{
-    border:1.5px solid #000 !important;border-radius:0 !important;
-    padding:0 1.4mm !important;font-weight:900 !important;
-    background:transparent !important;color:#000 !important;
-  }
-  .receipt-customer-phone{
-    font-size:10px !important;font-weight:900 !important;
-    color:#000 !important;margin-top:0.6mm !important;
-  }
+  /* Removed from the markup — hidden defensively. */
+  .receipt-customer-label,.receipt-customer-meta,.receipt-order-no,.receipt-customer-phone,
+  .receipt-header,.receipt-footer{display:none !important}
 
   /* Line items — amount hard right, qty × unit price on its own line. */
   .receipt-item{margin-bottom:1.6mm !important;color:#000 !important}
@@ -1675,9 +1713,11 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     page-break-after:avoid !important;page-break-inside:avoid !important;
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
     box-sizing:border-box !important;
-    margin:3.5mm 0 0 0 !important;padding:2mm 1mm !important;
+    margin:3.5mm 0 0 0 !important;padding:5mm 1mm !important;
     border:3px dashed #000 !important;
     text-align:center !important;
+    display:flex !important;align-items:center !important;justify-content:center !important;
+    min-height:22mm !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
   }
@@ -1688,11 +1728,17 @@ a:focus-visible, button:focus-visible, input:focus-visible,
       .3px 0 0 #000,-.3px 0 0 #000,0 .3px 0 #000,0 -.3px 0 #000,
       .3px .3px 0 #000,-.3px -.3px 0 #000,.3px -.3px 0 #000,-.3px .3px 0 #000 !important;
   }
-  .tag-label{font-size:10px;letter-spacing:.12em;font-weight:900;margin-bottom:3px;text-transform:uppercase}
-  .tag-name{font-size:21px;font-weight:900;line-height:1.2;word-break:break-word;margin-bottom:2px;letter-spacing:.01em;text-transform:uppercase}
-  .tag-phone{font-size:11px;margin-bottom:3px;font-weight:900}
-  .tag-divider{border-top:2.5px dashed #000;margin:3px 0}
-  .tag-row{display:flex;justify-content:space-between;font-size:10px;margin-bottom:2px;font-weight:900;gap:4px}
+  /* The tag is now the name alone, so it gets the whole card. 30px is the
+     largest that still fits a two-word name inside 48mm of printable width;
+     longer names wrap rather than clip. */
+  .tag-name{
+    font-size:30px !important;font-weight:900 !important;line-height:1.05 !important;
+    word-break:break-word !important;overflow-wrap:anywhere !important;
+    letter-spacing:0 !important;text-transform:uppercase !important;
+    text-align:center !important;margin:0 !important;color:#000 !important;
+  }
+  /* Unused on the tag now, but kept so any stale markup can't print stray ink. */
+  .tag-label,.tag-phone,.tag-divider,.tag-row{display:none !important}
 
   /* Compact 57×50mm fixed-tag layout — same fake-bold thermal
      treatment as the receipt, but everything sits on one card since
@@ -1726,7 +1772,8 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   .fixed-tag-row{font-size:9.5px !important;margin-bottom:1.6px !important}
   .fixed-tag-row span:first-child{flex:1 1 auto !important;overflow:hidden !important;white-space:nowrap !important;text-overflow:ellipsis !important}
   .fixed-tag-row span:last-child{flex:0 0 auto !important;white-space:nowrap !important;text-align:right !important}
-  .fixed-tag-name{font-size:15px !important;text-transform:uppercase !important;margin:1.5mm 0 !important}
+  .fixed-tag-name{font-size:22px !important;font-weight:900 !important;line-height:1.08 !important;text-transform:uppercase !important;text-align:center !important;margin:0 0 1.5mm !important;word-break:break-word !important;overflow-wrap:anywhere !important}
+  .fixed-tag-header,.fixed-tag-sub,.fixed-tag-biz{display:none !important}
   .fixed-tag-total{font-size:13px !important}
   .fixed-tag-footer{font-size:8px !important;margin-top:1.5mm !important}
 }
@@ -1865,11 +1912,65 @@ img.emoji{
   thead th{padding:11px 12px;font-size:9.5px}
   tbody td{padding:11px 12px;font-size:12.5px}
 }
-@media(min-width:961px) and (max-width:1366px) and (max-height:800px){
-  .topbar{height:52px}
-  .sidebar-stats{padding:10px 12px}
-  .nav-item{padding:8px 14px}
-  .orders-stat-row{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+/* ══════════════════════════════════════════
+   1366x768 LAPTOP (Acer Extensa 215-21G and similar)
+
+   768px of height minus the topbar leaves ~715px for three columns that all
+   want to be tall: the sidebar (nav + today card), the cart (customer fields,
+   item list, totals, pay methods, checkout) and the main view. Everything
+   below is a height economy measure — paddings and type come down a step so
+   the item list and the checkout button are both reachable without scrolling
+   the panel.
+══════════════════════════════════════════ */
+@media(min-width:961px) and (max-width:1400px) and (max-height:820px){
+  .shell{grid-template-columns:212px 1fr 310px}
+  .topbar{height:50px}
+  .shell{grid-template-rows:calc(50px + env(safe-area-inset-top)) 1fr}
+  .main{padding:14px 16px}
+
+  /* ── Sidebar ── */
+  .sidebar-section-label{padding:10px 14px 4px;font-size:9.5px}
+  .nav-item{padding:6px 12px;font-size:12.5px;margin:0 8px}
+  .nav-icon{font-size:14px;width:18px}
+  .sidebar-stats{padding:11px 12px;margin:0 10px 8px}
+  .sidebar-stats-premium .sidebar-stat-val{font-size:21px}
+  .sidebar-stat-chips{margin:6px 0 0;gap:5px}
+  .sidebar-chip{font-size:9.5px;padding:2px 7px}
+  .sidebar-stat-target{font-size:9px;margin-top:4px}
+  .sidebar-stat-unpaid{margin-top:8px;padding:7px 9px}
+  .sidebar-hours{padding:0 14px 10px;font-size:9.5px}
+
+  /* ── Cart ── */
+  .customer-strip{padding:10px 12px;gap:7px}
+  .customer-field{padding:7px 10px;font-size:12.5px}
+  .cart-header{padding:10px 14px}
+  .cart-items{padding:8px 12px}
+  .cart-item{padding:8px 10px;gap:8px}
+  .cart-footer{padding:10px 14px 12px}
+  .cart-line{margin-bottom:3px}
+  .pay-methods{gap:5px;margin:8px 0}
+  .pay-btn{padding:7px 4px;font-size:11px}
+  .partial-pay-field{margin-top:8px}
+  .partial-pay-input{padding:6px 8px;font-size:12.5px}
+  .btn-checkout{padding:11px;font-size:13.5px;margin-top:8px}
+
+  /* ── Views ── */
+  .section-head{margin-bottom:12px}
+  .section-title{font-size:19px}
+  .orders-stat-row{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px}
+  .orders-stat-chip{padding:9px 11px}
+  .product-grid{grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:9px}
+  .product-card{padding:11px 10px}
+  .product-icon{font-size:22px}
+  .product-name{font-size:12.5px}
+
+  /* Sales Tracking: keep the chart readable but shorter. */
+  .kpi-card{padding:12px 14px}
+  .kpi-card-hero .kpi-val{font-size:27px}
+  .kpi-val{font-size:22px}
+  .kpi-row{gap:9px;margin-bottom:12px}
+  .chart-plot{height:150px}
+  .report-card{padding:14px}
 }
 
 /* 1920x1080 and larger — give the layout more breathing room */
@@ -2163,3 +2264,219 @@ img.emoji{
 .report-bar-track{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden}
 .report-bar-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1)}
 .report-pay-row{display:flex;flex-direction:column;gap:6px}
+
+/* ══════════════════════════════════════════
+   SALES TRACKING — KPI row + revenue chart
+
+   Single-series chart, so there is no legend: the card title names what is
+   plotted. The brand indigo (#6D5EF5) is the one series colour — validated
+   at >=3:1 against the card surface. Note it must never be paired with
+   --blue-2 (#9333EA) to distinguish two data categories: they measure ΔE 2.3
+   apart under deuteranopia, i.e. the same colour to many readers. They are
+   only ever used together as a decorative gradient on one entity.
+══════════════════════════════════════════ */
+
+.kpi-row{
+  display:grid;gap:12px;margin-bottom:16px;
+  grid-template-columns:1.6fr 1fr 1fr 1fr;
+}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px 18px;min-width:0;
+}
+.kpi-card-hero{
+  background:
+    radial-gradient(120% 140% at 0% 0%, var(--blue-muted) 0%, transparent 60%),
+    var(--surface);
+  border-color:var(--border2);
+}
+.kpi-label{
+  font-size:10.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--text3);margin-bottom:7px;
+}
+.kpi-valrow{display:flex;align-items:baseline;gap:9px;flex-wrap:wrap}
+.kpi-val{
+  font-family:var(--mono);font-size:28px;font-weight:700;
+  color:var(--text);letter-spacing:-.035em;line-height:1.05;
+}
+.kpi-card-hero .kpi-val{font-size:34px}
+.kpi-delta{
+  font-family:var(--mono);font-size:11.5px;font-weight:700;
+  padding:2px 8px;border-radius:999px;white-space:nowrap;border:1px solid transparent;
+}
+.kpi-delta.up{color:var(--green);background:var(--green-dim);border-color:rgba(16,185,129,.3)}
+.kpi-delta.down{color:var(--yellow);background:var(--yellow-dim);border-color:rgba(227,164,56,.3)}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:6px}
+
+/* ── Chart ─────────────────────────────── */
+.chart{position:relative;padding:26px 0 0 46px;margin-top:4px}
+
+/* Hairline, solid, one step off the surface — never dashed. */
+.chart-grid{position:absolute;inset:26px 0 30px 46px;display:flex;flex-direction:column;justify-content:space-between;pointer-events:none}
+.chart-gridline{position:relative;border-top:1px solid var(--border);height:0}
+.chart-tick{
+  position:absolute;right:calc(100% + 8px);top:-7px;
+  font-family:var(--mono);font-size:10px;color:var(--text3);white-space:nowrap;
+}
+
+.chart-plot{
+  position:relative;display:flex;align-items:flex-end;
+  gap:2px;                 /* the 2px surface gap that separates neighbours */
+  height:190px;padding-bottom:30px;
+}
+.chart-col{
+  flex:1 1 0;min-width:0;position:relative;
+  display:flex;flex-direction:column;justify-content:flex-end;align-items:center;
+  height:100%;cursor:default;
+}
+.chart-bar-track{width:100%;height:100%;display:flex;align-items:flex-end;justify-content:center}
+.chart-bar{
+  width:100%;max-width:24px;        /* cap the mark; the slack is air */
+  background:var(--blue);
+  border-radius:4px 4px 0 0;        /* rounded data-end, square at baseline */
+  transition:background var(--transition),opacity var(--transition);
+}
+.chart-bar.is-empty{background:var(--border2);border-radius:2px}
+.chart-col.is-peak .chart-bar{background:var(--yellow)}
+.chart-col.is-hover .chart-bar{opacity:.75}
+
+.chart-peak-label{
+  position:absolute;top:-20px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:10.5px;font-weight:700;
+  color:var(--text2);           /* text wears text tokens, never the mark colour */
+  white-space:nowrap;
+}
+.chart-xlabel{
+  position:absolute;bottom:8px;left:50%;transform:translateX(-50%);
+  font-family:var(--mono);font-size:9.5px;color:var(--text3);white-space:nowrap;
+}
+.chart-xlabel.is-hidden{visibility:hidden}
+
+.chart-tip{
+  position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);
+  background:var(--surface2);border:1px solid var(--border2);
+  border-radius:var(--radius-sm);padding:7px 10px;z-index:5;
+  box-shadow:var(--shadow);pointer-events:none;white-space:nowrap;
+}
+.chart-tip-label{font-size:10px;color:var(--text3);margin-bottom:2px;letter-spacing:.04em;text-transform:uppercase}
+.chart-tip-val{font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text)}
+.chart-tip-sub{font-size:10.5px;color:var(--text2);margin-top:1px}
+
+@media(max-width:900px){
+  .kpi-row{grid-template-columns:1fr 1fr}
+  .kpi-card-hero{grid-column:1 / -1}
+}
+@media(max-width:560px){
+  .chart{padding-left:38px}
+  .chart-grid{left:38px}
+  .kpi-card-hero .kpi-val{font-size:28px}
+  .kpi-val{font-size:22px}
+}
+
+/* Shown only when the computed receipt height exceeds the 210mm page the
+   POS58 driver defaults to — the case where Windows would silently split the
+   receipt across two pages. */
+.printer-size-warn{
+  margin:8px 0 0;padding:8px 10px;
+  background:var(--yellow-dim);border:1px solid rgba(227,164,56,.35);
+  border-radius:var(--radius-sm);
+  font-size:11.5px;line-height:1.45;color:var(--yellow);
+}
+
+/* ══════════════════════════════════════════
+   TOOLS — tabbed settings & maintenance
+══════════════════════════════════════════ */
+.tool-tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.tool-tab{
+  display:flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:999px;cursor:pointer;
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text2);font-size:12.5px;font-weight:600;font-family:var(--font);
+  transition:all var(--transition);
+}
+.tool-tab:hover{color:var(--text);border-color:var(--text3)}
+.tool-tab.active{background:var(--blue-muted);border-color:var(--blue-dim);color:var(--blue)}
+.tool-tab-icon{font-size:14px}
+.tool-tab-hint{font-size:11.5px;color:var(--text3);margin:0 0 16px 2px}
+
+.tool-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:12px}
+.tool-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:16px;
+}
+.tool-card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.tool-card-icon{font-size:20px;flex-shrink:0}
+.tool-card-title{font-size:14px;font-weight:700;color:var(--text)}
+.tool-card-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.tool-badge{
+  margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;
+  border-radius:999px;white-space:nowrap;
+}
+.tool-badge.ok{color:var(--green);background:var(--green-dim);border:1px solid rgba(16,185,129,.3)}
+.tool-note{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);padding:13px 15px;
+  font-size:12px;line-height:1.6;color:var(--text2);
+}
+.tool-note code{
+  background:var(--surface2);padding:1px 5px;border-radius:4px;
+  font-family:var(--mono);font-size:11px;color:var(--blue);
+}
+
+/* ══════════════════════════════════════════
+   SHARED PANEL / LIST LANGUAGE
+   Reused by Daily Summary, Daily Orders and Unpaid Customers so the three
+   screens read as one system rather than three separate tables.
+══════════════════════════════════════════ */
+.panel{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius);overflow:hidden;margin-bottom:14px;
+}
+.panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:13px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;
+}
+.panel-title{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.01em}
+.panel-hint{font-size:11px;color:var(--text3)}
+.panel-body{padding:14px 16px}
+
+/* A compact horizontal meter used for shares (payment mix, service mix). */
+.meter{display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--surface2);gap:2px}
+.meter-seg{height:100%}
+.meter-key{display:flex;flex-wrap:wrap;gap:14px;margin-top:11px}
+.meter-key-item{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2)}
+.meter-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
+.meter-key-val{font-family:var(--mono);font-weight:700;color:var(--text)}
+
+/* Progress row used in Top Services — single hue, value at the end. */
+.svc-row{padding:9px 0;border-bottom:1px solid var(--border)}
+.svc-row:last-child{border-bottom:none}
+.svc-row-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:6px}
+.svc-name{font-size:12.5px;color:var(--text);font-weight:500;min-width:0}
+.svc-val{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap}
+.svc-track{height:6px;border-radius:999px;background:var(--surface2);overflow:hidden}
+.svc-fill{height:100%;background:var(--blue);border-radius:999px}
+.svc-sub{font-size:10.5px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
+
+/* Daily Orders — per-day collection meter in the card header. */
+.daily-day-meter{
+  display:flex;align-items:center;gap:10px;
+  padding:0 16px 12px;
+}
+.daily-day-meter .svc-track{flex:1;min-width:0;height:5px}
+.daily-day-meter-label{
+  font-size:10.5px;color:var(--text3);font-family:var(--mono);
+  white-space:nowrap;flex-shrink:0;
+}
+
+/* Daily Summary — services and payment mix side by side on wide screens. */
+.summary-cols{display:grid;gap:14px;grid-template-columns:1.35fr 1fr;align-items:start}
+@media(max-width:900px){ .summary-cols{grid-template-columns:1fr} }
+
+/* Unpaid — aging emphasis. A stale row is tinted AND carries a "Nd old"
+   label, so the state is never communicated by colour alone. */
+tr.is-stale td{background:rgba(227,164,56,.05)}
+.age-flag{
+  margin-top:4px;font-size:9.5px;font-weight:700;font-family:var(--mono);
+  color:var(--yellow);letter-spacing:.04em;
+}

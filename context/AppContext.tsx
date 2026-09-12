@@ -75,7 +75,7 @@ import {
 import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCloud } from "@/lib/migrateLocalData";
 import { isBusinessToday } from "@/lib/format";
 
-export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "payments" | "rawdata";
+export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "tools";
 export type ToastType = "" | "success" | "error";
 
 interface ToastState {
@@ -247,6 +247,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const paySettingsRef = useRef<PaySettings>(paySettings);
   const smsTemplatesRef = useRef<SmsTemplates>(smsTemplates);
   const showToastRef = useRef<((msg: string, type?: ToastType) => void) | null>(null);
+  /** Which user's orders are currently loaded into state — see the persistence effect. */
+  const hydratedForRef = useRef<string | null>(null);
+
+  /**
+   * Loads a user's orders into state and marks them as belonging to that user.
+   * Every load path must go through this so the persistence effect can tell
+   * "this list is this user's" from "this list is an empty placeholder".
+   */
+  const hydrateOrders = useCallback((userId: string, list: Order[]) => {
+    hydratedForRef.current = userId;
+    ordersRef.current = list;
+    setOrders(list);
+  }, []);
   sessionRef.current = session;
   cloudRef.current = cloudActive;
   ordersRef.current = orders;
@@ -282,7 +295,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setTheme(theme);
         document.documentElement.setAttribute("data-theme", theme);
 
-        const savedMm = parseInt(localStorage.getItem(PRINTWIDTH_KEY) || "", 10) || 58;
+        // The old "48mm (ZPrinter)" choice produced exactly the same 48mm
+        // printable width as the 58mm setting and is no longer offered, so
+        // anyone still on it is moved across rather than left on a value with
+        // no matching button.
+        const rawMm = parseInt(localStorage.getItem(PRINTWIDTH_KEY) || "", 10) || 58;
+        const savedMm = rawMm === 48 ? 58 : rawMm;
         const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + "_h") || "", 10) || 210;
         setPrinterMm(savedMm);
         setPrinterH(savedH);
@@ -307,7 +325,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               cloudLoadPaySettings(cloudSession.userId),
               cloudLoadSmsTemplates(cloudSession.userId),
             ]);
-            setOrders(cOrders);
+            hydrateOrders(cloudSession.userId, cOrders);
             setNotifications(cNotifs);
             if (cPay) setPaySettings(cPay);
             if (cSms) setSmsTemplates(cSms);
@@ -320,7 +338,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (s && getUsers().some((u) => u.id === s.userId)) {
           setSessionState(s);
           setCloudActive(false);
-          setOrders(loadOrders(s.userId));
+          hydrateOrders(s.userId, loadOrders(s.userId));
           setNotifications(loadNotifications(s.userId));
           setPaySettings(loadPaySettings(s.userId));
           setSmsTemplates(loadSmsTemplates(s.userId));
@@ -340,12 +358,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
      StrictMode invokes them twice, which previously meant duplicate writes
      and duplicate cloud requests for a single user action. */
   useEffect(() => {
-    if (!booted || !session) return;
+    // `hydratedFor` guards a genuine data-loss path. On sign-in we set the
+    // session, then AWAIT the cloud fetch — so React commits a state where the
+    // session exists but `orders` is still the empty array left by sign-out.
+    // Without this guard the effect fired in that gap and wrote [] over the
+    // user's localStorage backup. If the cloud fetch then failed (offline, or
+    // a transient error) nothing restored it and the local copy was destroyed.
+    // Persist only once the order list actually belongs to this user.
+    if (!booted || !session || hydratedForRef.current !== session.userId) return;
     saveOrders(session.userId, orders);
   }, [booted, session, orders]);
 
   useEffect(() => {
-    if (!booted || !session) return;
+    // Same hydration guard as orders above — notifications are loaded in the
+    // same awaited batch, so the same empty-write window exists.
+    if (!booted || !session || hydratedForRef.current !== session.userId) return;
     saveNotifications(session.userId, notifications);
     if (!cloudActive || notifications.length === 0) return;
     // Debounced: every toast appends a notification, and each cloud write
@@ -569,7 +596,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           cloudLoadPaySettings(sess.userId),
           cloudLoadSmsTemplates(sess.userId),
         ]);
-        setOrders(cOrders);
+        hydrateOrders(sess.userId, cOrders);
         setNotifications(cNotifs);
         if (cPay) setPaySettings(cPay);
         if (cSms) setSmsTemplates(cSms);
@@ -604,7 +631,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       authSetSession(sess);
       setSessionState(sess);
       setCloudActive(false);
-      setOrders(loadOrders(sess.userId));
+      hydrateOrders(sess.userId, loadOrders(sess.userId));
       setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
@@ -636,7 +663,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             cloudLoadPaySettings(sess.userId),
             cloudLoadSmsTemplates(sess.userId),
           ]);
-          setOrders(cOrders);
+          hydrateOrders(sess.userId, cOrders);
           setNotifications(cNotifs);
           if (cPay) setPaySettings(cPay);
           if (cSms) setSmsTemplates(cSms);
@@ -670,7 +697,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       authSetSession(sess);
       setSessionState(sess);
       setCloudActive(false);
-      setOrders(loadOrders(sess.userId));
+      hydrateOrders(sess.userId, loadOrders(sess.userId));
       setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
@@ -717,6 +744,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSessionState(null);
     setCloudActive(false);
     setLegacyMatches([]);
+    // Clear the hydration marker with the data, so the empty list that follows
+    // can never be mistaken for "this user's orders" and written to storage.
+    hydratedForRef.current = null;
+    ordersRef.current = [];
     setOrders([]);
     setCart([]);
     setNotifications([]);
@@ -740,7 +771,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           cloudLoadPaySettings(session.userId),
           cloudLoadSmsTemplates(session.userId),
         ]);
-        setOrders(cOrders);
+        hydrateOrders(session.userId, cOrders);
         if (cPay) setPaySettings(cPay);
         if (cSms) setSmsTemplates(cSms);
         setLegacyMatches((prev) => prev.filter((m) => m.localUserId !== localUserId));
@@ -770,7 +801,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       try {
         await cloudSaveAllOrders(session.userId, parsed as Order[]);
         const cOrders = await cloudLoadOrders(session.userId);
-        setOrders(cOrders);
+        hydrateOrders(session.userId, cOrders);
         showToast(`☁️ Imported ${parsed.length} pasted order${parsed.length !== 1 ? "s" : ""} into the cloud`, "success");
         return { ok: true, msg: `Imported ${parsed.length} orders.` };
       } catch (err: any) {

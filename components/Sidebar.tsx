@@ -11,8 +11,9 @@ const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "daily", icon: "📅", label: "Daily Orders" },
   { id: "summary", icon: "📊", label: "Daily Summary" },
   { id: "sales", icon: "📈", label: "Sales Tracking" },
-  { id: "payments", icon: "💳", label: "Payment Methods" },
-  { id: "rawdata", icon: "🗂️", label: "All Data (Reference)" },
+  // Payment Methods and All Data (Reference) merged into one Tools entry —
+  // both were occasional-use settings screens taking a permanent nav slot.
+  { id: "tools", icon: "🛠️", label: "Tools" },
 ];
 
 export default function Sidebar() {
