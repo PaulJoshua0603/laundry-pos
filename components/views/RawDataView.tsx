@@ -3,7 +3,13 @@
 import { useEffect, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
-import { findAllLegacyAccounts, LegacyAccountMatch } from "@/lib/migrateLocalData";
+import {
+  findAllLegacyAccounts,
+  findOrdersMissingFromCloud,
+  LegacyAccountMatch,
+  MissingOrdersReport,
+  uploadMissingOrders,
+} from "@/lib/migrateLocalData";
 
 interface RawRow {
   storageKey: string;
@@ -16,7 +22,10 @@ interface RawRow {
 }
 
 export default function RawDataView() {
-  const { session, cloudActive, importLegacyAccount, importPastedOrders, showToast } = useApp();
+  const { session, cloudActive, importLegacyAccount, importPastedOrders, showToast, refreshFromCloud } = useApp();
+  const [report, setReport] = useState<MissingOrdersReport | null>(null);
+  const [scanningCloud, setScanningCloud] = useState(false);
+  const [repairing, setRepairing] = useState(false);
   const [rows, setRows] = useState<RawRow[]>([]);
   const [scannedAt, setScannedAt] = useState<string>("");
   const [legacyAccounts, setLegacyAccounts] = useState<LegacyAccountMatch[]>([]);
@@ -95,6 +104,44 @@ export default function RawDataView() {
 
   const dupCount = rows.filter((r) => r.isDup).length;
 
+  async function handleCompareCloud() {
+    if (!cloudActive || !session) {
+      showToast("Sign in with your cloud account first.", "error");
+      return;
+    }
+    setScanningCloud(true);
+    try {
+      setReport(await findOrdersMissingFromCloud(session.userId));
+    } catch (err: any) {
+      showToast("❌ Couldn't read the cloud: " + (err?.message || "unknown error"), "error");
+    } finally {
+      setScanningCloud(false);
+    }
+  }
+
+  async function handleRepair() {
+    if (!session || !report || report.missing.length === 0) return;
+    if (
+      !window.confirm(
+        `Upload ${report.missing.length} order(s) that are on this device but missing from the cloud?\n\n` +
+          `This only ADDS orders — nothing in the cloud is changed or deleted.`
+      )
+    )
+      return;
+    setRepairing(true);
+    try {
+      const n = await uploadMissingOrders(session.userId, report.missing);
+      showToast(`☁️ Restored ${n} order${n !== 1 ? "s" : ""} to the cloud`, "success");
+      await refreshFromCloud();
+      setReport(await findOrdersMissingFromCloud(session.userId));
+      scan();
+    } catch (err: any) {
+      showToast("❌ Upload failed: " + (err?.message || "unknown error"), "error");
+    } finally {
+      setRepairing(false);
+    }
+  }
+
   return (
     <div className="view active" id="view-rawdata">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12, flexWrap: "wrap", gap: 8 }}>
@@ -107,6 +154,81 @@ export default function RawDataView() {
         <button className="btn" onClick={scan}>
           🔄 Rescan
         </button>
+      </div>
+
+      {/* Recovery: compare what this device holds against what the cloud
+          actually has, and re-upload only the gap. */}
+      <div style={{ marginBottom: 16, padding: 14, borderRadius: 10, background: "rgba(34,197,94,0.08)", border: "1px solid rgba(34,197,94,0.25)" }}>
+        <div style={{ fontWeight: 600, marginBottom: 6 }}>🔎 Find missing orders</div>
+        <div style={{ fontSize: 12, opacity: 0.75, marginBottom: 10 }}>
+          Compares every order saved in this browser against your cloud account and lists any the cloud doesn&apos;t
+          have. Read-only — nothing is uploaded until you click Restore.
+        </div>
+        <button className="btn btn-primary btn-sm" onClick={handleCompareCloud} disabled={scanningCloud || !cloudActive}>
+          {scanningCloud ? "Comparing…" : "Compare this device with the cloud"}
+        </button>
+        {!cloudActive && (
+          <div style={{ fontSize: 12, opacity: 0.75, marginTop: 8 }}>
+            You&apos;re signed in to a local-only account, so there is no cloud copy to compare against.
+          </div>
+        )}
+
+        {report && (
+          <div style={{ marginTop: 12, fontSize: 13 }}>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
+              <span style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(59,130,246,0.15)" }}>
+                On this device: <strong>{report.localTotal}</strong>
+              </span>
+              <span style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(59,130,246,0.15)" }}>
+                In the cloud: <strong>{report.cloudTotal}</strong>
+              </span>
+              <span
+                style={{
+                  padding: "6px 12px",
+                  borderRadius: 8,
+                  background: report.missing.length > 0 ? "rgba(239,68,68,0.18)" : "rgba(34,197,94,0.18)",
+                }}
+              >
+                Missing from cloud: <strong>{report.missing.length}</strong>
+              </span>
+              {report.missing.length > 0 && (
+                <span style={{ padding: "6px 12px", borderRadius: 8, background: "rgba(234,179,8,0.18)" }}>
+                  Uncounted revenue: <strong>{peso(report.missingRevenue)}</strong>
+                </span>
+              )}
+            </div>
+
+            {report.missing.length === 0 ? (
+              <div style={{ opacity: 0.8 }}>
+                ✅ Every order on this device is already in the cloud. If a figure still looks wrong, the cause is a
+                calculation rather than missing data — tell Claude the expected vs shown number.
+              </div>
+            ) : (
+              <>
+                <button className="btn btn-primary btn-sm" onClick={handleRepair} disabled={repairing}>
+                  {repairing ? "Restoring…" : `☁️ Restore ${report.missing.length} missing order(s) to the cloud`}
+                </button>
+                <div style={{ marginTop: 10, maxHeight: 180, overflowY: "auto", fontSize: 12 }}>
+                  {report.missing.slice(0, 50).map((o) => (
+                    <div key={o.id} style={{ padding: "3px 0", opacity: 0.85 }}>
+                      {o.id} · {o.name} · {peso(o.total)} ·{" "}
+                      {o.time ? new Date(o.time).toLocaleDateString() : "—"}
+                    </div>
+                  ))}
+                  {report.missing.length > 50 && <div style={{ opacity: 0.6 }}>…and {report.missing.length - 50} more</div>}
+                </div>
+              </>
+            )}
+
+            <div style={{ marginTop: 10, fontSize: 11.5, opacity: 0.65 }}>
+              {report.byKey.map((k) => (
+                <div key={k.key}>
+                  {k.key} — {k.total} order(s){k.missing > 0 ? `, ${k.missing} not in cloud` : ""}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {legacyAccounts.length > 0 && (

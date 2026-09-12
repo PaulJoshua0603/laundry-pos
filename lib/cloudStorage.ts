@@ -21,7 +21,21 @@ function rowToOrder(row: any): Order {
     time: row.time,
     status: row.status,
     paid: row.paid,
-    amountPaid: row.amount_paid !== undefined && row.amount_paid !== null ? Number(row.amount_paid) : row.paid ? Number(row.total) : 0,
+    // A fully-paid order always collected its full total — every writer sets
+    // amountPaid = total alongside paid = true, and partial payments keep
+    // paid = false. Enforce that on read.
+    //
+    // This matters because `amount_paid` is `numeric NOT NULL DEFAULT 0`, so
+    // for any order created before partial payments existed the column reads
+    // 0, never null. The old `!== null` fallback below could therefore never
+    // fire for a cloud row, and every legacy paid order loaded as ₱0
+    // collected — wiping revenue on the Summary, Sales and Sidebar figures
+    // and making settled orders look like they still owed their full total.
+    amountPaid: row.paid
+      ? Number(row.total)
+      : row.amount_paid !== undefined && row.amount_paid !== null
+        ? Number(row.amount_paid)
+        : 0,
     paidMethod: row.paid_method,
     paidAt: row.paid_at,
     autoReady: row.auto_ready,
@@ -52,11 +66,46 @@ function orderToRow(userId: string, o: Order) {
   };
 }
 
+// PostgREST caps a response at `db-max-rows` (1000 on Supabase by default) and
+// returns the truncated page WITHOUT an error. An unpaginated select therefore
+// silently stops returning orders once a shop passes that many — they simply
+// vanish from every screen. Page explicitly so the full history always loads.
+const PAGE_SIZE = 1000;
+
 export async function cloudLoadOrders(userId: string): Promise<Order[]> {
   if (!isSupabaseConfigured()) return [];
-  const { data, error } = await supabase.from("orders").select("*").eq("user_id", userId).order("time", { ascending: false });
-  if (error) throw error;
-  return (data || []).map(rowToOrder);
+  const all: Order[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("*")
+      .eq("user_id", userId)
+      .order("time", { ascending: false })
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = data || [];
+    rows.forEach((r) => all.push(rowToOrder(r)));
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
+/** Just the order ids this account has in the cloud — used to find gaps. */
+export async function cloudLoadOrderIds(userId: string): Promise<Set<string>> {
+  const ids = new Set<string>();
+  if (!isSupabaseConfigured()) return ids;
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from("orders")
+      .select("id")
+      .eq("user_id", userId)
+      .range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = data || [];
+    rows.forEach((r: any) => ids.add(r.id));
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return ids;
 }
 
 export async function cloudSaveOrder(userId: string, order: Order) {
