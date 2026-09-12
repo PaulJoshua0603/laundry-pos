@@ -2,7 +2,7 @@
 
 import { useApp, ViewId } from "@/context/AppContext";
 import { BUSINESS_HOURS, getBalance, getLoadCount } from "@/lib/types";
-import { getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
+import { BUSINESS_DAY_START_HOUR, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 
 const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "pos", icon: "🛒", label: "New Order" },
@@ -18,7 +18,7 @@ const NAV: { id: ViewId; icon: string; label: string }[] = [
 
 export default function Sidebar() {
   const { activeView, switchView, orders } = useApp();
-  // Business day (6AM–midnight), matching Orders and Daily Summary. This used
+  // Business day (calendar day), matching Orders and Daily Summary. This used
   // the raw calendar day, so the sidebar disagreed with every other screen.
   const today = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
   // Count what was actually collected, including down-payments on orders that
@@ -40,8 +40,11 @@ export default function Sidebar() {
   const msIntoDay = (iso: string) => {
     const t = new Date(iso);
     const h = t.getHours(), m = t.getMinutes();
-    // Hours since the 6AM business-day start, wrapping past midnight.
-    return ((h - 6 + 24) % 24) * 60 + m;
+    // Minutes since the business-day start, wrapping past midnight. Reads the
+    // shared constant rather than a hardcoded 6 — that literal was left over
+    // from the old 6AM boundary and would have offset this comparison by six
+    // hours, silently comparing the wrong slice of yesterday.
+    return ((h - BUSINESS_DAY_START_HOUR + 24) % 24) * 60 + m;
   };
   const nowInto = msIntoDay(new Date().toISOString());
   const yesterdaySoFar = orders

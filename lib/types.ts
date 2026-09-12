@@ -82,9 +82,9 @@ export function isPartiallyPaid(order: Order): boolean {
 // purely for display. The real `order.id` remains the unique key used for
 // syncing/storage; this is never persisted, just derived at render time.
 export function getDailyOrderNo(order: Order, allOrders: Order[]): number {
-  const day = order.time.slice(0, 10); // YYYY-MM-DD
+  const day = getBusinessDayKey(order.time);
   const sameDay = allOrders
-    .filter((o) => o.time.slice(0, 10) === day)
+    .filter((o) => getBusinessDayKey(o.time) === day)
     .sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime());
   const idx = sameDay.findIndex((o) => o.id === order.id);
   return idx === -1 ? sameDay.length + 1 : idx + 1;
@@ -101,7 +101,7 @@ export function getDailyOrderNo(order: Order, allOrders: Order[]): number {
 export function buildDailyOrderNoMap(allOrders: Order[]): Map<string, number> {
   const byDay = new Map<string, Order[]>();
   allOrders.forEach((o) => {
-    const day = o.time.slice(0, 10);
+    const day = getBusinessDayKey(o.time);
     const list = byDay.get(day);
     if (list) list.push(o);
     else byDay.set(day, [o]);
@@ -193,3 +193,27 @@ export const DEFAULT_SMS_TEMPLATE_UNPAID =
   "Hi {name}! Your laundry order {orderId} at {shop} is ready for pickup. Balance due: {total} — please settle upon pickup. Thank you! 🫧";
 
 export const BUSINESS_HOURS = { openHour: 6, closeHour: 20, label: "Mon–Sun · 6:00 AM–8:00 PM" };
+
+/**
+ * Hour at which a new business day begins.
+ *
+ * Only a shop trading past midnight needs a shifted boundary; WashHub closes
+ * at 8PM, so its business day is the plain calendar day. Lives here next to
+ * the hours it derives from, and is re-exported by lib/format.
+ */
+export const BUSINESS_DAY_START_HOUR = BUSINESS_HOURS.closeHour > 24 ? BUSINESS_HOURS.closeHour - 24 : 0;
+
+/**
+ * The business day an instant belongs to, as a LOCAL `YYYY-MM-DD` key.
+ *
+ * Must be local, not UTC. `iso.slice(0, 10)` reads the UTC date, and in
+ * UTC+8 every order before 8AM local falls on the previous UTC day — which
+ * is why daily order numbers carried on from the previous day instead of
+ * restarting, while the day groups beside them used the local date.
+ */
+export function getBusinessDayKey(iso: string): string {
+  const d = new Date(iso);
+  const shifted = new Date(d);
+  if (d.getHours() < BUSINESS_DAY_START_HOUR) shifted.setDate(shifted.getDate() - 1);
+  return `${shifted.getFullYear()}-${String(shifted.getMonth() + 1).padStart(2, "0")}-${String(shifted.getDate()).padStart(2, "0")}`;
+}

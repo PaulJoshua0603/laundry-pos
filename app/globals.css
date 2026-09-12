@@ -1286,18 +1286,30 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .receipt-item-amt{flex:0 0 auto;font-family:var(--mono);font-weight:600;white-space:nowrap}
 .receipt-item-sub{font-size:10.5px;color:var(--text3);font-family:var(--mono);margin-top:1px}
 .receipt-footer{text-align:center;font-size:11px;color:var(--text3);margin-top:20px;font-family:var(--font)}
-/* Receipt actions: a 2x2 grid instead of a wrapping flex row, so the four
-   buttons form even columns rather than an uneven 2-then-1-then-1 stack. */
+/* Default modal actions: two equal buttons side by side (Cancel | Save).
+   This was briefly a 2-column grid with the primary spanning both, which is
+   right for the receipt's four buttons but turned Edit Order's Cancel/Save
+   pair into an awkward stack. The receipt now scopes that rule to itself. */
 .modal-actions{
-  padding:14px 20px 20px;display:grid;gap:8px;
-  grid-template-columns:1fr 1fr;
+  padding:14px 20px 20px;display:flex;gap:8px;
   border-top:1px solid var(--border);margin-top:4px;
 }
-.modal-actions .btn{width:100%;justify-content:center}
-/* Print is the action people came for, so it leads at full width; Close
-   closes the row the same way. */
-.modal-actions .btn-primary,
-.modal-actions .modal-close-btn{grid-column:1 / -1}
+.modal-actions .btn{flex:1 1 0;justify-content:center;min-width:0}
+
+/* Receipt: four actions, so a 2x2 grid with print and close spanning. */
+.receipt-actions{display:grid;grid-template-columns:1fr 1fr}
+.receipt-actions .btn{width:100%}
+.receipt-actions .btn-primary,
+.receipt-actions .modal-close-btn{grid-column:1 / -1}
+
+/* Edit Order scrolls (it is a tall form), so its actions stay pinned to the
+   bottom of the panel. Previously Save changes could sit below the fold and
+   the only visible button was Cancel — which is why edits "didn't save". */
+.modal-edit-order .modal-actions{
+  position:sticky;bottom:0;z-index:2;
+  background:var(--surface);
+  box-shadow:0 -8px 16px -8px rgba(0,0,0,.5);
+}
 /* Previewed on screen too. These print on the same strip, so hiding them
    meant you couldn't see what the basket tag would look like until a sheet
    came out of the printer. */
@@ -1651,7 +1663,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     color:#000 !important;
   }
   .receipt-customer-name{
-    font-size:24px !important;font-weight:900 !important;line-height:1.1 !important;
+font-weight:900 !important;line-height:1.1 !important;
     text-transform:uppercase !important;color:#000 !important;
     word-break:break-word !important;overflow-wrap:anywhere !important;
     letter-spacing:0 !important;
@@ -1732,7 +1744,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
      largest that still fits a two-word name inside 48mm of printable width;
      longer names wrap rather than clip. */
   .tag-name{
-    font-size:30px !important;font-weight:900 !important;line-height:1.05 !important;
+font-weight:900 !important;line-height:1.05 !important;
     word-break:break-word !important;overflow-wrap:anywhere !important;
     letter-spacing:0 !important;text-transform:uppercase !important;
     text-align:center !important;margin:0 !important;color:#000 !important;
@@ -1772,7 +1784,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   .fixed-tag-row{font-size:9.5px !important;margin-bottom:1.6px !important}
   .fixed-tag-row span:first-child{flex:1 1 auto !important;overflow:hidden !important;white-space:nowrap !important;text-overflow:ellipsis !important}
   .fixed-tag-row span:last-child{flex:0 0 auto !important;white-space:nowrap !important;text-align:right !important}
-  .fixed-tag-name{font-size:22px !important;font-weight:900 !important;line-height:1.08 !important;text-transform:uppercase !important;text-align:center !important;margin:0 0 1.5mm !important;word-break:break-word !important;overflow-wrap:anywhere !important}
+  .fixed-tag-name{font-weight:900 !important;line-height:1.08 !important;text-transform:uppercase !important;text-align:center !important;margin:0 0 1.5mm !important;word-break:break-word !important;overflow-wrap:anywhere !important}
   .fixed-tag-header,.fixed-tag-sub,.fixed-tag-biz{display:none !important}
   .fixed-tag-total{font-size:13px !important}
   .fixed-tag-footer{font-size:8px !important;margin-top:1.5mm !important}
@@ -2480,3 +2492,12 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
   margin-top:4px;font-size:9.5px;font-weight:700;font-family:var(--mono);
   color:var(--yellow);letter-spacing:.04em;
 }
+
+/* Edit Order — confirmation shown when the order's date is changed, so moving
+   a row between day groups is deliberate rather than a silent side effect. */
+.edit-move-note{
+  background:var(--blue-muted);border:1px solid var(--blue-dim);
+  border-radius:var(--radius-sm);padding:8px 11px;
+  font-size:11.5px;line-height:1.45;color:var(--text2);
+}
+.edit-move-note b{color:var(--blue)}

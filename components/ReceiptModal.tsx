@@ -25,6 +25,23 @@ export default function ReceiptModal() {
   const printableMm = printerMm === 80 ? 72 : 48;
   const isFixedTag = printerMm === 57;
 
+  /**
+   * Font size for the customer name, scaled to its length.
+   *
+   * A fixed 30px fitted "CARLO" but broke "REGINALD" across two lines, which
+   * on the basket tag printed as "REGINAL / D". 48mm of printable width fits
+   * roughly 8 characters at 30px, so step the size down as the name grows —
+   * the longest names still get one line, short ones stay large.
+   */
+  const nameFontPx = (name: string, max: number) => {
+    const n = (name || "").trim().length;
+    if (n <= 7) return max;
+    if (n <= 9) return Math.round(max * 0.82);
+    if (n <= 12) return Math.round(max * 0.66);
+    if (n <= 16) return Math.round(max * 0.54);
+    return Math.round(max * 0.44);
+  };
+
   // Measure the actual rendered receipt (header + items + basket tag) and
   // convert it to millimeters so @page size matches the content exactly —
   // previously this was hardcoded to "auto", which isn't a valid CSS page
@@ -136,7 +153,7 @@ export default function ReceiptModal() {
                 receipt — the name leads, the shop header and status rows are
                 gone. There is only 50mm of length here, so every removed line
                 buys size for the name. */}
-            <div className="fixed-tag-name">{order.name}</div>
+            <div className="fixed-tag-name" style={{ fontSize: nameFontPx(order.name, 22) }}>{order.name}</div>
             <div className="fixed-tag-row">
               <span>{new Date(order.time).toLocaleDateString("en-PH", { month: "short", day: "numeric" })}</span>
               <span>{new Date(order.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}</span>
@@ -181,7 +198,7 @@ export default function ReceiptModal() {
                   is paper, and the only things staff and customers actually
                   read are the name, what was charged, and the total. */}
               <div className="receipt-customer-block">
-                <div className="receipt-customer-name">{order.name}</div>
+                <div className="receipt-customer-name" style={{ fontSize: nameFontPx(order.name, 24) }}>{order.name}</div>
               </div>
 
               <hr className="receipt-divider" />
@@ -244,7 +261,7 @@ export default function ReceiptModal() {
                 and dropped into the laundry basket, where the only job is being
                 readable across the room — every other line stole size from it. */}
             <div className="basket-tag" id="basketTag">
-              <div className="tag-name">{order.name}</div>
+              <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 30) }}>{order.name}</div>
             </div>
           </div>
         )}
@@ -254,7 +271,7 @@ export default function ReceiptModal() {
             through the installed Windows POS58 driver, and with that driver
             attached the browser is blocked from the USB port anyway, so the
             direct button could only ever fail on this setup. */}
-        <div className="modal-actions">
+        <div className="modal-actions receipt-actions">
           <button className="btn btn-primary" onClick={() => window.print()}>
             🖨️ Print Receipt
           </button>

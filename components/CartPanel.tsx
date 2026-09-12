@@ -54,10 +54,13 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
     }
   }
 
+  // Maya was removed from the till at the owner's request — the shop takes
+  // Cash and GCash only. "maya" stays in the PaymentMethod type and in every
+  // read path so historical orders already recorded against it still display
+  // and report correctly; it simply can't be chosen for a new order.
   const payMethods: { id: PaymentMethod; icon: string; label: string; extraClass?: string }[] = [
     { id: "cash", icon: "💵", label: "Cash" },
     { id: "gcash", icon: "📱", label: "GCash" },
-    { id: "maya", icon: "💜", label: "Maya" },
     { id: "later", icon: "🕒", label: "Pay Later", extraClass: "pay-btn-later" },
   ];
 
@@ -80,21 +83,27 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
           nothing is lost from the data model. */}
       <div className="customer-strip">
         <div className="customer-row">
+          {/* Uppercased as it is typed rather than rejected, so lower-case
+              input simply becomes upper-case instead of silently doing
+              nothing. Names are stored upper-case, which also keeps them
+              consistent with the receipt and the basket tag. */}
           <input
             className="customer-field"
             type="text"
-            placeholder="Customer name *"
+            placeholder="CUSTOMER NAME *"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value.toUpperCase())}
+            autoCapitalize="characters"
+            spellCheck={false}
             style={nameErr ? { borderColor: "var(--red)" } : undefined}
             required
           />
         </div>
+        {/* The Walk-in / Delivery selector was removed at the owner's request —
+            every order at this till is a walk-in. `type` still defaults to
+            "walkin" on the order and remains editable in Edit Order, so
+            delivery orders can still be recorded when they happen. */}
         <div className="customer-row">
-          <select className="customer-field customer-field-type" value={type} onChange={(e) => setType(e.target.value as any)}>
-            <option value="walkin">🚶 Walk-in</option>
-            <option value="delivery">🛵 Delivery</option>
-          </select>
           <div className="pickup-field-wrap">
             <input
               className={`customer-field pickup-field${pickup ? " has-value" : ""}`}

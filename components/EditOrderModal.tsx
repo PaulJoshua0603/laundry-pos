@@ -22,6 +22,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
   const [addr, setAddr] = useState(order.addr || "");
   const [type, setType] = useState<"walkin" | "delivery">(order.type);
   const [pickup, setPickup] = useState(toDatetimeLocal(order.pickup));
+  const [orderTime, setOrderTime] = useState(toDatetimeLocal(order.time));
   const [nameErr, setNameErr] = useState(false);
   const [paid, setPaid] = useState(order.paid);
   const [paidMethod, setPaidMethod] = useState<"cash" | "gcash" | "maya">((order.paidMethod as any) || "cash");
@@ -45,6 +46,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
     setAddr(order.addr || "");
     setType(order.type);
     setPickup(toDatetimeLocal(order.pickup));
+    setOrderTime(toDatetimeLocal(order.time));
     setPaid(order.paid);
     setPaidMethod((order.paidMethod as any) || "cash");
     setAmountPaidInput(order.amountPaid > 0 && !order.paid ? String(order.amountPaid) : "");
@@ -115,10 +117,13 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
     const amountPaid = paid ? grandTotal : Math.max(0, Math.min(grandTotal, parseFloat(amountPaidInput) || 0));
     updateOrderDetails(order.id, {
       name: name.trim(),
-      phone: phone.trim(),
-      addr: addr.trim(),
+      // Phone and address are no longer edited here, but the values are passed
+      // through unchanged so an order that already carries them keeps them.
+      phone,
+      addr,
       type,
       pickup,
+      time: orderTime,
       items: [...loads, ...extras],
       paid,
       paidMethod: paid || amountPaid > 0 ? paidMethod : null,
@@ -147,35 +152,52 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
 
         <div className="field-group">
           <label className="field-label">Customer name</label>
+          {/* Same upper-case rule as the till, so correcting a name here can't
+              reintroduce mixed case. */}
           <input
             className="field-input"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => setName(e.target.value.toUpperCase())}
+            autoCapitalize="characters"
+            spellCheck={false}
             style={nameErr ? { borderColor: "var(--red)" } : undefined}
           />
         </div>
+        <div className="field-group">
+          <label className="field-label">Order type</label>
+          <select className="field-input" value={type} onChange={(e) => setType(e.target.value as any)}>
+            <option value="walkin">🚶 Walk-in</option>
+            <option value="delivery">🛵 Delivery</option>
+          </select>
+        </div>
+
+        {/* Editing the order's OWN date and time is what moves a row between
+            day groups. This is the correction path for an order filed under
+            the wrong day, and it also lets a paper record be entered after
+            the fact — neither was possible before. */}
         <div className="field-row">
           <div className="field-group">
-            <label className="field-label">Phone (optional)</label>
-            <input className="field-input" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+            <label className="field-label">Order date &amp; time</label>
+            <input
+              className="field-input"
+              type="datetime-local"
+              value={orderTime}
+              onChange={(e) => setOrderTime(e.target.value)}
+            />
           </div>
           <div className="field-group">
-            <label className="field-label">Order type</label>
-            <select className="field-input" value={type} onChange={(e) => setType(e.target.value as any)}>
-              <option value="walkin">🚶 Walk-in</option>
-              <option value="delivery">🛵 Delivery</option>
-            </select>
+            <label className="field-label">Pickup date &amp; time</label>
+            <input className="field-input" type="datetime-local" value={pickup} onChange={(e) => setPickup(e.target.value)} />
           </div>
         </div>
-        <div className="field-group">
-          <label className="field-label">Address (optional)</label>
-          <input className="field-input" type="text" value={addr} onChange={(e) => setAddr(e.target.value)} />
-        </div>
-        <div className="field-group">
-          <label className="field-label">Pickup date &amp; time</label>
-          <input className="field-input" type="datetime-local" value={pickup} onChange={(e) => setPickup(e.target.value)} />
-        </div>
+        {orderTime && toDatetimeLocal(order.time) !== orderTime && (
+          <div className="field-group">
+            <div className="edit-move-note">
+              This order will move to <b>{new Date(orderTime).toLocaleDateString("en-PH", { weekday: "long", month: "long", day: "numeric" })}</b>.
+            </div>
+          </div>
+        )}
 
         <div className="field-group">
           <label className="field-label">Payment status</label>

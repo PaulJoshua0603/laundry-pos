@@ -50,7 +50,7 @@ export default function DailyOrdersView() {
           <div className="section-title">Daily Orders</div>
         </div>
       </div>
-      <div className="daily-hint">🕐 Business day runs 6:00 AM – 12:00 AM · orders before 6AM count toward the previous day</div>
+      <div className="daily-hint">🕐 Orders are grouped by the day they were placed · shop hours 6:00 AM – 8:00 PM</div>
 
       {days.length === 0 ? (
         <div className="daily-empty">

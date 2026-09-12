@@ -165,6 +165,8 @@ interface AppContextValue {
       addr: string;
       type: "walkin" | "delivery";
       pickup: string;
+      /** ISO or datetime-local string. Changing it moves the order between day groups. */
+      time?: string;
       items?: CartLine[];
       paid?: boolean;
       paidMethod?: "cash" | "gcash" | "maya" | null;
@@ -1052,6 +1054,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         phone: string;
         addr: string;
         type: "walkin" | "delivery";
+        time?: string;
         pickup: string;
         items?: CartLine[];
         paid?: boolean;
@@ -1072,6 +1075,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           addr: patch.addr,
           type: patch.type,
           pickup: patch.pickup ? new Date(patch.pickup).toISOString() : null,
+          // Changing `time` is what moves an order between day groups. Guard
+          // against an unparseable value so a bad entry can't corrupt the
+          // timestamp every report groups and sorts by.
+          time: (() => {
+            if (!patch.time) return o.time;
+            const t = new Date(patch.time);
+            return Number.isNaN(t.getTime()) ? o.time : t.toISOString();
+          })(),
           items,
           total,
           paid,

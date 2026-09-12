@@ -33,13 +33,13 @@ function compactPeso(n: number): string {
 
 function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: number) {
   const now = new Date();
-  // Every boundary below starts at the 6AM business-day mark so these totals
+  // Every boundary below starts at the business-day mark so these totals
   // match Orders, Daily Orders, Summary and the Sidebar exactly. Previously
   // this screen alone used midnight, and late-night orders were counted on a
   // different day here than everywhere else.
   if (period === "today") {
     const base = new Date(now);
-    // Before 6AM we are still inside yesterday's business day.
+    // Before the start hour we are still inside yesterday's business day.
     if (now.getHours() < BUSINESS_DAY_START_HOUR) base.setDate(base.getDate() - 1);
     base.setDate(base.getDate() + offset);
     const start = businessDayStart(base);
@@ -54,7 +54,7 @@ function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: nu
       buckets.push({ start: bStart, end: bEnd, label: hourLabel(bStart.getHours()) });
     }
     const label = offset === 0 ? "Today" : start.toLocaleDateString("en-PH", { weekday: "short", month: "short", day: "numeric", year: "numeric" });
-    return { start, end, buckets, label, chartHint: "by hour (6AM–6AM)" };
+    return { start, end, buckets, label, chartHint: "by hour" };
   }
   if (period === "week") {
     const start = businessDayStart(startOfWeek(now));

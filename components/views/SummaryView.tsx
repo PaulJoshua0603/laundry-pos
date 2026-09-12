@@ -10,7 +10,7 @@ export default function SummaryView() {
   const { orders, session, clearDayOrders } = useApp();
   const [exporting, setExporting] = useState(false);
 
-  // Use the 6AM–midnight business day, matching the Orders and Sidebar views.
+  // Use the shared business day, matching the Orders and Sidebar views.
   // This screen used the raw calendar day, so a load taken at 2AM counted
   // toward a different day here than it did everywhere else and the totals
   // disagreed.

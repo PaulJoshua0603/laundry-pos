@@ -72,7 +72,7 @@ export default function OrdersView() {
   const visibleGroups = query ? dayGroups : dayGroups.slice(0, daysShown);
   const hasMoreDays = !query && dayGroups.length > daysShown;
 
-  // Top stat chips reflect the CURRENT business day only (6AM–12AM), so a
+  // Top stat chips reflect the CURRENT business day only, so a
   // load from yesterday never bleeds into "today"'s totals.
   const todayOrders = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
   const uniqueOrderCount = todayOrders.length;
