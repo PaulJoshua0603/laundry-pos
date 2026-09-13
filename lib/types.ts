@@ -192,7 +192,13 @@ export const DEFAULT_SMS_TEMPLATE_PAID =
 export const DEFAULT_SMS_TEMPLATE_UNPAID =
   "Hi {name}! Your laundry order {orderId} at {shop} is ready for pickup. Balance due: {total} — please settle upon pickup. Thank you! 🫧";
 
-export const BUSINESS_HOURS = { openHour: 6, closeHour: 20, label: "Mon–Sun · 6:00 AM–8:00 PM" };
+/**
+ * Shop trading hours, in the till's local time (Philippine time on the
+ * shop's own devices). `openHour`/`closeHour` are 24-hour values and drive
+ * the OPEN/CLOSED badge, the business-day boundary below, and every place
+ * the hours are shown — so changing them here changes them everywhere.
+ */
+export const BUSINESS_HOURS = { openHour: 5, closeHour: 21, label: "Mon–Sun · 5:00 AM–9:00 PM" };
 
 /**
  * Hour at which a new business day begins.

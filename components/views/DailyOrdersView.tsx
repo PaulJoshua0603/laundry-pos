@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { businessDayLabel, getBusinessDayKey, peso } from "@/lib/format";
-import { buildDailyOrderNoMap, getBalance, getLoadCount, Order, STATUS_MAP } from "@/lib/types";
+import { buildDailyOrderNoMap, BUSINESS_HOURS, getBalance, getLoadCount, Order, STATUS_MAP } from "@/lib/types";
 import EditOrderModal from "@/components/EditOrderModal";
 
 export default function DailyOrdersView() {
@@ -50,7 +50,7 @@ export default function DailyOrdersView() {
           <div className="section-title">Daily Orders</div>
         </div>
       </div>
-      <div className="daily-hint">🕐 Orders are grouped by the day they were placed · shop hours 6:00 AM – 8:00 PM</div>
+      <div className="daily-hint">🕐 Orders are grouped by the day they were placed · {BUSINESS_HOURS.label}</div>
 
       {days.length === 0 ? (
         <div className="daily-empty">
