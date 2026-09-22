@@ -1606,10 +1606,17 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     word-break:break-word !important;
     font-weight:900 !important;
     color:#000 !important;
-    -webkit-text-stroke:.55px #000 !important;
+    /* Darker, longer-lasting thermal print. Thermal paper fades as the
+       dye relaxes, and a thin mark fades to illegible far sooner than a
+       thick one, so every glyph is deliberately fattened: a heavier
+       stroke plus an 8-direction shadow fires more heating dots per
+       character. print-color-adjust stops the browser lightening it. */
+    -webkit-text-stroke:.8px #000 !important;
+    print-color-adjust:exact !important;
+    -webkit-print-color-adjust:exact !important;
     text-shadow:
-      .3px 0 0 #000,-.3px 0 0 #000,0 .3px 0 #000,0 -.3px 0 #000,
-      .3px .3px 0 #000,-.3px -.3px 0 #000,.3px -.3px 0 #000,-.3px .3px 0 #000 !important;
+      .45px 0 0 #000,-.45px 0 0 #000,0 .45px 0 #000,0 -.45px 0 #000,
+      .45px .45px 0 #000,-.45px -.45px 0 #000,.45px -.45px 0 #000,-.45px .45px 0 #000 !important;
   }
   .receipt{padding:0 !important}
   .receipt::before{display:none !important}
@@ -1735,7 +1742,8 @@ font-weight:900 !important;line-height:1.1 !important;
   }
   .basket-tag,.basket-tag *{
     color:#000 !important;box-sizing:border-box !important;font-weight:900 !important;
-    -webkit-text-stroke:.6px #000 !important;
+    -webkit-text-stroke:.9px #000 !important;
+    print-color-adjust:exact !important;-webkit-print-color-adjust:exact !important;
     text-shadow:
       .3px 0 0 #000,-.3px 0 0 #000,0 .3px 0 #000,0 -.3px 0 #000,
       .3px .3px 0 #000,-.3px -.3px 0 #000,.3px -.3px 0 #000,-.3px .3px 0 #000 !important;

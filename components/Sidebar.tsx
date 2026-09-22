@@ -4,13 +4,14 @@ import { useApp, ViewId } from "@/context/AppContext";
 import { BUSINESS_HOURS, getBalance, getLoadCount } from "@/lib/types";
 import { BUSINESS_DAY_START_HOUR, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 
+// Order set by the shop owner to match how the till is actually used.
 const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "pos", icon: "🛒", label: "New Order" },
   { id: "orders", icon: "📋", label: "Orders" },
   { id: "unpaid", icon: "⏳", label: "Unpaid Customers" },
+  { id: "sales", icon: "📈", label: "Sales Tracking" },
   { id: "daily", icon: "📅", label: "Daily Orders" },
   { id: "summary", icon: "📊", label: "Daily Summary" },
-  { id: "sales", icon: "📈", label: "Sales Tracking" },
   // Payment Methods and All Data (Reference) merged into one Tools entry —
   // both were occasional-use settings screens taking a permanent nav slot.
   { id: "tools", icon: "🛠️", label: "Tools" },

@@ -34,15 +34,19 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* One request instead of two — each stylesheet link is render-blocking,
+            and on the shop's 2-core laptop a saved round trip is visible.
+            Weights trimmed to what the stylesheet actually uses: Inter 300 was
+            never referenced, and Fraunces only ever renders headings at 600/700.
+
+            Noto Color Emoji covers the newer emoji (🫧 etc.) missing from the
+            Segoe UI Emoji build on older Windows 10. It sits last in the font
+            stack, so on a machine whose own emoji font is complete the browser
+            never downloads it. */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Noto+Color+Emoji&display=swap"
           rel="stylesheet"
         />
-        {/* Noto Color Emoji covers the newer emoji (🫧 etc.) that the Segoe UI
-            Emoji font bundled with many Windows 10 builds is missing, which
-            otherwise render as blank boxes. Loading it as a font replaces the
-            old twemoji DOM-rewriting hack — see components/EmojiParser.tsx. */}
-        <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&display=swap" rel="stylesheet" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{
