@@ -1321,8 +1321,8 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .basket-tag{
   display:flex;align-items:center;justify-content:center;
   margin:0 24px 20px;padding:22px 12px;
-  border:2px dashed var(--border2);border-radius:var(--radius-sm);
-  background:var(--surface2);min-height:84px;
+  /* Borderless, matching print. */
+  background:var(--surface2);border-radius:var(--radius-sm);min-height:84px;
 }
 
 /* ══════════════════════════════════════════
@@ -1736,8 +1736,11 @@ font-weight:900 !important;line-height:1.1 !important;
     page-break-after:avoid !important;page-break-inside:avoid !important;
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
     box-sizing:border-box !important;
-    margin:3.5mm 0 0 0 !important;padding:5mm 1mm !important;
-    border:3px dashed #000 !important;
+    /* No border box. Dropping it frees the 3px frame and most of the side
+       padding, so the name itself can be set larger — which is the whole
+       point of the tag. The CUT HERE line above still marks the tear. */
+    margin:4mm 0 0 0 !important;padding:4mm 0.5mm !important;
+    border:none !important;
     text-align:center !important;
     display:flex !important;align-items:center !important;justify-content:center !important;
     min-height:22mm !important;

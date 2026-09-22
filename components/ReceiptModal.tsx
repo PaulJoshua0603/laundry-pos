@@ -270,7 +270,7 @@ export default function ReceiptModal() {
                 and dropped into the laundry basket, where the only job is being
                 readable across the room — every other line stole size from it. */}
             <div className="basket-tag" id="basketTag">
-              <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 30) }}>{order.name}</div>
+              <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 40, 175) }}>{order.name}</div>
             </div>
           </div>
         )}
