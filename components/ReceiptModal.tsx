@@ -275,12 +275,16 @@ export default function ReceiptModal() {
               <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 40, 175) }}>{order.name}</div>
             </div>
 
-            {/* Trailing feed. The printer stops at the last printed pixel, so
-                the paper was tearing level with the name — nothing blank left
-                to grip or cut against. This reserves real height after the
-                tag rather than relying on page-size padding, which the driver
-                trims away. */}
-            <div className="receipt-feed" aria-hidden="true" />
+            {/* Trailing feed.
+                The driver trims the page to the last PRINTED pixel, so an
+                empty spacer produced no feed at all and the paper kept
+                tearing through the name. Blank height cannot work here —
+                something has to put ink below the name to make the printer
+                advance past it. This rule does that, and doubles as the
+                tear guide. The gap above it is what clears the name. */}
+            <div className="receipt-feed" aria-hidden="true">
+              <span className="receipt-feed-rule">- - - - - - - - - - - - - -</span>
+            </div>
           </div>
         )}
 
