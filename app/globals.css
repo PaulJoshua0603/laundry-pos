@@ -1264,7 +1264,7 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 }
 /* On-screen preview of the tag mirrors the printed one: name only, centred. */
 .basket-tag .tag-name{
-  font-family:var(--font-display);font-size:26px;font-weight:800;
+  font-family:'Courier New',monospace;font-weight:800;
   text-transform:uppercase;text-align:center;color:var(--text);
   word-break:break-word;overflow-wrap:anywhere;
 }
@@ -1744,6 +1744,11 @@ font-weight:900 !important;line-height:1.1 !important;
      largest that still fits a two-word name inside 48mm of printable width;
      longer names wrap rather than clip. */
   .tag-name{
+    /* Monospace is what makes the auto-fit arithmetic in ReceiptModal exact —
+       every glyph advances 0.6em, so a name can be sized to fit one line
+       rather than guessed at. Do not change this to a proportional face
+       without changing that calculation too. */
+    font-family:'Courier New',monospace !important;
 font-weight:900 !important;line-height:1.05 !important;
     word-break:break-word !important;overflow-wrap:anywhere !important;
     letter-spacing:0 !important;text-transform:uppercase !important;

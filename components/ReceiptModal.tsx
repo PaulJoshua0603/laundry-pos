@@ -26,20 +26,23 @@ export default function ReceiptModal() {
   const isFixedTag = printerMm === 57;
 
   /**
-   * Font size for the customer name, scaled to its length.
+   * Largest font size at which a name fits on ONE line.
    *
-   * A fixed 30px fitted "CARLO" but broke "REGINALD" across two lines, which
-   * on the basket tag printed as "REGINAL / D". 48mm of printable width fits
-   * roughly 8 characters at 30px, so step the size down as the name grows —
-   * the longest names still get one line, short ones stay large.
+   * Two earlier attempts guessed at length thresholds and both wrapped
+   * ("REGINAL/D", then "MATTHE/W"), because the name rendered in a display
+   * serif whose glyph widths vary and aren't predictable. The names are now
+   * set in Courier, which is monospace — every glyph advances exactly 0.6em
+   * — so the fit is arithmetic rather than a guess:
+   *
+   *     width = chars x 0.6 x fontSize  <=  usable width
+   *
+   * Usable width inside the tag is 48mm less its 1mm padding and 3px border
+   * on each side, ~165px at 96dpi. The 0.92 factor is headroom for the
+   * 0.6px text-stroke the print styles add to every glyph.
    */
-  const nameFontPx = (name: string, max: number) => {
-    const n = (name || "").trim().length;
-    if (n <= 7) return max;
-    if (n <= 9) return Math.round(max * 0.82);
-    if (n <= 12) return Math.round(max * 0.66);
-    if (n <= 16) return Math.round(max * 0.54);
-    return Math.round(max * 0.44);
+  const nameFontPx = (name: string, max: number, usablePx = 165) => {
+    const n = Math.max(1, (name || "").trim().length);
+    return Math.max(9, Math.min(max, Math.floor((usablePx * 0.92) / (0.6 * n))));
   };
 
   // Measure the actual rendered receipt (header + items + basket tag) and
