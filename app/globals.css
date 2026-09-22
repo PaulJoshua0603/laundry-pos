@@ -1758,6 +1758,8 @@ font-weight:900 !important;line-height:1.1 !important;
   }
   .basket-tag,.basket-tag *{
     color:#000 !important;box-sizing:border-box !important;font-weight:900 !important;
+    -webkit-font-smoothing:none !important;
+    text-rendering:geometricPrecision !important;
     -webkit-text-stroke:.9px #000 !important;
     print-color-adjust:exact !important;-webkit-print-color-adjust:exact !important;
     text-shadow:
