@@ -225,9 +225,14 @@ export default function ReceiptModal() {
                     </span>
                     <span className="receipt-item-amt">{peso(c.service.price * c.qty)}</span>
                   </div>
-                  <div className="receipt-item-sub">
-                    {c.qty} × {peso(c.service.price)}
-                  </div>
+                  {/* Only shown when it adds something. At qty 1 this line just
+                      restated the price directly above it, and at 9.5px it was
+                      the faintest thing on the thermal print. */}
+                  {c.qty > 1 && (
+                    <div className="receipt-item-sub">
+                      {c.qty} × {peso(c.service.price)}
+                    </div>
+                  )}
                 </div>
               ))}
               <hr className="receipt-divider" />
