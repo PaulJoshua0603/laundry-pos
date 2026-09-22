@@ -1739,7 +1739,7 @@ font-weight:900 !important;line-height:1.1 !important;
     /* No border box. Dropping it frees the 3px frame and most of the side
        padding, so the name itself can be set larger — which is the whole
        point of the tag. The CUT HERE line above still marks the tear. */
-    margin:4mm 0 0 0 !important;padding:4mm 0.5mm !important;
+    margin:4mm 0 0 0 !important;padding:5mm 0.5mm 9mm !important;
     border:none !important;
     text-align:center !important;
     display:flex !important;align-items:center !important;justify-content:center !important;
@@ -1753,7 +1753,7 @@ font-weight:900 !important;line-height:1.1 !important;
   .receipt-feed{
     display:block !important;
     width:var(--receipt-w, 48mm) !important;
-    min-height:20mm !important;
+    min-height:34mm !important;
     background:#fff !important;border:none !important;
   }
   .basket-tag,.basket-tag *{
@@ -1775,7 +1775,7 @@ font-weight:900 !important;line-height:1.1 !important;
        rather than guessed at. Do not change this to a proportional face
        without changing that calculation too. */
     font-family:'Courier New',monospace !important;
-font-weight:900 !important;line-height:1.05 !important;
+font-weight:900 !important;line-height:1.25 !important;
     word-break:break-word !important;overflow-wrap:anywhere !important;
     letter-spacing:0 !important;text-transform:uppercase !important;
     text-align:center !important;margin:0 !important;color:#000 !important;
@@ -2535,4 +2535,4 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
 
 /* On-screen stand-in for the printed trailing feed, so the preview shows
    that blank tape follows the tag. */
-.receipt-feed{height:26px}
+.receipt-feed{height:40px}

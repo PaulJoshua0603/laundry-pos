@@ -63,9 +63,9 @@ export default function ReceiptModal() {
       const el = contentRef.current;
       if (!el) return;
       const pxToMm = 25.4 / 96;
-      // 6mm breathing space plus the 20mm trailing feed, which is print-only
-      // and so contributes no height to the on-screen measurement below.
-      const bufferMm = 26;
+      // 6mm breathing space, plus the 34mm trailing feed and the tag's extra
+      // bottom padding — all print-only, so they add no on-screen height.
+      const bufferMm = 44;
       const rawMm = Math.ceil(el.scrollHeight * pxToMm) + bufferMm;
       if (printerMm === 58) {
         const bucket = POS58_PAGE_LENGTHS_MM.find((mm) => mm >= rawMm) ?? rawMm;
