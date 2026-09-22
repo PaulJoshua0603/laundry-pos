@@ -1747,6 +1747,15 @@ font-weight:900 !important;line-height:1.1 !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
   }
+  /* Blank tape after the tag so there is something to grip and tear
+     against. Height is reserved by a real element because the driver trims
+     trailing page padding. */
+  .receipt-feed{
+    display:block !important;
+    width:var(--receipt-w, 48mm) !important;
+    min-height:20mm !important;
+    background:#fff !important;border:none !important;
+  }
   .basket-tag,.basket-tag *{
     color:#000 !important;box-sizing:border-box !important;font-weight:900 !important;
     -webkit-text-stroke:.9px #000 !important;
@@ -2521,3 +2530,7 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
   font-size:11.5px;line-height:1.45;color:var(--text2);
 }
 .edit-move-note b{color:var(--blue)}
+
+/* On-screen stand-in for the printed trailing feed, so the preview shows
+   that blank tape follows the tag. */
+.receipt-feed{height:26px}

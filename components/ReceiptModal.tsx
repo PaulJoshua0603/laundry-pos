@@ -63,7 +63,9 @@ export default function ReceiptModal() {
       const el = contentRef.current;
       if (!el) return;
       const pxToMm = 25.4 / 96;
-      const bufferMm = 6; // room for the cut line + a little breathing space
+      // 6mm breathing space plus the 20mm trailing feed, which is print-only
+      // and so contributes no height to the on-screen measurement below.
+      const bufferMm = 26;
       const rawMm = Math.ceil(el.scrollHeight * pxToMm) + bufferMm;
       if (printerMm === 58) {
         const bucket = POS58_PAGE_LENGTHS_MM.find((mm) => mm >= rawMm) ?? rawMm;
@@ -272,6 +274,13 @@ export default function ReceiptModal() {
             <div className="basket-tag" id="basketTag">
               <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 40, 175) }}>{order.name}</div>
             </div>
+
+            {/* Trailing feed. The printer stops at the last printed pixel, so
+                the paper was tearing level with the name — nothing blank left
+                to grip or cut against. This reserves real height after the
+                tag rather than relying on page-size padding, which the driver
+                trims away. */}
+            <div className="receipt-feed" aria-hidden="true" />
           </div>
         )}
 
