@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { getBalance, ORDER_TYPES, STATUS_MAP, getDailyOrderNo } from "@/lib/types";
+import { getBalance, ORDER_TYPES, STATUS_MAP } from "@/lib/types";
 import { peso } from "@/lib/format";
 
 // The "POS58 Printer" Windows driver ships with a fixed list of custom
@@ -13,7 +13,7 @@ import { peso } from "@/lib/format";
 const POS58_PAGE_LENGTHS_MM = [210, 297, 600, 1200];
 
 export default function ReceiptModal() {
-  const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session, orders } = useApp();
+  const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session } = useApp();
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
 
@@ -73,11 +73,12 @@ export default function ReceiptModal() {
     const ro = new ResizeObserver(measure);
     ro.observe(contentRef.current);
     return () => ro.disconnect();
-  }, [isFixedTag, printerMm, receiptOrder, orders]);
+  // `orders` was in these deps, so the observer was torn down and rebuilt on
+  // every sync tick. The measurement only depends on the order being shown.
+  }, [isFixedTag, printerMm, receiptOrder]);
 
   if (!receiptOrder) return null;
   const order = receiptOrder;
-  const dailyNo = getDailyOrderNo(order, orders);
 
   const shopName = order.shop || session?.business || "WashHub Laundry";
   const payLabel = { cash: "Cash", gcash: "GCash", maya: "Maya", later: "Pay Later" }[order.payment] || order.payment;

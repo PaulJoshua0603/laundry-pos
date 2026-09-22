@@ -469,7 +469,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       // Only touch state when something actually differs. A blind setOrders on
       // every poll re-rendered the whole app (and every object identity) twice
       // a minute for no reason.
-      if (JSON.stringify(merged) !== JSON.stringify(ordersRef.current)) {
+      // Cheap change detection. This was `JSON.stringify(a) !== JSON.stringify(b)`,
+      // which serialised ~500KB twice on every poll — a visible stall on a
+      // 2-core 1.8GHz CPU. Compare identity-and-revision fields instead: an
+      // order only changes in ways this app cares about via one of these.
+      const fingerprint = (list: Order[]) =>
+        list.length + "|" + list.map((o) => `${o.id}:${o.status}:${o.paid ? 1 : 0}:${o.amountPaid}:${o.total}:${o.time}:${o.name}`).join(",");
+      if (fingerprint(merged) !== fingerprint(ordersRef.current)) {
         ordersRef.current = merged;
         setOrders(merged);
       }
@@ -489,13 +495,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     // Belt-and-braces fallback for when realtime isn't enabled on the table
     // or the socket drops: refetch on focus/visibility and on a slow poll.
+    // Throttled: focus + visibilitychange + online all fire together when a
+    // window is brought forward, and staff switch apps constantly. Without
+    // this, one alt-tab could trigger three full refetches.
+    let lastFocusRefresh = 0;
     const onFocus = () => {
-      if (document.visibilityState === "visible") void refreshFromCloud();
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastFocusRefresh < 30_000) return;
+      lastFocusRefresh = now;
+      void refreshFromCloud();
     };
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onFocus);
     window.addEventListener("online", onFocus);
-    const id = setInterval(() => void refreshFromCloud(), 90 * 1000);
+    // Realtime is the live channel; this poll is only a safety net for a
+    // dropped socket. At 90s it re-downloaded all ~400 orders 40x an hour —
+    // roughly 1.7-8 GB/month against a 5 GB free tier, and a CPU spike on
+    // every tick. 15 minutes keeps the safety net at ~1/10th the cost.
+    const id = setInterval(() => void refreshFromCloud(), 15 * 60 * 1000);
 
     return () => {
       unsubscribe();
@@ -1218,7 +1236,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
-  const value: AppContextValue = {
+  // Memoised: this object was rebuilt on every render, so every screen
+  // subscribed to the context re-rendered on any state change — including the
+  // once-a-second clock tick in the topbar. On a 2-core 1.8GHz CPU that was
+  // re-rendering the whole order table every second.
+  const value: AppContextValue = React.useMemo(() => ({
     booted,
     loggedIn: !!session,
     session,
@@ -1283,7 +1305,18 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSalesPeriod,
     salesOffset,
     setSalesOffset,
-  };
+  }), [
+    booted, session, authTab, authError, register, login, forgotPassword, logout,
+    cloudActive, pendingSync, refreshing, refreshFromCloud, legacyMatches,
+    importLegacyAccount, importPastedOrders, theme, toggleTheme, toast, showToast,
+    notifications, unreadCount, markNotificationsRead, clearNotifications,
+    activeView, switchView, cart, addToCart, addCustomFee, changeQty, removeFromCart,
+    clearCart, cartTotal, payment, selectPayment, orders, checkout, cancelOrder,
+    deleteOrder, clearDayOrders, markOrderPaid, addPartialPayment, updateOrderStatus,
+    updateOrderDetails, receiptOrder, showReceipt, closeReceipt, printerMm, printerH,
+    setPrinterWidth, paySettings, saveGcashMaya, clearPayMethod, smsTemplates,
+    saveSmsTemplate, resetSmsTemplate, sendPickupSms, salesPeriod, salesOffset,
+  ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
