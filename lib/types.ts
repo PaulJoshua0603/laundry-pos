@@ -150,9 +150,10 @@ export interface Session {
 
 export const SERVICES: Service[] = [
   { id: "w1", cat: "wash", icon: "🫧", name: "Regular Wash", desc: "Standard wash cycle", price: 80 },
-  { id: "w7", cat: "wash", icon: "🫧", name: "Regular Wash", desc: "38 mins wash 1 wash 2 rinse (3–5 kg)", price: 160 },
-  { id: "w2", cat: "wash", icon: "🫧", name: "Regular Wash (2)", desc: "38 mins wash 1 wash 2 rinse (6–7 kg)", price: 180 },
-  { id: "w5", cat: "wash", icon: "🫧", name: "Regular Wash (2) Heavy", desc: "For heavy/bulky clothes (6–7 kg)", price: 190 },
+  { id: "w7", cat: "wash", icon: "🫧", name: "Regular Wash (1)", desc: "38 mins wash 1 wash 2 rinse (3–5 kg)", price: 160 },
+  { id: "w8", cat: "wash", icon: "🫧", name: "Regular Wash (2)", desc: "38 mins wash 1 wash 2 rinse (5–6 kg)", price: 170 },
+  { id: "w2", cat: "wash", icon: "🫧", name: "Regular Wash (3)", desc: "38 mins wash 1 wash 2 rinse (6–7 kg)", price: 180 },
+  { id: "w5", cat: "wash", icon: "🫧", name: "Regular Wash (4) Heavy", desc: "For heavy/bulky clothes (6–7 kg)", price: 190 },
   { id: "w3", cat: "wash", icon: "🛏️", name: "Premium Wash", desc: "Extra rinse, gentler cycle", price: 100 },
   { id: "w4", cat: "wash", icon: "🌨️", name: "Premium Wash (2)", desc: "Per load", price: 200 },
   { id: "w6", cat: "wash", icon: "🌨️", name: "Premium Wash (2)", desc: "7 kg and up", price: 210 },

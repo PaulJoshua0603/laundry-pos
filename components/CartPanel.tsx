@@ -64,6 +64,13 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
     { id: "later", icon: "🕒", label: "Pay Later", extraClass: "pay-btn-later" },
   ];
 
+  // Parsed once: `received` is what the customer handed over, `changeDue` is
+  // anything above the total. checkout() still clamps the recorded amount to
+  // the total, so tendering more never inflates the sale.
+  const receivedRaw = parseFloat(amountPaidInput);
+  const received = amountPaidInput.trim() !== "" && !Number.isNaN(receivedRaw) ? receivedRaw : null;
+  const changeDue = received !== null ? Math.max(0, received - cartTotal) : 0;
+
   const showQr = payment === "gcash" || payment === "maya";
   const info = showQr ? paySettings[payment as "gcash" | "maya"] : null;
 
@@ -156,10 +163,15 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
           <span className="cart-line-label">Subtotal</span>
           <span className="cart-line-val">{peso(cartTotal)}</span>
         </div>
+        {/* Replaces the old "Discount —" row, which was a permanent em-dash
+            that earned nothing. Change is derived from the cash-received
+            field below: anything tendered above the total is the customer's
+            change. Purely a till aid — the order still records at most the
+            total as paid, never the tendered amount. */}
         <div className="cart-line">
-          <span className="cart-line-label">Discount</span>
-          <span className="cart-line-val" style={{ color: "var(--green)" }}>
-            —
+          <span className="cart-line-label">Change</span>
+          <span className="cart-line-val" style={{ color: changeDue > 0 ? "var(--green)" : undefined }}>
+            {changeDue > 0 ? peso(changeDue) : "—"}
           </span>
         </div>
         <div className="cart-divider" />
@@ -207,8 +219,11 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
         )}
 
         <div className="partial-pay-field">
+          {/* One field for both cases: under the total it is a part payment,
+              over it is cash tendered and the difference is the change. The
+              `max` cap was removed so a larger tendered amount can be typed. */}
           <label className="field-label" htmlFor="amountPaidInput">
-            If Customer Paid Half of the Price <span className="field-label-optional">(optional)</span>
+            Cash received <span className="field-label-optional">(optional — for part payment or change)</span>
           </label>
           <div className="partial-pay-input-wrap">
             <span className="partial-pay-peso">₱</span>
@@ -218,17 +233,18 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
               type="number"
               inputMode="decimal"
               min={0}
-              max={cartTotal}
-              placeholder={`e.g. ${Math.round(cartTotal / 2) || 0}`}
+              placeholder={`e.g. ${cartTotal || 0}`}
               value={amountPaidInput}
               onChange={(e) => setAmountPaidInput(e.target.value)}
             />
           </div>
-          {amountPaidInput.trim() !== "" && !Number.isNaN(parseFloat(amountPaidInput)) && (
-            <div className={`partial-pay-preview${parseFloat(amountPaidInput) >= cartTotal ? " full" : ""}`}>
-              {parseFloat(amountPaidInput) >= cartTotal
-                ? "✓ Fully paid"
-                : `Balance due: ${peso(Math.max(0, cartTotal - parseFloat(amountPaidInput)))}`}
+          {received !== null && (
+            <div className={`partial-pay-preview${received >= cartTotal ? " full" : ""}`}>
+              {changeDue > 0
+                ? `✓ Fully paid · Change ${peso(changeDue)}`
+                : received >= cartTotal
+                  ? "✓ Fully paid · No change"
+                  : `Balance due: ${peso(cartTotal - received)}`}
             </div>
           )}
         </div>
