@@ -449,3 +449,35 @@ export async function printReceiptToPr21(
     await writeBytes(bytes);
   }
 }
+
+/* ══════════════════════════════════════════════════════════════════
+   RASTER PRINTING (Web Bluetooth)
+
+   Used where the POS58 Windows driver cannot be installed, so
+   `window.print()` has no printer to send to. Sending the receipt as a
+   bitmap rather than ESC/POS text keeps the exact printed layout —
+   the large customer name, the rules, the spacing.
+   ══════════════════════════════════════════════════════════════════ */
+
+/** Connects if needed, then prints the given receipt bitmap and feeds. */
+export async function printRasterToPr21(raster: Uint8Array): Promise<void> {
+  if (!isPrinterConnected()) await connectPrinter();
+
+  const init = new Uint8Array([
+    0x1b, 0x40, // ESC @ — reset
+    // Max heat: these clones ship a light default profile, which is the
+    // usual reason raster output looks grey rather than solid.
+    0x1b, 0x37, 15, 255, 2,
+    0x1b, 0x61, 0x01, // centre
+  ]);
+  const feed = new Uint8Array([0x1b, 0x64, 0x04]); // ESC d 4 — feed 4 lines
+
+  await writeBytes(init);
+  await writeBytes(raster);
+  await writeBytes(feed);
+}
+
+/** True when a printer has been paired in this session. */
+export function isBluetoothReady(): boolean {
+  return isPrinterConnected();
+}

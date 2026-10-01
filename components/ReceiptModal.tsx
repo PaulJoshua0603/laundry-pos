@@ -13,9 +13,37 @@ import { peso } from "@/lib/format";
 const POS58_PAGE_LENGTHS_MM = [210, 297, 600, 1200];
 
 export default function ReceiptModal() {
-  const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session } = useApp();
+  const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session, showToast } = useApp();
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
+  const [btBusy, setBtBusy] = useState(false);
+
+  async function printBluetooth() {
+    if (!receiptOrder) return;
+    setBtBusy(true);
+    try {
+      // Imported on demand so the ESC/POS and canvas code stays out of the
+      // main bundle — it is only needed on the Bluetooth-only machine.
+      const [{ renderReceiptCanvas, canvasToEscPosRaster }, { printRasterToPr21 }] = await Promise.all([
+        import("@/lib/receiptRaster"),
+        import("@/lib/printer"),
+      ]);
+      const canvas = renderReceiptCanvas(receiptOrder);
+      await printRasterToPr21(canvasToEscPosRaster(canvas));
+      showToast("📶 Sent to Bluetooth printer", "success");
+    } catch (err: any) {
+      if (err?.name === "NotFoundError") return; // user closed the device chooser
+      const msg = String(err?.message || err);
+      showToast(
+        /not supported/i.test(msg)
+          ? "❌ This browser has Web Bluetooth turned off. Enable it in settings, or use Print Receipt."
+          : "❌ Bluetooth print failed: " + msg,
+        "error"
+      );
+    } finally {
+      setBtBusy(false);
+    }
+  }
 
   // Printable width is limited by the PRINT HEAD, not the paper. A 58mm-class
   // printer (PR21 / POS58 / ZJ-58) has a 384-dot head at 203dpi = 48mm, so
@@ -296,6 +324,12 @@ export default function ReceiptModal() {
         <div className="modal-actions receipt-actions">
           <button className="btn btn-primary" onClick={() => window.print()}>
             🖨️ Print Receipt
+          </button>
+          {/* Bluetooth path, for machines where the POS58 driver can't be
+              installed and window.print() therefore has no printer to reach.
+              Sends the receipt as a bitmap so the layout survives. */}
+          <button className="btn btn-secondary" onClick={printBluetooth} disabled={btBusy}>
+            {btBusy ? "⏳ Sending…" : "📶 Print via Bluetooth"}
           </button>
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
