@@ -84,22 +84,36 @@ export function renderReceiptCanvas(order: Order, doc: Document = document): HTM
   ctx.fillStyle = "#fff";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "#000";
+  ctx.strokeStyle = "#000";
+  ctx.lineJoin = "round";
   ctx.textBaseline = "alphabetic";
+
+  // Every glyph is drawn filled AND stroked. A 1-bit thermal head prints a
+  // dot or nothing, so the anti-aliased edge of a normal glyph is simply
+  // discarded at threshold time and strokes come out a dot or two thinner
+  // than drawn — which is why the first Bluetooth prints looked spindly.
+  // Stroking widens the glyph before that happens, the raster equivalent of
+  // the text-stroke the print stylesheet uses.
+  const ink = (text: string, x: number, yy: number, px: number) => {
+    ctx.lineWidth = Math.max(1, px * 0.055);
+    ctx.fillText(text, x, yy);
+    ctx.strokeText(text, x, yy);
+  };
 
   let y = 0;
 
   const centre = (text: string, px: number, weight = "bold") => {
     ctx.font = `${weight} ${px}px ${FONT}`;
     const w = ctx.measureText(text).width;
-    ctx.fillText(text, (RASTER_WIDTH - w) / 2, y + px);
+    ink(text, (RASTER_WIDTH - w) / 2, y + px, px);
     y += px;
   };
 
   const row = (left: string, right: string, px = BODY) => {
     ctx.font = `bold ${px}px ${FONT}`;
-    ctx.fillText(left, PAD, y + px);
+    ink(left, PAD, y + px, px);
     const w = ctx.measureText(right).width;
-    ctx.fillText(right, RASTER_WIDTH - PAD - w, y + px);
+    ink(right, RASTER_WIDTH - PAD - w, y + px, px);
     y += LINE;
   };
 
@@ -113,7 +127,7 @@ export function renderReceiptCanvas(order: Order, doc: Document = document): HTM
     ctx.font = `bold 18px ${FONT}`;
     const text = `- - - - - ${label} - - - - -`;
     const w = ctx.measureText(text).width;
-    ctx.fillText(text, (RASTER_WIDTH - w) / 2, y + 18);
+    ink(text, (RASTER_WIDTH - w) / 2, y + 18, 18);
     y += 26;
   };
 
@@ -129,7 +143,7 @@ export function renderReceiptCanvas(order: Order, doc: Document = document): HTM
     row(c.service.name, peso(c.service.price * c.qty));
     if (c.qty > 1) {
       ctx.font = `bold ${SUB}px ${FONT}`;
-      ctx.fillText(`${c.qty} x ${peso(c.service.price)}`, PAD, y + SUB);
+      ink(`${c.qty} x ${peso(c.service.price)}`, PAD, y + SUB, SUB);
       y += Math.round(SUB * 1.4);
     }
     y += 6;
@@ -175,7 +189,12 @@ export function canvasToEscPosRaster(canvas: HTMLCanvasElement): Uint8Array {
       const i = (yy * width + xx) * 4;
       // Luminance; alpha is always 255 here because the canvas is pre-filled.
       const lum = (img[i] * 299 + img[i + 1] * 587 + img[i + 2] * 114) / 1000;
-      if (lum < 128) body[yy * bytesPerRow + (xx >> 3)] |= 0x80 >> (xx & 7);
+      // Threshold deliberately high (not the usual 128). Anything the browser
+      // anti-aliased darker than this becomes a dot, so glyph edges survive
+      // instead of being dropped — the difference between a readable receipt
+      // and the spindly one this first produced. 170 keeps counters open at
+      // 20px body text; much higher and small letters fill in.
+      if (lum < 170) body[yy * bytesPerRow + (xx >> 3)] |= 0x80 >> (xx & 7);
     }
   }
 

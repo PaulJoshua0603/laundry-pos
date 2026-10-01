@@ -321,15 +321,13 @@ export default function ReceiptModal() {
             through the installed Windows POS58 driver, and with that driver
             attached the browser is blocked from the USB port anyway, so the
             direct button could only ever fail on this setup. */}
+        {/* One action. Printing goes over Bluetooth, because the shop's laptop
+            cannot install the POS58 driver and so has no Windows printer to
+            send to. The receipt is rasterised, which keeps the same layout the
+            driver path produced. */}
         <div className="modal-actions receipt-actions">
-          <button className="btn btn-primary" onClick={() => window.print()}>
-            🖨️ Print Receipt
-          </button>
-          {/* Bluetooth path, for machines where the POS58 driver can't be
-              installed and window.print() therefore has no printer to reach.
-              Sends the receipt as a bitmap so the layout survives. */}
-          <button className="btn btn-secondary" onClick={printBluetooth} disabled={btBusy}>
-            {btBusy ? "⏳ Sending…" : "📶 Print via Bluetooth"}
+          <button className="btn btn-primary" onClick={printBluetooth} disabled={btBusy}>
+            {btBusy ? "⏳ Printing…" : "🖨️ Print Receipt"}
           </button>
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
