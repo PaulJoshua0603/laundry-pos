@@ -17,6 +17,13 @@ export default function ReceiptModal() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
   const [btBusy, setBtBusy] = useState(false);
+  const [copies, setCopies] = useState(1);
+
+  // Back to a single copy whenever a different receipt is opened, so a
+  // one-off 2-copy print can't silently repeat on the next customer.
+  useEffect(() => {
+    setCopies(1);
+  }, [receiptOrder?.id]);
 
   async function printBluetooth() {
     if (!receiptOrder) return;
@@ -28,9 +35,18 @@ export default function ReceiptModal() {
         import("@/lib/receiptRaster"),
         import("@/lib/printer"),
       ]);
-      const canvas = renderReceiptCanvas(receiptOrder);
-      await printRasterToPr21(canvasToEscPosRaster(canvas));
-      showToast("📶 Sent to Bluetooth printer", "success");
+      // Rendered once and sent N times — the bitmap is identical per copy, so
+      // re-rasterising would only burn CPU on the till.
+      const raster = canvasToEscPosRaster(renderReceiptCanvas(receiptOrder));
+      for (let i = 0; i < copies; i++) {
+        if (i > 0) {
+          // Let the printer's buffer drain before the next copy; these clones
+          // drop bytes when a second image arrives immediately behind the first.
+          await new Promise((r) => setTimeout(r, 400));
+        }
+        await printRasterToPr21(raster);
+      }
+      showToast(copies > 1 ? `🖨️ Printed ${copies} copies` : "🖨️ Receipt printed", "success");
     } catch (err: any) {
       if (err?.name === "NotFoundError") return; // user closed the device chooser
       const msg = String(err?.message || err);
@@ -325,9 +341,23 @@ export default function ReceiptModal() {
             cannot install the POS58 driver and so has no Windows printer to
             send to. The receipt is rasterised, which keeps the same layout the
             driver path produced. */}
+        <div className="copies-row">
+          <span className="copies-label">Copies</span>
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              className={`copies-opt${copies === n ? " active" : ""}`}
+              onClick={() => setCopies(n)}
+              disabled={btBusy}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+
         <div className="modal-actions receipt-actions">
           <button className="btn btn-primary" onClick={printBluetooth} disabled={btBusy}>
-            {btBusy ? "⏳ Printing…" : "🖨️ Print Receipt"}
+            {btBusy ? "⏳ Printing…" : copies > 1 ? `🖨️ Print Receipt ×${copies}` : "🖨️ Print Receipt"}
           </button>
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close

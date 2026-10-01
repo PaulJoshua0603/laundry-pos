@@ -1565,7 +1565,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     background:#fff !important;overflow:visible !important;
     transform:none !important;max-height:none !important;
   }
-  .paper-picker,.printer-size-warn,.modal-actions{display:none !important}
+  .paper-picker,.printer-size-warn,.modal-actions,.copies-row{display:none !important}
   .receipt-icon{display:none !important}
 
   /* Receipt body — compact for narrow thermal rolls. Thermal printer
@@ -2548,3 +2548,25 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
    that blank tape follows the tag. */
 .receipt-feed{padding:34px 0 6px;text-align:center}
 .receipt-feed-rule{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
+
+/* Copies selector above the receipt's print button. */
+.copies-row{
+  display:flex;align-items:center;gap:6px;
+  padding:14px 20px 0;
+}
+.copies-label{
+  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--text3);margin-right:4px;
+}
+.copies-opt{
+  min-width:38px;padding:6px 0;border-radius:var(--radius-sm);
+  background:var(--surface2);border:1px solid var(--border);
+  color:var(--text2);font-size:13px;font-weight:700;font-family:var(--mono);
+  cursor:pointer;transition:all var(--transition);
+}
+.copies-opt:hover:not(:disabled){color:var(--text);border-color:var(--text3)}
+.copies-opt.active{
+  background:var(--blue-muted);border-color:var(--blue);color:var(--blue);
+  box-shadow:0 0 0 1px var(--blue) inset;
+}
+.copies-opt:disabled{opacity:.5;cursor:default}
