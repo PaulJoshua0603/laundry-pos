@@ -18,7 +18,9 @@ import { Order, getBalance } from "./types";
 
 export const RASTER_WIDTH = 384;
 
-const PAD = 10; // side margin, in dots
+// Tight side margin — the head only covers 48mm of the 57mm paper, so every
+// dot of the printable width is worth using.
+const PAD = 4;
 const CONTENT = RASTER_WIDTH - PAD * 2;
 
 const FONT = '"Courier New", Courier, monospace';
@@ -50,12 +52,14 @@ export function renderReceiptCanvas(order: Order, doc: Document = document): HTM
   const scratch = doc.createElement("canvas").getContext("2d")!;
 
   const name = (order.name || "").trim().toUpperCase();
-  const headerPx = fitFontPx(scratch, name, CONTENT, 46);
-  const tagPx = fitFontPx(scratch, name, CONTENT, 72);
+  // The name leads the receipt, so it gets nearly the same size as the basket
+  // tag rather than sitting a third smaller.
+  const headerPx = fitFontPx(scratch, name, CONTENT, 64);
+  const tagPx = fitFontPx(scratch, name, CONTENT, 78);
 
-  const BODY = 24;
-  const SUB = 20;
-  const TOTAL = 32;
+  const BODY = 26;
+  const SUB = 22;
+  const TOTAL = 36;
   const LINE = Math.round(BODY * 1.55);
 
   let h = 0;
@@ -95,7 +99,7 @@ export function renderReceiptCanvas(order: Order, doc: Document = document): HTM
   // Stroking widens the glyph before that happens, the raster equivalent of
   // the text-stroke the print stylesheet uses.
   const ink = (text: string, x: number, yy: number, px: number) => {
-    ctx.lineWidth = Math.max(1, px * 0.055);
+    ctx.lineWidth = Math.max(1.1, px * 0.07);
     ctx.fillText(text, x, yy);
     ctx.strokeText(text, x, yy);
   };
@@ -110,10 +114,24 @@ export function renderReceiptCanvas(order: Order, doc: Document = document): HTM
   };
 
   const row = (left: string, right: string, px = BODY) => {
+    // The amount is never shrunk or clipped — it is the part that must stay
+    // readable. If a long service name would run into it, that label alone
+    // steps down until the pair fits.
     ctx.font = `bold ${px}px ${FONT}`;
-    ink(left, PAD, y + px, px);
-    const w = ctx.measureText(right).width;
-    ink(right, RASTER_WIDTH - PAD - w, y + px, px);
+    const rightW = ctx.measureText(right).width;
+    const room = CONTENT - rightW - 8;
+
+    let leftPx = px;
+    while (leftPx > 13) {
+      ctx.font = `bold ${leftPx}px ${FONT}`;
+      if (ctx.measureText(left).width <= room) break;
+      leftPx -= 1;
+    }
+
+    ctx.font = `bold ${leftPx}px ${FONT}`;
+    ink(left, PAD, y + px, leftPx);
+    ctx.font = `bold ${px}px ${FONT}`;
+    ink(right, RASTER_WIDTH - PAD - rightW, y + px, px);
     y += LINE;
   };
 
