@@ -17,14 +17,6 @@ export default function ReceiptModal() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
   const [printBusy, setPrintBusy] = useState(false);
-  const [copies, setCopies] = useState(1);
-
-  // Back to a single copy whenever a different receipt is opened, so a
-  // one-off 2-copy print can't silently repeat on the next customer.
-  useEffect(() => {
-    setCopies(1);
-  }, [receiptOrder?.id]);
-
   async function printUsb() {
     if (!receiptOrder) return;
     setPrintBusy(true);
@@ -36,10 +28,7 @@ export default function ReceiptModal() {
       // Each copy is a separate print call. Under --kiosk-printing these go
       // straight to the default printer with no dialog; without that flag each
       // one opens its own dialog, which is why the flag matters here.
-      for (let i = 0; i < copies; i++) {
-        if (i > 0) await new Promise((r) => setTimeout(r, 900));
-        window.print();
-      }
+      window.print();
     } catch (err: any) {
       showToast("❌ Print failed: " + String(err?.message || err), "error");
     } finally {
@@ -318,26 +307,12 @@ export default function ReceiptModal() {
           </div>
         )}
 
-        {/* One action, straight to the printer over USB — no print dialog, and
-            copies are handled here rather than by a driver setting. The
-            receipt is sent as a bitmap so the layout is preserved exactly. */}
-        <div className="copies-row">
-          <span className="copies-label">Copies</span>
-          {[1, 2, 3].map((n) => (
-            <button
-              key={n}
-              className={`copies-opt${copies === n ? " active" : ""}`}
-              onClick={() => setCopies(n)}
-              disabled={printBusy}
-            >
-              {n}
-            </button>
-          ))}
-        </div>
-
+        {/* Prints through the installed POS58 driver over USB. Copies belong in
+            the print dialog, which already has the field — duplicating it here
+            only meant one dialog per copy. */}
         <div className="modal-actions receipt-actions">
           <button className="btn btn-primary" onClick={printUsb} disabled={printBusy}>
-            {printBusy ? "⏳ Printing…" : copies > 1 ? `🖨️ Print Receipt ×${copies}` : "🖨️ Print Receipt"}
+            {printBusy ? "⏳ Printing…" : "🖨️ Print Receipt"}
           </button>
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
