@@ -71,14 +71,17 @@ export default function PrinterSettingsCard() {
       <div className="paysettings-head">🖨️ Thermal Printer — PR21 (58mm)</div>
 
       <div className="paysettings-note" style={{ margin: "10px 0" }}>
-        Plug the PR21/POS58 in and connect it once below. Printing then goes straight to it — no print
-        dialog, and the number of copies is chosen on the receipt screen.
+        With the <b>POS58 driver installed</b>, Print Receipt goes through Windows over USB — that is the
+        correct setup and nothing needs connecting here.
         <br />
         <br />
-        <b>Important:</b> this requires that <b>no Windows printer driver is installed</b> for it. A driver makes
-        Windows claim the USB port exclusively and the browser can no longer reach the device. If you have already
-        installed one (it appears as &quot;POS58 Printer&quot;), remove it from Settings → Bluetooth &amp; devices →
-        Printers, unplug and replug the printer, then connect here.
+        For printing with <b>no dialog</b>, add <code>--kiosk-printing</code> to the end of the Target in your
+        WashHub shortcut&apos;s Properties, and set POS58 as the Windows default printer. Copies chosen on the
+        receipt screen are then printed silently, one after another.
+        <br />
+        <br />
+        The direct USB connection below is only for a machine with <b>no</b> driver installed — Windows gives an
+        installed driver exclusive access to the port, so the browser cannot reach the printer at the same time.
       </div>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

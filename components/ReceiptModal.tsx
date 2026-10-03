@@ -29,33 +29,19 @@ export default function ReceiptModal() {
     if (!receiptOrder) return;
     setPrintBusy(true);
     try {
-      // Imported on demand so the ESC/POS and canvas code stays out of the
-      // main bundle until a receipt is actually printed.
-      const [{ renderReceiptCanvas, canvasToEscPosRaster }, { printRasterToPr21 }] = await Promise.all([
-        import("@/lib/receiptRaster"),
-        import("@/lib/printer"),
-      ]);
-      // Rendered once and sent N times — the bitmap is identical per copy, so
-      // re-rasterising would only burn CPU on the till.
-      const raster = canvasToEscPosRaster(renderReceiptCanvas(receiptOrder));
+      // Prints through the installed POS58 Windows driver, which owns the USB
+      // port. WebUSB cannot be used while a driver is attached — Windows gives
+      // the driver exclusive access and refuses the browser.
+      //
+      // Each copy is a separate print call. Under --kiosk-printing these go
+      // straight to the default printer with no dialog; without that flag each
+      // one opens its own dialog, which is why the flag matters here.
       for (let i = 0; i < copies; i++) {
-        if (i > 0) {
-          // Let the printer's buffer drain before the next copy; these clones
-          // drop bytes when a second image arrives immediately behind the first.
-          await new Promise((r) => setTimeout(r, 400));
-        }
-        await printRasterToPr21(raster);
+        if (i > 0) await new Promise((r) => setTimeout(r, 900));
+        window.print();
       }
-      showToast(copies > 1 ? `🖨️ Printed  copies` : "🖨️ Receipt printed", "success");
     } catch (err: any) {
-      if (err?.name === "NotFoundError") return; // user closed the device chooser
-      const msg = String(err?.message || err);
-      showToast(
-        /not supported/i.test(msg)
-          ? "❌ This browser can't print over USB. Use Chrome or Edge."
-          : "❌ Print failed: " + msg,
-        "error"
-      );
+      showToast("❌ Print failed: " + String(err?.message || err), "error");
     } finally {
       setPrintBusy(false);
     }
@@ -248,7 +234,7 @@ export default function ReceiptModal() {
                   is paper, and the only things staff and customers actually
                   read are the name, what was charged, and the total. */}
               <div className="receipt-customer-block">
-                <div className="receipt-customer-name" style={{ fontSize: nameFontPx(order.name, 24) }}>{order.name}</div>
+                <div className="receipt-customer-name" style={{ fontSize: nameFontPx(order.name, 32, 178) }}>{order.name}</div>
               </div>
 
               <hr className="receipt-divider" />
@@ -316,7 +302,7 @@ export default function ReceiptModal() {
                 and dropped into the laundry basket, where the only job is being
                 readable across the room — every other line stole size from it. */}
             <div className="basket-tag" id="basketTag">
-              <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 40, 175) }}>{order.name}</div>
+              <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 42, 178) }}>{order.name}</div>
             </div>
 
             {/* Trailing feed.
