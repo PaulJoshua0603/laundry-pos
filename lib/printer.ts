@@ -451,17 +451,23 @@ export async function printReceiptToPr21(
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   RASTER PRINTING (Web Bluetooth)
+   RASTER PRINTING (WebUSB)
 
-   Used where the POS58 Windows driver cannot be installed, so
-   `window.print()` has no printer to send to. Sending the receipt as a
-   bitmap rather than ESC/POS text keeps the exact printed layout —
-   the large customer name, the rules, the spacing.
+   Sends the receipt straight to the printer over USB, so there is no
+   print dialog and the number of copies is controlled by the app rather
+   than by a driver setting.
+
+   A bitmap rather than ESC/POS text, because text mode would discard the
+   layout — the large customer name, the rules, the spacing.
+
+   Requires that NO Windows driver has claimed the device: Windows gives
+   a driver exclusive access, and WebUSB is then refused. connectUsbPrinter
+   explains that case if it happens.
    ══════════════════════════════════════════════════════════════════ */
 
-/** Connects if needed, then prints the given receipt bitmap and feeds. */
+/** Connects over USB if needed, then prints the given receipt bitmap and feeds. */
 export async function printRasterToPr21(raster: Uint8Array): Promise<void> {
-  if (!isPrinterConnected()) await connectPrinter();
+  if (!isUsbConnected()) await connectUsbPrinter();
 
   const init = new Uint8Array([
     0x1b, 0x40, // ESC @ — reset
@@ -472,12 +478,12 @@ export async function printRasterToPr21(raster: Uint8Array): Promise<void> {
   ]);
   const feed = new Uint8Array([0x1b, 0x64, 0x04]); // ESC d 4 — feed 4 lines
 
-  await writeBytes(init);
-  await writeBytes(raster);
-  await writeBytes(feed);
+  await writeUsbBytes(init);
+  await writeUsbBytes(raster);
+  await writeUsbBytes(feed);
 }
 
-/** True when a printer has been paired in this session. */
-export function isBluetoothReady(): boolean {
-  return isPrinterConnected();
+/** True when a USB printer has been claimed in this session. */
+export function isUsbReady(): boolean {
+  return isUsbConnected();
 }

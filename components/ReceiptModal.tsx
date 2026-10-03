@@ -16,7 +16,7 @@ export default function ReceiptModal() {
   const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session, showToast } = useApp();
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
-  const [btBusy, setBtBusy] = useState(false);
+  const [printBusy, setPrintBusy] = useState(false);
   const [copies, setCopies] = useState(1);
 
   // Back to a single copy whenever a different receipt is opened, so a
@@ -25,12 +25,12 @@ export default function ReceiptModal() {
     setCopies(1);
   }, [receiptOrder?.id]);
 
-  async function printBluetooth() {
+  async function printUsb() {
     if (!receiptOrder) return;
-    setBtBusy(true);
+    setPrintBusy(true);
     try {
       // Imported on demand so the ESC/POS and canvas code stays out of the
-      // main bundle — it is only needed on the Bluetooth-only machine.
+      // main bundle until a receipt is actually printed.
       const [{ renderReceiptCanvas, canvasToEscPosRaster }, { printRasterToPr21 }] = await Promise.all([
         import("@/lib/receiptRaster"),
         import("@/lib/printer"),
@@ -46,18 +46,18 @@ export default function ReceiptModal() {
         }
         await printRasterToPr21(raster);
       }
-      showToast(copies > 1 ? `🖨️ Printed ${copies} copies` : "🖨️ Receipt printed", "success");
+      showToast(copies > 1 ? `🖨️ Printed  copies` : "🖨️ Receipt printed", "success");
     } catch (err: any) {
       if (err?.name === "NotFoundError") return; // user closed the device chooser
       const msg = String(err?.message || err);
       showToast(
         /not supported/i.test(msg)
-          ? "❌ This browser has Web Bluetooth turned off. Enable it in settings, or use Print Receipt."
-          : "❌ Bluetooth print failed: " + msg,
+          ? "❌ This browser can't print over USB. Use Chrome or Edge."
+          : "❌ Print failed: " + msg,
         "error"
       );
     } finally {
-      setBtBusy(false);
+      setPrintBusy(false);
     }
   }
 
@@ -332,15 +332,9 @@ export default function ReceiptModal() {
           </div>
         )}
 
-        {/* One print action. The direct USB/Bluetooth ESC/POS path and the
-            PDF export were removed at the owner's request: the shop prints
-            through the installed Windows POS58 driver, and with that driver
-            attached the browser is blocked from the USB port anyway, so the
-            direct button could only ever fail on this setup. */}
-        {/* One action. Printing goes over Bluetooth, because the shop's laptop
-            cannot install the POS58 driver and so has no Windows printer to
-            send to. The receipt is rasterised, which keeps the same layout the
-            driver path produced. */}
+        {/* One action, straight to the printer over USB — no print dialog, and
+            copies are handled here rather than by a driver setting. The
+            receipt is sent as a bitmap so the layout is preserved exactly. */}
         <div className="copies-row">
           <span className="copies-label">Copies</span>
           {[1, 2, 3].map((n) => (
@@ -348,7 +342,7 @@ export default function ReceiptModal() {
               key={n}
               className={`copies-opt${copies === n ? " active" : ""}`}
               onClick={() => setCopies(n)}
-              disabled={btBusy}
+              disabled={printBusy}
             >
               {n}
             </button>
@@ -356,8 +350,8 @@ export default function ReceiptModal() {
         </div>
 
         <div className="modal-actions receipt-actions">
-          <button className="btn btn-primary" onClick={printBluetooth} disabled={btBusy}>
-            {btBusy ? "⏳ Printing…" : copies > 1 ? `🖨️ Print Receipt ×${copies}` : "🖨️ Print Receipt"}
+          <button className="btn btn-primary" onClick={printUsb} disabled={printBusy}>
+            {printBusy ? "⏳ Printing…" : copies > 1 ? `🖨️ Print Receipt ×${copies}` : "🖨️ Print Receipt"}
           </button>
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
