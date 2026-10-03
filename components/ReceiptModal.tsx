@@ -17,6 +17,13 @@ export default function ReceiptModal() {
   const contentRef = useRef<HTMLDivElement>(null);
   const [autoHeightMm, setAutoHeightMm] = useState<number | null>(null);
   const [printBusy, setPrintBusy] = useState(false);
+  const [copies, setCopies] = useState(1);
+
+  // Back to one whenever a different receipt is opened, so a two-copy print
+  // can't silently repeat on the next customer.
+  useEffect(() => {
+    setCopies(1);
+  }, [receiptOrder?.id]);
   async function printUsb() {
     if (!receiptOrder) return;
     setPrintBusy(true);
@@ -99,7 +106,7 @@ export default function ReceiptModal() {
     return () => ro.disconnect();
   // `orders` was in these deps, so the observer was torn down and rebuilt on
   // every sync tick. The measurement only depends on the order being shown.
-  }, [isFixedTag, printerMm, receiptOrder]);
+  }, [isFixedTag, printerMm, receiptOrder, copies]);
 
   if (!receiptOrder) return null;
   const order = receiptOrder;
@@ -158,8 +165,8 @@ export default function ReceiptModal() {
             one. Say so rather than letting it happen silently. */}
         {!isFixedTag && printerMm === 58 && autoHeightMm !== null && autoHeightMm > 210 && (
           <div className="printer-size-warn">
-            ⚠️ This order is long. In the print dialog set <b>Paper size</b> to{" "}
-            <b>Printer 58 (48mm×{autoHeightMm}mm)</b>, otherwise it will be split across two pages.
+            ⚠️ {copies > 1 ? `${copies} copies need` : "This order needs"} a longer page. In the print dialog set{" "}
+            <b>Paper size</b> to <b>Printer 58 (48mm×{autoHeightMm}mm)</b>, otherwise it will be split across pages.
           </div>
         )}
 
@@ -216,7 +223,14 @@ export default function ReceiptModal() {
           </div>
         ) : (
           <div ref={contentRef}>
-            <div className="receipt" id="receiptBody">
+            {/* Copies are produced by repeating the receipt inside ONE print job,
+                not by printing N times. Chrome hides its Copies field when the
+                driver reports it supports a single copy, which the POS58 does,
+                so the dialog cannot do this — and N separate jobs would mean N
+                dialogs. One job prints them end to end on the tape. */}
+            {Array.from({ length: copies }).map((_, copyIndex) => (
+            <div key={copyIndex}>
+            <div className="receipt receipt-body">
               {/* Deliberately minimal: the shop header, "Official Receipt"
                   banner, status/time/pickup rows and the thank-you footer were
                   all removed at the owner's request. On a 48mm roll every line
@@ -290,7 +304,7 @@ export default function ReceiptModal() {
             {/* Basket tag: the customer's name and nothing else. It gets cut off
                 and dropped into the laundry basket, where the only job is being
                 readable across the room — every other line stole size from it. */}
-            <div className="basket-tag" id="basketTag">
+            <div className="basket-tag">
               <div className="tag-name" style={{ fontSize: nameFontPx(order.name, 42, 178) }}>{order.name}</div>
             </div>
 
@@ -304,15 +318,30 @@ export default function ReceiptModal() {
             <div className="receipt-feed" aria-hidden="true">
               <span className="receipt-feed-rule">- - - - - - - - - - - - - -</span>
             </div>
+            </div>
+            ))}
           </div>
         )}
 
-        {/* Prints through the installed POS58 driver over USB. Copies belong in
-            the print dialog, which already has the field — duplicating it here
-            only meant one dialog per copy. */}
+        <div className="copies-row">
+          <span className="copies-label">Copies</span>
+          {[1, 2, 3].map((n) => (
+            <button
+              key={n}
+              className={`copies-opt${copies === n ? " active" : ""}`}
+              onClick={() => setCopies(n)}
+              disabled={printBusy}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+
+        {/* Prints through the installed POS58 driver over USB, one job
+            regardless of the copy count. */}
         <div className="modal-actions receipt-actions">
           <button className="btn btn-primary" onClick={printUsb} disabled={printBusy}>
-            {printBusy ? "⏳ Printing…" : "🖨️ Print Receipt"}
+            {printBusy ? "⏳ Printing…" : copies > 1 ? `🖨️ Print Receipt ×${copies}` : "🖨️ Print Receipt"}
           </button>
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
