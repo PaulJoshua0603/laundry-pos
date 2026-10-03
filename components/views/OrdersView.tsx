@@ -74,11 +74,17 @@ export default function OrdersView() {
 
   // Top stat chips reflect the CURRENT business day only, so a
   // load from yesterday never bleeds into "today"'s totals.
-  const todayOrders = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
-  const uniqueOrderCount = todayOrders.length;
-  const uniqueCustomers = new Set(todayOrders.map((o) => o.name.trim().toLowerCase())).size;
-  const totalLoads = todayOrders.reduce((n, o) => n + getLoadCount(o.items), 0);
-  const totalAmount = todayOrders.reduce((s, o) => s + o.total, 0);
+  // Four passes over the full order list; memoised so they do not rerun on
+  // every keystroke in the search box.
+  const { uniqueOrderCount, uniqueCustomers, totalLoads, totalAmount } = useMemo(() => {
+    const todayOrders = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
+    return {
+      uniqueOrderCount: todayOrders.length,
+      uniqueCustomers: new Set(todayOrders.map((o) => o.name.trim().toLowerCase())).size,
+      totalLoads: todayOrders.reduce((n, o) => n + getLoadCount(o.items), 0),
+      totalAmount: todayOrders.reduce((s, o) => s + o.total, 0),
+    };
+  }, [orders]);
 
   function confirmDelete(o: Order) {
     if (window.confirm(`Permanently delete order ${o.id}? This cannot be undone.`)) deleteOrder(o.id);

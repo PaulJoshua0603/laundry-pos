@@ -44,7 +44,10 @@ export default function Topbar() {
 
   useEffect(() => {
     setNow(new Date());
-    const id = setInterval(() => setNow(new Date()), 1000);
+    // The clock only shows hours and minutes, so a per-second tick re-rendered
+    // the whole topbar 60x a minute for a display that changes once. 20s keeps
+    // the minute accurate without the churn.
+    const id = setInterval(() => setNow(new Date()), 20000);
     return () => clearInterval(id);
   }, []);
 
@@ -123,7 +126,10 @@ export default function Topbar() {
             )}
           </div>
           <div className="notif-panel-list">
-            {notifications.length === 0 ? (
+            {/* Only built while the panel is open. The panel is always in the DOM
+                (CSS toggles it), so this list of up to 200 entries was being
+                re-rendered on every topbar tick. */}
+            {!bellOpen ? null : notifications.length === 0 ? (
               <div className="notif-empty">No activity yet. Actions you take will show up here.</div>
             ) : (
               notifications.map((n) => (

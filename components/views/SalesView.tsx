@@ -112,12 +112,16 @@ export default function SalesView() {
     [salesPeriod, salesOffset]
   );
 
-  const inRange = orders.filter((o) => {
-    const t = new Date(o.time);
-    return t >= start && t < end && o.status !== "cancelled";
-  });
-  const rev = inRange.reduce((s, o) => s + (o.amountPaid || 0), 0);
-  const avg = inRange.length ? Math.round(rev / inRange.length) : 0;
+  // Memoised: a full pass over the order list, previously rerun on every
+  // render including each tooltip hover on the chart.
+  const { inRange, rev, avg } = useMemo(() => {
+    const list = orders.filter((o) => {
+      const t = new Date(o.time);
+      return t >= start && t < end && o.status !== "cancelled";
+    });
+    const r = list.reduce((s, o) => s + (o.amountPaid || 0), 0);
+    return { inRange: list, rev: r, avg: list.length ? Math.round(r / list.length) : 0 };
+  }, [orders, start, end]);
 
   // One pass per bucket, carrying the order count too so the tooltip can show
   // it without re-scanning.
@@ -149,11 +153,15 @@ export default function SalesView() {
 
   // Same window, one period earlier — the honest comparison for the delta.
   const prevBounds = useMemo(() => getPeriodBounds(salesPeriod, salesOffset - 1), [salesPeriod, salesOffset]);
-  const prevRev = orders.reduce((s, o) => {
-    if (o.status === "cancelled") return s;
-    const t = new Date(o.time);
-    return t >= prevBounds.start && t < prevBounds.end ? s + (o.amountPaid || 0) : s;
-  }, 0);
+  const prevRev = useMemo(
+    () =>
+      orders.reduce((s, o) => {
+        if (o.status === "cancelled") return s;
+        const t = new Date(o.time);
+        return t >= prevBounds.start && t < prevBounds.end ? s + (o.amountPaid || 0) : s;
+      }, 0),
+    [orders, prevBounds]
+  );
   const deltaPct = prevRev > 0 ? Math.round(((rev - prevRev) / prevRev) * 100) : null;
   const loads = inRange.reduce((n, o) => n + getLoadCount(o.items), 0);
 

@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { useApp, ViewId } from "@/context/AppContext";
 import { BUSINESS_HOURS, getBalance, getLoadCount } from "@/lib/types";
 import { BUSINESS_DAY_START_HOUR, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
@@ -21,7 +22,12 @@ export default function Sidebar() {
   const { activeView, switchView, orders } = useApp();
   // Business day (calendar day), matching Orders and Daily Summary. This used
   // the raw calendar day, so the sidebar disagreed with every other screen.
-  const today = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
+  /* Every figure below is derived from the full order list, and this panel is
+     mounted all day — so without memoisation it walked ~800 orders five times
+     on every context change, including each toast. Now it recomputes only
+     when the orders actually change. */
+  const stats = useMemo(() => {
+    const today = orders.filter((o) => o.status !== "cancelled" && isBusinessToday(o.time));
   // Count what was actually collected, including down-payments on orders that
   // aren't fully settled yet. Counting only `paid ? total : 0` hid every
   // partial payment and under-reported the day's takings.
@@ -57,6 +63,11 @@ export default function Sidebar() {
   // overstated the debt for any partially-paid order, and disagreed with the
   // figure on the Unpaid Customers screen.
   const unpaidTotal = unpaidOrders.reduce((s, o) => s + getBalance(o), 0);
+
+    return { today, rev, paidCount, loads, target, pct, yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal };
+  }, [orders]);
+
+  const { today, rev, paidCount, loads, target, pct, yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal } = stats;
 
   return (
     <nav className="sidebar">
