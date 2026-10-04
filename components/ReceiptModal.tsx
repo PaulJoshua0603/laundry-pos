@@ -139,27 +139,11 @@ export default function ReceiptModal() {
             roll, and the "Pre-cut" option in particular was a footgun — it
             caps the page at 50mm and truncates. The width still lives in
             Tools > Printer for the rare case it is needed. */}
-        {/* The page height the app asks for must match the "Paper size" chosen
-            in the Windows print dialog. They agree at 210mm for a normal
-            receipt, but a long order can push past it — and then Windows
-            splits the receipt across two pages instead of printing one longer
-            one. Say so rather than letting it happen silently. */}
-        {!isFixedTag && printerMm === 58 && autoHeightMm !== null && autoHeightMm > 210 && (
-          <div className="printer-size-warn">
-            ⚠️ {copies > 1 ? `${copies} copies need` : "This order needs"} a longer page. In the print dialog set{" "}
-            <b>Paper size</b> to <b>Printer 58 (48mm×{autoHeightMm}mm)</b>, otherwise it will be split across pages.
-          </div>
-        )}
-
-        {/* The long explainer that lived here is now carried by the segment
-            sub-labels. Only the genuinely risky case still warrants words. */}
-        {isFixedTag && (
-          <div className="printer-size-warn">
-            ⚠️ Only for die-cut 50mm label sheets. A roll labelled <b>57×50</b> is 57mm wide × 50mm diameter —
-            continuous paper — and should use <b>57 / 58mm</b>.
-          </div>
-        )}
-
+        {/* No paper-size warning here any more. With --kiosk-printing there is
+            no dialog to act on it, and the page size comes from the driver
+            default instead — set that to 48mm x 600mm once and any receipt or
+            copy count fits. The printer stops at the last printed dot, so a
+            longer page costs no paper. */}
         {isFixedTag ? (
           <div className="fixed-tag" id="fixedTagBody">
             {/* 57x50mm pre-cut stock: same stripped-back treatment as the roll

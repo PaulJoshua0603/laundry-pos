@@ -297,12 +297,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setTheme(theme);
         document.documentElement.setAttribute("data-theme", theme);
 
-        // The old "48mm (ZPrinter)" choice produced exactly the same 48mm
-        // printable width as the 58mm setting and is no longer offered, so
-        // anyone still on it is moved across rather than left on a value with
-        // no matching button.
+        // Two retired paper settings migrate to the 58mm roll:
+        //   48 — gave an identical 48mm printable width, so it only ever
+        //        caused doubt about which to pick.
+        //   57 — the pre-cut label mode, which caps the page at 50mm and
+        //        truncates a roll receipt. The picker that could change it is
+        //        gone, so anyone left on it would be stuck with cut-off
+        //        receipts and no way out.
         const rawMm = parseInt(localStorage.getItem(PRINTWIDTH_KEY) || "", 10) || 58;
-        const savedMm = rawMm === 48 ? 58 : rawMm;
+        const savedMm = rawMm === 48 || rawMm === 57 ? 58 : rawMm;
         const savedH = parseInt(localStorage.getItem(PRINTWIDTH_KEY + "_h") || "", 10) || 210;
         setPrinterMm(savedMm);
         setPrinterH(savedH);
