@@ -1565,7 +1565,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     background:#fff !important;overflow:visible !important;
     transform:none !important;max-height:none !important;
   }
-  .paper-picker,.printer-size-warn,.modal-actions,.copies-row{display:none !important}
+  .paper-picker,.printer-size-warn,.modal-actions,.copies-row,.receipt-footerbar{display:none !important}
   .receipt-icon{display:none !important}
 
   /* Receipt body — compact for narrow thermal rolls. Thermal printer
@@ -2570,3 +2570,27 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
   box-shadow:0 0 0 1px var(--blue) inset;
 }
 .copies-opt:disabled{opacity:.5;cursor:default}
+
+/* ══════════════════════════════════════════
+   RECEIPT MODAL — fits the viewport
+
+   With two copies the receipt is taller than a 900px screen, and the modal
+   had no height limit, so the Print and Close buttons sat below the fold
+   with no way to scroll to them.
+══════════════════════════════════════════ */
+#receiptModalInner{
+  max-height:92vh;
+  overflow-y:auto;
+  scrollbar-width:thin;
+  scrollbar-color:var(--border2) transparent;
+}
+#receiptModalInner::-webkit-scrollbar{width:8px}
+#receiptModalInner::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+/* The controls stay reachable no matter how long the receipt is. */
+.receipt-footerbar{
+  position:sticky;bottom:0;z-index:2;
+  background:var(--surface);
+  box-shadow:0 -10px 18px -10px rgba(0,0,0,.6);
+}
+.receipt-footerbar .modal-actions{border-top:1px solid var(--border);margin-top:0}

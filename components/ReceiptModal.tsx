@@ -89,9 +89,12 @@ export default function ReceiptModal() {
       const el = contentRef.current;
       if (!el) return;
       const pxToMm = 25.4 / 96;
-      // 6mm breathing space, plus the 34mm trailing feed and the tag's extra
-      // bottom padding — all print-only, so they add no on-screen height.
-      const bufferMm = 44;
+      // The trailing feed and the tag's extra bottom padding only exist in
+      // print, so they contribute nothing to the measurement above — and they
+      // repeat once per copy. A flat buffer over-counted a single receipt and
+      // under-counted several, which pushed two copies onto a 600mm page when
+      // they fit 297mm.
+      const bufferMm = 8 + 34 * copies;
       const rawMm = Math.ceil(el.scrollHeight * pxToMm) + bufferMm;
       if (printerMm === 58) {
         const bucket = POS58_PAGE_LENGTHS_MM.find((mm) => mm >= rawMm) ?? rawMm;
@@ -132,32 +135,10 @@ export default function ReceiptModal() {
           ["--receipt-h" as any]: isFixedTag ? "50mm" : autoHeightMm ? `${autoHeightMm}mm` : "297mm",
         }}
       >
-        {/* Equal-width segments instead of pills that wrapped onto a second
-            row at odd widths. Each carries its own sub-label so the choice
-            doesn't need a paragraph underneath to explain it. */}
-        <div className="paper-picker">
-          <div className="paper-picker-label">Printer paper</div>
-          <div className="paper-seg">
-            <button
-              className={`paper-opt${printerMm === 58 ? " active" : ""}`}
-              onClick={() => setPrinterWidth(58, 210)}
-            >
-              <span className="paper-opt-name">57 / 58mm</span>
-              <span className="paper-opt-sub">roll · 48mm print</span>
-            </button>
-            <button className={`paper-opt${printerMm === 80 ? " active" : ""}`} onClick={() => setPrinterWidth(80)}>
-              <span className="paper-opt-name">80mm</span>
-              <span className="paper-opt-sub">roll · 72mm print</span>
-            </button>
-            <button
-              className={`paper-opt${printerMm === 57 ? " active" : ""}`}
-              onClick={() => setPrinterWidth(57, 50)}
-            >
-              <span className="paper-opt-name">Pre-cut</span>
-              <span className="paper-opt-sub">57×50mm label</span>
-            </button>
-          </div>
-        </div>
+        {/* The paper picker was removed: this shop only ever uses the 57mm
+            roll, and the "Pre-cut" option in particular was a footgun — it
+            caps the page at 50mm and truncates. The width still lives in
+            Tools > Printer for the rare case it is needed. */}
         {/* The page height the app asks for must match the "Paper size" chosen
             in the Windows print dialog. They agree at 210mm for a normal
             receipt, but a long order can push past it — and then Windows
@@ -323,6 +304,10 @@ export default function ReceiptModal() {
           </div>
         )}
 
+        {/* Pinned to the bottom of the scrolling modal. With two copies the
+            receipt is taller than a 900px screen, and these controls were
+            scrolling off the bottom out of reach. */}
+        <div className="receipt-footerbar">
         <div className="copies-row">
           <span className="copies-label">Copies</span>
           {[1, 2, 3].map((n) => (
@@ -346,6 +331,7 @@ export default function ReceiptModal() {
           <button className="btn btn-ghost modal-close-btn" onClick={closeReceipt}>
             Close
           </button>
+        </div>
         </div>
       </div>
     </div>
