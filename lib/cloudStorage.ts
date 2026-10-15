@@ -72,18 +72,40 @@ function orderToRow(userId: string, o: Order) {
 // vanish from every screen. Page explicitly so the full history always loads.
 const PAGE_SIZE = 1000;
 
+/**
+ * Run one page request, retrying a failure before giving up.
+ *
+ * Paging multiplies the chance of a dropped request: a shop past 1000 orders
+ * makes two round trips per load instead of one, and ANY failure used to
+ * abort the whole history. The caller then showed an empty shop — which to
+ * the person at the till is indistinguishable from having lost every order.
+ * A couple of cheap retries turn a blip back into a normal load.
+ */
+// The Supabase query builder is thenable but not a real Promise, so take the
+// looser PromiseLike here and let callers hand the builder straight over.
+async function fetchPage(run: () => PromiseLike<{ data: any[] | null; error: any }>): Promise<any[]> {
+  let lastError: any = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const { data, error } = await run();
+    if (!error) return data || [];
+    lastError = error;
+    if (attempt < 2) await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
+  }
+  throw lastError;
+}
+
 export async function cloudLoadOrders(userId: string): Promise<Order[]> {
   if (!isSupabaseConfigured()) return [];
   const all: Order[] = [];
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("*")
-      .eq("user_id", userId)
-      .order("time", { ascending: false })
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    const rows = data || [];
+    const rows = await fetchPage(() =>
+      supabase
+        .from("orders")
+        .select("*")
+        .eq("user_id", userId)
+        .order("time", { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+    );
     rows.forEach((r) => all.push(rowToOrder(r)));
     if (rows.length < PAGE_SIZE) break;
   }
@@ -95,13 +117,9 @@ export async function cloudLoadOrderIds(userId: string): Promise<Set<string>> {
   const ids = new Set<string>();
   if (!isSupabaseConfigured()) return ids;
   for (let from = 0; ; from += PAGE_SIZE) {
-    const { data, error } = await supabase
-      .from("orders")
-      .select("id")
-      .eq("user_id", userId)
-      .range(from, from + PAGE_SIZE - 1);
-    if (error) throw error;
-    const rows = data || [];
+    const rows = await fetchPage(() =>
+      supabase.from("orders").select("id").eq("user_id", userId).range(from, from + PAGE_SIZE - 1)
+    );
     rows.forEach((r: any) => ids.add(r.id));
     if (rows.length < PAGE_SIZE) break;
   }

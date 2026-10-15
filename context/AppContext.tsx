@@ -324,16 +324,34 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             // reading, or the fetch below would overwrite them and the orders
             // would appear to have vanished.
             await flushQueue(cloudSession.userId);
-            const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
-              cloudLoadOrders(cloudSession.userId),
-              cloudLoadNotifications(cloudSession.userId),
-              cloudLoadPaySettings(cloudSession.userId),
-              cloudLoadSmsTemplates(cloudSession.userId),
-            ]);
-            hydrateOrders(cloudSession.userId, cOrders);
-            setNotifications(cNotifs);
-            if (cPay) setPaySettings(cPay);
-            if (cSms) setSmsTemplates(cSms);
+            try {
+              const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+                cloudLoadOrders(cloudSession.userId),
+                cloudLoadNotifications(cloudSession.userId),
+                cloudLoadPaySettings(cloudSession.userId),
+                cloudLoadSmsTemplates(cloudSession.userId),
+              ]);
+              hydrateOrders(cloudSession.userId, cOrders);
+              setNotifications(cNotifs);
+              if (cPay) setPaySettings(cPay);
+              if (cSms) setSmsTemplates(cSms);
+            } catch (err) {
+              // THE CLOUD READ FAILED — the orders still exist, we just
+              // couldn't reach them. Previously this landed in the outer
+              // `catch {}` and the till booted showing nothing at all, with
+              // no hint that anything had gone wrong: identical, from behind
+              // the counter, to every record being wiped.
+              //
+              // Show this device's own copy instead and say plainly what
+              // happened. The next successful refresh reconciles the two.
+              console.error("[WashHub] Cloud load failed; falling back to this device's copy.", err);
+              hydrateOrders(cloudSession.userId, loadOrders(cloudSession.userId));
+              setNotifications(loadNotifications(cloudSession.userId));
+              showToastRef.current?.(
+                "⚠️ Couldn't reach the cloud — showing this device's copy. Your orders are safe; check the connection and press Refresh.",
+                "error"
+              );
+            }
             setBooted(true);
             return;
           }
