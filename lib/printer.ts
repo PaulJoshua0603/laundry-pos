@@ -1,32 +1,15 @@
 /* ══════════════════════════════════════════════════════════
-   PR21 58mm thermal printer driver (ESC/POS over Web Bluetooth)
+   58mm thermal printer driver (ESC/POS over WebUSB)
    ══════════════════════════════════════════════════════════
-   Most 58mm "PR21" style thermal printers expose a BLE GATT service
-   for raw ESC/POS bytes. The UUIDs below cover the two families
-   these clone printers almost always ship with. If neither is
-   found, we fall back to scanning every writable characteristic on
-   the device, which covers the rest.
+   Used by the Test Print button in Tools → Printer. Everyday receipts
+   go through the browser's own print path instead (see ReceiptModal),
+   which is what --kiosk-printing makes instant.
 
-   IMPORTANT: Web Bluetooth only works over HTTPS (or localhost) and
-   only in Chromium-based browsers (Chrome/Edge on Android, desktop
-   Chrome/Edge). It is NOT available in Safari on iOS/iPadOS — Apple
-   has not implemented the Web Bluetooth spec. On iPhone, use
-   "Share to PR21 app" or "Save PDF" instead (see printing.ts).
+   This file also carried a full Web Bluetooth GATT driver. The till is
+   a fixed counter machine on a USB cable, the Bluetooth path has not
+   been reachable from the UI since that transport was removed, and a
+   driver nobody can invoke is a driver nobody maintains — so it is gone.
    ══════════════════════════════════════════════════════════ */
-
-export const PR21_SERVICE_CANDIDATES = [
-  // "Zjiang / Goojprt"-style BLE thermal printers — the most common
-  // chipset behind generic 58mm printers sold as "PR21".
-  { service: "49535343-fe7d-4ae5-8fa9-9fafd205e455", write: "49535343-8841-43f4-a8d4-ecbe34729bb3" },
-  // Common HM-10/serial-bridge style module.
-  { service: "0000ffe0-0000-1000-8000-00805f9b34fb", write: "0000ffe1-0000-1000-8000-00805f9b34fb" },
-  // Generic "printer service" UUID seen on some clones.
-  { service: "000018f0-0000-1000-8000-00805f9b34fb", write: "00002af1-0000-1000-8000-00805f9b34fb" },
-];
-
-export function isWebBluetoothSupported(): boolean {
-  return typeof navigator !== "undefined" && !!(navigator as any).bluetooth;
-}
 
 export function isWebUsbSupported(): boolean {
   return typeof navigator !== "undefined" && !!(navigator as any).usb;
@@ -138,78 +121,6 @@ async function writeUsbBytes(bytes: Uint8Array) {
   const CHUNK = 4096;
   for (let i = 0; i < bytes.length; i += CHUNK) {
     await cachedUsbDevice.transferOut(cachedUsbEndpoint, bytes.slice(i, i + CHUNK));
-  }
-}
-
-let cachedDevice: BluetoothDevice | null = null;
-let cachedChar: BluetoothRemoteGATTCharacteristic | null = null;
-
-async function findWritableCharacteristic(
-  server: BluetoothRemoteGATTServer
-): Promise<BluetoothRemoteGATTCharacteristic> {
-  // 1) Try known service/characteristic pairs first (fast path).
-  for (const candidate of PR21_SERVICE_CANDIDATES) {
-    try {
-      const service = await server.getPrimaryService(candidate.service);
-      const char = await service.getCharacteristic(candidate.write);
-      return char;
-    } catch {
-      /* try next candidate */
-    }
-  }
-  // 2) Fall back to scanning every service for a writable characteristic.
-  const services = await server.getPrimaryServices();
-  for (const service of services) {
-    const chars = await service.getCharacteristics();
-    const writable = chars.find((c) => c.properties.write || c.properties.writeWithoutResponse);
-    if (writable) return writable;
-  }
-  throw new Error("No writable characteristic found on this printer.");
-}
-
-/** Opens the browser's Bluetooth device picker and connects to the printer. */
-export async function connectPrinter(): Promise<{ name: string }> {
-  if (!isWebBluetoothSupported()) {
-    throw new Error("Web Bluetooth isn't supported in this browser.");
-  }
-  const device = await (navigator as any).bluetooth.requestDevice({
-    acceptAllDevices: true,
-    optionalServices: PR21_SERVICE_CANDIDATES.map((c) => c.service),
-  });
-  const server = await device.gatt!.connect();
-  const char = await findWritableCharacteristic(server);
-  cachedDevice = device;
-  cachedChar = char;
-  return { name: device.name || "Thermal printer" };
-}
-
-export function isPrinterConnected(): boolean {
-  return !!(cachedDevice && cachedDevice.gatt && cachedDevice.gatt.connected);
-}
-
-export function disconnectPrinter() {
-  try {
-    cachedDevice?.gatt?.disconnect();
-  } catch {
-    /* ignore */
-  }
-  cachedDevice = null;
-  cachedChar = null;
-}
-
-/** Writes raw bytes to the printer in small chunks (BLE MTU-safe). */
-async function writeBytes(bytes: Uint8Array) {
-  if (!cachedChar) throw new Error("Printer not connected.");
-  const CHUNK = 180; // safely under typical 20-byte-negotiated-up BLE MTU limits
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    const slice = bytes.slice(i, i + CHUNK);
-    if (cachedChar.properties.writeWithoutResponse) {
-      await cachedChar.writeValueWithoutResponse(slice);
-    } else {
-      await cachedChar.writeValue(slice);
-    }
-    // tiny delay so cheap printer firmware doesn't drop bytes
-    await new Promise((r) => setTimeout(r, 12));
   }
 }
 
@@ -426,64 +337,9 @@ export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8A
   return b.build();
 }
 
-export type PrinterTransport = "usb" | "bluetooth";
-
-/** Sends a built receipt to the printer. Prefers USB (direct-wired, most
- *  reliable for a fixed till), falls back to a connected Bluetooth
- *  printer, or connects fresh via the requested/available transport. */
-export async function printReceiptToPr21(
-  order: ReceiptData,
-  transport?: PrinterTransport,
-  paperMm?: number
-): Promise<void> {
+/** Sends a built receipt straight to the USB printer, connecting if needed. */
+export async function printReceiptToPr21(order: ReceiptData, paperMm?: number): Promise<void> {
   const bytes = buildReceiptEscPos(order, paperMm);
-
-  const useTransport: PrinterTransport =
-    transport || (isUsbConnected() ? "usb" : isPrinterConnected() ? "bluetooth" : isWebUsbSupported() ? "usb" : "bluetooth");
-
-  if (useTransport === "usb") {
-    if (!isUsbConnected()) await connectUsbPrinter();
-    await writeUsbBytes(bytes);
-  } else {
-    if (!isPrinterConnected()) await connectPrinter();
-    await writeBytes(bytes);
-  }
-}
-
-/* ══════════════════════════════════════════════════════════════════
-   RASTER PRINTING (WebUSB)
-
-   Sends the receipt straight to the printer over USB, so there is no
-   print dialog and the number of copies is controlled by the app rather
-   than by a driver setting.
-
-   A bitmap rather than ESC/POS text, because text mode would discard the
-   layout — the large customer name, the rules, the spacing.
-
-   Requires that NO Windows driver has claimed the device: Windows gives
-   a driver exclusive access, and WebUSB is then refused. connectUsbPrinter
-   explains that case if it happens.
-   ══════════════════════════════════════════════════════════════════ */
-
-/** Connects over USB if needed, then prints the given receipt bitmap and feeds. */
-export async function printRasterToPr21(raster: Uint8Array): Promise<void> {
   if (!isUsbConnected()) await connectUsbPrinter();
-
-  const init = new Uint8Array([
-    0x1b, 0x40, // ESC @ — reset
-    // Max heat: these clones ship a light default profile, which is the
-    // usual reason raster output looks grey rather than solid.
-    0x1b, 0x37, 15, 255, 2,
-    0x1b, 0x61, 0x01, // centre
-  ]);
-  const feed = new Uint8Array([0x1b, 0x64, 0x04]); // ESC d 4 — feed 4 lines
-
-  await writeUsbBytes(init);
-  await writeUsbBytes(raster);
-  await writeUsbBytes(feed);
-}
-
-/** True when a USB printer has been claimed in this session. */
-export function isUsbReady(): boolean {
-  return isUsbConnected();
+  await writeUsbBytes(bytes);
 }

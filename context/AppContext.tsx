@@ -74,6 +74,7 @@ import {
 } from "@/lib/syncQueue";
 import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCloud } from "@/lib/migrateLocalData";
 import { isBusinessToday } from "@/lib/format";
+import { supabase } from "@/lib/supabaseClient";
 
 export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "tools";
 export type ToastType = "" | "success" | "error";
@@ -249,6 +250,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const paySettingsRef = useRef<PaySettings>(paySettings);
   const smsTemplatesRef = useRef<SmsTemplates>(smsTemplates);
   const showToastRef = useRef<((msg: string, type?: ToastType) => void) | null>(null);
+  /** Lets the auth-state watcher sign out without depending on a callback declared far below it. */
+  const logoutRef = useRef<(() => void) | null>(null);
   /** Which user's orders are currently loaded into state — see the persistence effect. */
   const hydratedForRef = useRef<string | null>(null);
 
@@ -389,8 +392,42 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     // a transient error) nothing restored it and the local copy was destroyed.
     // Persist only once the order list actually belongs to this user.
     if (!booted || !session || hydratedForRef.current !== session.userId) return;
-    saveOrders(session.userId, orders);
+    const userId = session.userId;
+    // DEBOUNCED. Serialising a thousand-plus orders is most of a megabyte of
+    // JSON, and `localStorage.setItem` is synchronous — it blocks the main
+    // thread until the write lands. Doing that on every single change meant
+    // that marking one order paid, or taking one payment, froze the till for a
+    // beat on a 2-core machine, and a burst of edits froze it repeatedly.
+    //
+    // Nothing is at risk in the delay: this copy is only a local mirror. The
+    // cloud outbox is written synchronously by the mutation itself, and the
+    // flush effect below covers a tab closed inside the window.
+    const id = window.setTimeout(() => saveOrders(userId, ordersRef.current), 800);
+    return () => window.clearTimeout(id);
   }, [booted, session, orders]);
+
+  /* Write the pending mirror out immediately when the tab is hidden or torn
+     down, so the debounce above can never lose the last edit of the day. */
+  useEffect(() => {
+    if (!booted || !session) return;
+    const userId = session.userId;
+    const flush = () => {
+      // Same ownership guard as above — never write one account's list under
+      // another's key, and never write the empty list left by a sign-out.
+      if (hydratedForRef.current !== userId) return;
+      saveOrders(userId, ordersRef.current);
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHide);
+      flush();
+    };
+  }, [booted, session]);
 
   useEffect(() => {
     // Same hydration guard as orders above — notifications are loaded in the
@@ -506,6 +543,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setRefreshing(false);
     }
   }, []);
+
+  /* ─── DEAD SESSION DETECTION ───
+     Supabase rotates the refresh token on every use. Open the same account on
+     a second machine, or let a sleeping laptop wake and fire two refreshes at
+     once, and one of them comes back `400 … type=refresh_token` — that token
+     is spent and the session is finished.
+
+     Nothing used to notice. The client kept a session object that no longer
+     authenticated, so every read came back empty and the till showed a shop
+     with no orders in it, which is exactly what a wiped database looks like
+     from behind the counter. Watch for it and say plainly what happened. */
+  useEffect(() => {
+    if (!booted || !cloudActive || !isSupabaseConfigured()) return;
+    const { data } = supabase.auth.onAuthStateChange((event, authSession) => {
+      // A deliberate sign-out clears `sessionRef` first, so this only fires
+      // for a session that died on its own.
+      if (authSession || !sessionRef.current) return;
+      if (event !== "SIGNED_OUT" && event !== "TOKEN_REFRESHED") return;
+      showToastRef.current?.(
+        "⚠️ Your sign-in expired — please sign in again. Every order is safely saved in the cloud.",
+        "error"
+      );
+      logoutRef.current?.();
+    });
+    return () => data.subscription.unsubscribe();
+  }, [booted, cloudActive]);
 
   useEffect(() => {
     if (!booted || !session || !cloudActive) return;
@@ -801,6 +864,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPendingSync(0);
     showToast("Signed out");
   }, [cloudActive, showToast]);
+  logoutRef.current = logout;
 
   const importLegacyAccount = useCallback(
     async (localUserId: string) => {

@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProvider } from "@/context/AppContext";
 import ServiceWorkerRegister from "@/components/ServiceWorkerRegister";
-import EmojiParser from "@/components/EmojiParser";
 
 export const metadata: Metadata = {
   title: "WashHub POS",
@@ -60,7 +59,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <AppProvider>{children}</AppProvider>
         <ServiceWorkerRegister />
-        <EmojiParser />
       </body>
     </html>
   );

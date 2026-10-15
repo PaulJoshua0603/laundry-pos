@@ -2,13 +2,7 @@
 
 import { useState } from "react";
 import { useApp } from "@/context/AppContext";
-import {
-  connectUsbPrinter,
-  disconnectUsbPrinter,
-  isPrinterConnected,
-  isUsbConnected,
-  isWebUsbSupported,
-} from "@/lib/printer";
+import { connectUsbPrinter, disconnectUsbPrinter, isWebUsbSupported } from "@/lib/printer";
 
 export default function PrinterSettingsCard() {
   const { session, printerMm, setPrinterWidth, showToast } = useApp();
@@ -53,7 +47,6 @@ export default function PrinterSettingsCard() {
           total: "P160",
           paymentLabel: "Cash",
         },
-        isUsbConnected() ? "usb" : "bluetooth",
         printerMm
       );
       showToast("🖨️ Test receipt sent to printer", "success");

@@ -156,7 +156,11 @@ export const SERVICES: Service[] = [
   { id: "w5", cat: "wash", icon: "🫧", name: "Regular Wash (4) Heavy", desc: "For heavy/bulky clothes (6–7 kg)", price: 190 },
   { id: "w3", cat: "wash", icon: "🛏️", name: "Premium Wash", desc: "Extra rinse, gentler cycle", price: 100 },
   { id: "w4", cat: "wash", icon: "🌨️", name: "Premium Wash (2)", desc: "Per load", price: 200 },
-  { id: "w6", cat: "wash", icon: "🌨️", name: "Premium Wash (2)", desc: "7 kg and up", price: 210 },
+  // Was a second "Premium Wash (2)", identical on screen to w4 above but ₱10
+  // dearer — indistinguishable on the till and on the printed receipt. Renamed
+  // to follow the same numbering the Regular Wash tiers already use. Past
+  // orders are unaffected: each line stores its own copy of the service.
+  { id: "w6", cat: "wash", icon: "🌨️", name: "Premium Wash (3)", desc: "7 kg and up", price: 210 },
   { id: "d1", cat: "dry", icon: "☀️", name: "Regular Dry", desc: "Max 7 kgs / load", price: 80 },
   { id: "d2", cat: "dry", icon: "🌤️", name: "Heavy Dry", desc: "Max 8 kgs / load", price: 100 },
   { id: "d3", cat: "addon", icon: "⏱️", name: "Add Dry", desc: "+10 minutes dry only", price: 30 },
