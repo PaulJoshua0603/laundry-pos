@@ -163,17 +163,10 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
           <span className="cart-line-label">Subtotal</span>
           <span className="cart-line-val">{peso(cartTotal)}</span>
         </div>
-        {/* Replaces the old "Discount —" row, which was a permanent em-dash
-            that earned nothing. Change is derived from the cash-received
-            field below: anything tendered above the total is the customer's
-            change. Purely a till aid — the order still records at most the
-            total as paid, never the tendered amount. */}
-        <div className="cart-line">
-          <span className="cart-line-label">Change</span>
-          <span className="cart-line-val" style={{ color: changeDue > 0 ? "var(--green)" : undefined }}>
-            {changeDue > 0 ? peso(changeDue) : "—"}
-          </span>
-        </div>
+        {/* The standalone Change row is gone: change is only meaningful once
+            cash has been tendered, and it is already stated right under the
+            Cash received field where that happens. Up here it sat as a
+            permanent em-dash for every order that was not paid in cash. */}
         <div className="cart-divider" />
         <div className="cart-line">
           <span className="cart-total-label">Total</span>

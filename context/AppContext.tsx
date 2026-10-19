@@ -5,7 +5,6 @@ import {
   CartLine,
   DEFAULT_SMS_TEMPLATE_PAID,
   DEFAULT_SMS_TEMPLATE_UNPAID,
-  NotificationEntry,
   Order,
   PaySettings,
   PaymentMethod,
@@ -29,11 +28,9 @@ import {
   loadOrders,
   loadPaySettings,
   loadSmsTemplates,
-  loadNotifications,
   saveOrders,
   savePaySettings as persistPaySettings,
   saveSmsTemplates as persistSmsTemplates,
-  saveNotifications,
   PRINTWIDTH_KEY,
   THEME_KEY,
 } from "@/lib/storage";
@@ -46,14 +43,11 @@ import {
   isSupabaseConfigured,
 } from "@/lib/cloudAuth";
 import {
-  cloudClearNotifications,
   cloudDeleteOrders,
-  cloudLoadNotifications,
   cloudLoadOrders,
   cloudLoadPaySettings,
   cloudLoadSmsTemplates,
   cloudSaveAllOrders,
-  cloudSaveNotifications,
   cloudSavePaySettings,
   cloudSaveSmsTemplates,
   subscribeToOrders,
@@ -117,11 +111,6 @@ interface AppContextValue {
   toast: ToastState | null;
   showToast: (msg: string, type?: ToastType) => void;
 
-  // notification history
-  notifications: NotificationEntry[];
-  unreadCount: number;
-  markNotificationsRead: () => void;
-  clearNotifications: () => void;
 
   // nav
   activeView: ViewId;
@@ -216,7 +205,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState("");
   const [theme, setTheme] = useState<"dark" | "light">("dark");
   const [toast, setToast] = useState<ToastState | null>(null);
-  const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [activeView, setActiveView] = useState<ViewId>("pos");
 
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -271,18 +259,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(null), 2200);
 
-    const entry: NotificationEntry = {
-      id: "n_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
-      message: msg,
-      type,
-      time: new Date().toISOString(),
-      read: false,
-    };
-    // Pure updater — persistence happens in the effect below. Doing I/O inside
-    // a state updater double-fires under React StrictMode and wrote to the
-    // wrong place in cloud mode (getSession() is null for cloud sessions, so
-    // notifications were never saved at all).
-    setNotifications((prev) => [entry, ...prev].slice(0, 200));
   }, []);
   showToastRef.current = showToast;
 
@@ -323,14 +299,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             // would appear to have vanished.
             await flushQueue(cloudSession.userId);
             try {
-              const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+              const [cOrders, cPay, cSms] = await Promise.all([
                 cloudLoadOrders(cloudSession.userId),
-                cloudLoadNotifications(cloudSession.userId),
                 cloudLoadPaySettings(cloudSession.userId),
                 cloudLoadSmsTemplates(cloudSession.userId),
               ]);
               hydrateOrders(cloudSession.userId, cOrders);
-              setNotifications(cNotifs);
               if (cPay) setPaySettings(cPay);
               if (cSms) setSmsTemplates(cSms);
             } catch (err) {
@@ -344,7 +318,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               // happened. The next successful refresh reconciles the two.
               console.error("[WashHub] Cloud load failed; falling back to this device's copy.", err);
               hydrateOrders(cloudSession.userId, loadOrders(cloudSession.userId));
-              setNotifications(loadNotifications(cloudSession.userId));
               showToastRef.current?.(
                 "⚠️ Couldn't reach the cloud — showing this device's copy. Your orders are safe; check the connection and press Refresh.",
                 "error"
@@ -360,7 +333,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSessionState(s);
           setCloudActive(false);
           hydrateOrders(s.userId, loadOrders(s.userId));
-          setNotifications(loadNotifications(s.userId));
           setPaySettings(loadPaySettings(s.userId));
           setSmsTemplates(loadSmsTemplates(s.userId));
         } else {
@@ -374,7 +346,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   /* ─── PERSISTENCE ───
-     Orders and notifications are mirrored to localStorage from an effect
+     Orders are mirrored to localStorage from an effect
      rather than from inside state updaters. Updaters must stay pure: React
      StrictMode invokes them twice, which previously meant duplicate writes
      and duplicate cloud requests for a single user action. */
@@ -423,24 +395,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       flush();
     };
   }, [booted, session]);
-
-  useEffect(() => {
-    // Same hydration guard as orders above — notifications are loaded in the
-    // same awaited batch, so the same empty-write window exists.
-    if (!booted || !session || hydratedForRef.current !== session.userId) return;
-    saveNotifications(session.userId, notifications);
-    if (!cloudActive || notifications.length === 0) return;
-    // Debounced: every toast appends a notification, and each cloud write
-    // upserts the whole (up to 200 row) history. Without this, a busy minute
-    // at the till fires a large request per toast.
-    const userId = session.userId;
-    const id = setTimeout(() => {
-      cloudSaveNotifications(userId, notifications).catch(() => {
-        /* history is non-critical — the next change retries it */
-      });
-    }, 3000);
-    return () => clearTimeout(id);
-  }, [booted, session, cloudActive, notifications]);
 
   /* ─── OUTBOX ───
      Surface how many order writes are still waiting to reach the cloud, and
@@ -656,14 +610,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           }
         }
 
-        const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+        const [cOrders, cPay, cSms] = await Promise.all([
           cloudLoadOrders(sess.userId),
-          cloudLoadNotifications(sess.userId),
           cloudLoadPaySettings(sess.userId),
           cloudLoadSmsTemplates(sess.userId),
         ]);
         hydrateOrders(sess.userId, cOrders);
-        setNotifications(cNotifs);
         if (cPay) setPaySettings(cPay);
         if (cSms) setSmsTemplates(cSms);
         setLegacyMatches([]);
@@ -698,7 +650,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSessionState(sess);
       setCloudActive(false);
       hydrateOrders(sess.userId, loadOrders(sess.userId));
-      setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
       showToast(`Welcome, ${name.split(" ")[0]}! Account created.`, "success");
@@ -723,14 +674,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           setSessionState(sess);
           setCloudActive(true);
           await flushQueue(sess.userId);
-          const [cOrders, cNotifs, cPay, cSms] = await Promise.all([
+          const [cOrders, cPay, cSms] = await Promise.all([
             cloudLoadOrders(sess.userId),
-            cloudLoadNotifications(sess.userId),
             cloudLoadPaySettings(sess.userId),
             cloudLoadSmsTemplates(sess.userId),
           ]);
           hydrateOrders(sess.userId, cOrders);
-          setNotifications(cNotifs);
           if (cPay) setPaySettings(cPay);
           if (cSms) setSmsTemplates(cSms);
 
@@ -764,7 +713,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setSessionState(sess);
       setCloudActive(false);
       hydrateOrders(sess.userId, loadOrders(sess.userId));
-      setNotifications(loadNotifications(sess.userId));
       setPaySettings(loadPaySettings(sess.userId));
       setSmsTemplates(loadSmsTemplates(sess.userId));
       showToast(
@@ -816,7 +764,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     ordersRef.current = [];
     setOrders([]);
     setCart([]);
-    setNotifications([]);
     setActiveView("pos");
     // Reset per-account settings too — these used to persist across a sign-out,
     // so the next person to log in saw the previous shop's QR codes and
@@ -1255,24 +1202,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   /* ─── VIEW ─── */
   const switchView = useCallback((v: ViewId) => setActiveView(v), []);
 
-  // `getSession()` only ever returns legacy local sessions — it is null for a
-  // cloud login, so notification state was silently never persisted for cloud
-  // users. Persistence now runs from the effect keyed on `session`, which is
-  // correct for both account types.
-  const markNotificationsRead = useCallback(() => {
-    setNotifications((prev) => (prev.every((n) => n.read) ? prev : prev.map((n) => ({ ...n, read: true }))));
-  }, []);
-
-  const clearNotifications = useCallback(() => {
-    const s = sessionRef.current;
-    setNotifications([]);
-    if (s) {
-      saveNotifications(s.userId, []);
-      if (cloudRef.current) cloudClearNotifications(s.userId).catch(() => {});
-    }
-  }, []);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
 
   // Memoised: this object was rebuilt on every render, so every screen
   // subscribed to the context re-rendered on any state change — including the
@@ -1302,10 +1231,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     toggleTheme,
     toast,
     showToast,
-    notifications,
-    unreadCount,
-    markNotificationsRead,
-    clearNotifications,
     activeView,
     switchView,
     cart,
@@ -1346,7 +1271,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     booted, session, authTab, authError, register, login, forgotPassword, logout,
     cloudActive, pendingSync, refreshing, refreshFromCloud, legacyMatches,
     importLegacyAccount, importPastedOrders, theme, toggleTheme, toast, showToast,
-    notifications, unreadCount, markNotificationsRead, clearNotifications,
     activeView, switchView, cart, addToCart, addCustomFee, changeQty, removeFromCart,
     clearCart, cartTotal, payment, selectPayment, orders, checkout, cancelOrder,
     deleteOrder, clearDayOrders, markOrderPaid, addPartialPayment,

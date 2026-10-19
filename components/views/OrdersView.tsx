@@ -293,7 +293,6 @@ export default function OrdersView() {
                                       <option value="">Mark fully paid…</option>
                                       <option value="cash">💵 Cash</option>
                                       <option value="gcash">📱 GCash</option>
-                                      <option value="maya">💜 Maya</option>
                                     </select>
                                   </div>
                                 )}

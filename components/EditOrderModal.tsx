@@ -240,7 +240,6 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
             >
               <option value="cash">💵 Cash</option>
               <option value="gcash">📱 GCash</option>
-              <option value="maya">💜 Maya</option>
             </select>
           )}
           {!paid && (
@@ -272,7 +271,6 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
                   >
                     <option value="cash">💵 Cash</option>
                     <option value="gcash">📱 GCash</option>
-                    <option value="maya">💜 Maya</option>
                   </select>
                   <div className="partial-pay-preview">
                     Balance due: {peso(Math.max(0, grandTotal - parseFloat(amountPaidInput)))}

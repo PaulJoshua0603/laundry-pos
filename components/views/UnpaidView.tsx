@@ -8,55 +8,23 @@ import { buildDailyOrderNoMap, getBalance } from "@/lib/types";
 const PAY_METHODS = [
   { id: "cash", icon: "💵", label: "Cash" },
   { id: "gcash", icon: "📱", label: "GCash" },
-  { id: "maya", icon: "💜", label: "Maya" },
 ] as const;
 
 /**
- * Takes a payment against one order.
+ * Settles one order in full.
  *
- * The separate "Settle Full…" dropdown is gone. Leaving the box empty pays
- * the whole balance — the overwhelmingly common case, now one click — and
- * typing a figure pays that instead. The button states which of the two it
- * is about to do and for how much, so there is no dropdown to read and no
- * way to be unsure what pressing it costs the customer.
+ * Part payments were taken out: a balance here is paid off, not chipped at,
+ * so the amount box was a field that only ever got the one value typed into
+ * it. Pick how they paid, press the button. Orders already carrying a
+ * part-payment from before still settle correctly — the balance shown is
+ * what remains, and marking it paid clears exactly that.
  */
-function PartialPayRow({ orderId, balance }: { orderId: string; balance: number }) {
-  const { addPartialPayment } = useApp();
-  const [amount, setAmount] = useState("");
-  const [method, setMethod] = useState<"cash" | "gcash" | "maya">("cash");
-
-  const typed = parseFloat(amount);
-  const hasTyped = amount.trim() !== "" && Number.isFinite(typed) && typed > 0;
-  // Never take more than is owed, whatever is typed.
-  const willPay = hasTyped ? Math.min(typed, balance) : balance;
-  const settlesInFull = willPay >= balance;
-
-  function handleAdd() {
-    if (willPay <= 0) return;
-    addPartialPayment(orderId, willPay, method);
-    setAmount("");
-  }
+function SettleRow({ orderId, balance }: { orderId: string; balance: number }) {
+  const { markOrderPaid } = useApp();
+  const [method, setMethod] = useState<"cash" | "gcash">("cash");
 
   return (
     <div className="paytake">
-      <div className="paytake-amount">
-        <span className="paytake-peso">₱</span>
-        <input
-          className="paytake-input"
-          type="number"
-          inputMode="decimal"
-          min={0}
-          max={balance}
-          placeholder={String(balance)}
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          aria-label={`Amount to pay, up to ${balance}`}
-        />
-      </div>
-
-      {/* Segmented buttons rather than a select: three options, always worth
-          seeing, and one tap instead of open-scan-choose. */}
       <div className="paytake-methods" role="group" aria-label="Payment method">
         {PAY_METHODS.map((m) => (
           <button
@@ -74,12 +42,11 @@ function PartialPayRow({ orderId, balance }: { orderId: string; balance: number 
       </div>
 
       <button
-        className={`paytake-go${settlesInFull ? " full" : ""}`}
-        onClick={handleAdd}
-        disabled={willPay <= 0}
-        title={settlesInFull ? "Pay off the whole balance" : "Record a part payment"}
+        className="paytake-go full"
+        onClick={() => markOrderPaid(orderId, method)}
+        title="Mark this order paid in full"
       >
-        {settlesInFull ? "Settle" : "Add"} {peso(willPay)}
+        Settle {peso(balance)}
       </button>
     </div>
   );
@@ -226,7 +193,7 @@ export default function UnpaidView() {
                       </div>
                     </td>
                     <td>
-                      <PartialPayRow orderId={o.id} balance={balance} />
+                      <SettleRow orderId={o.id} balance={balance} />
                     </td>
                   </tr>
                 );

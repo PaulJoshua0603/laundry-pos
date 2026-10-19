@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from "./supabaseClient";
-import { NotificationEntry, Order, PaySettings, SmsTemplates } from "./types";
+import { Order, PaySettings, SmsTemplates } from "./types";
 
 // The orders/notifications tables use a COMPOSITE primary key (user_id, id).
 // PostgREST only infers the conflict target reliably when we name it, so be
@@ -201,33 +201,8 @@ export async function cloudSaveSmsTemplates(userId: string, templates: SmsTempla
   if (error) throw error;
 }
 
-export async function cloudLoadNotifications(userId: string): Promise<NotificationEntry[]> {
-  if (!isSupabaseConfigured()) return [];
-  const { data } = await supabase
-    .from("notifications")
-    .select("*")
-    .eq("user_id", userId)
-    .order("time", { ascending: false })
-    .limit(200);
-  return (data || []).map((r: any) => ({ id: r.id, message: r.message, type: r.type, time: r.time, read: r.read }));
-}
 
-export async function cloudSaveNotifications(userId: string, entries: NotificationEntry[]) {
-  if (!isSupabaseConfigured() || entries.length === 0) return;
-  const { error } = await supabase
-    .from("notifications")
-    .upsert(
-      entries.slice(0, 200).map((n) => ({ id: n.id, user_id: userId, message: n.message, type: n.type, time: n.time, read: n.read })),
-      { onConflict: ORDER_CONFLICT }
-    );
-  if (error) throw error;
-}
 
-export async function cloudClearNotifications(userId: string) {
-  if (!isSupabaseConfigured()) return;
-  const { error } = await supabase.from("notifications").delete().eq("user_id", userId);
-  if (error) throw error;
-}
 
 /* ═══════════════════════════════════════════════════════════════
    REALTIME

@@ -1,6 +1,6 @@
 import { getUsers } from "./auth";
-import { loadOrders, loadPaySettings, loadSmsTemplates, loadNotifications } from "./storage";
-import { cloudLoadOrderIds, cloudSaveAllOrders, cloudSavePaySettings, cloudSaveSmsTemplates, cloudSaveNotifications } from "./cloudStorage";
+import { loadOrders, loadPaySettings, loadSmsTemplates } from "./storage";
+import { cloudLoadOrderIds, cloudSaveAllOrders, cloudSavePaySettings, cloudSaveSmsTemplates } from "./cloudStorage";
 import { Order } from "./types";
 
 export interface LegacyAccountMatch {
@@ -50,12 +50,10 @@ export async function migrateLegacyAccountToCloud(localUserId: string, cloudUser
   const orders = loadOrders(localUserId);
   const paySettings = loadPaySettings(localUserId);
   const smsTemplates = loadSmsTemplates(localUserId);
-  const notifications = loadNotifications(localUserId);
 
   await cloudSaveAllOrders(cloudUserId, orders);
   await cloudSavePaySettings(cloudUserId, paySettings);
   await cloudSaveSmsTemplates(cloudUserId, smsTemplates);
-  await cloudSaveNotifications(cloudUserId, notifications);
 
   return { ordersImported: orders.length };
 }

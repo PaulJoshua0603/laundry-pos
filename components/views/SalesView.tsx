@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { BUSINESS_DAY_START_HOUR, businessDayStart, peso } from "@/lib/format";
 import { getLoadCount } from "@/lib/types";
-import { exportSalesExcel } from "@/lib/salesExcel";
 
 function startOfWeek(d: Date) {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -103,8 +102,7 @@ function getPeriodBounds(period: "today" | "week" | "month" | "year", offset: nu
 }
 
 export default function SalesView() {
-  const { orders, salesPeriod, setSalesPeriod, salesOffset, setSalesOffset, session } = useApp();
-  const [exporting, setExporting] = useState(false);
+  const { orders, salesPeriod, setSalesPeriod, salesOffset, setSalesOffset } = useApp();
   const [hovered, setHovered] = useState<number | null>(null);
 
   const { start, end, buckets, label, chartHint } = useMemo(
@@ -170,17 +168,6 @@ export default function SalesView() {
   const deltaPct = prevRev > 0 ? Math.round(((rev - prevRev) / prevRev) * 100) : null;
   const loads = inRange.reduce((n, o) => n + getLoadCount(o.items), 0);
 
-  const svcMap: Record<string, { id: string; name: string; icon: string; qty: number; rev: number }> = {};
-  inRange.forEach((o) =>
-    o.items.forEach((c) => {
-      const k = c.service.id;
-      if (!svcMap[k]) svcMap[k] = { id: k, name: c.service.name, icon: c.service.icon, qty: 0, rev: 0 };
-      svcMap[k].qty += c.qty;
-      svcMap[k].rev += c.service.price * c.qty;
-    })
-  );
-  const sortedSvc = Object.values(svcMap).sort((a, b) => b.rev - a.rev);
-  const maxSvcRev = sortedSvc[0]?.rev || 1;
 
   // How the period's money actually came in. Three named parts of one total,
   // so: a single stacked bar for the shape, and a legend carrying the figures
@@ -197,7 +184,6 @@ export default function SalesView() {
     const rows = ([
       { id: "cash", icon: "💵", label: "Cash", cls: "m-cash" },
       { id: "gcash", icon: "📱", label: "GCash", cls: "m-gcash" },
-      { id: "maya", icon: "💜", label: "Maya", cls: "m-maya" },
     ] as const)
       .map((m) => ({
         ...m,
@@ -208,21 +194,6 @@ export default function SalesView() {
     return { rows, collected };
   }, [inRange]);
 
-  async function handleExport() {
-    setExporting(true);
-    try {
-      const shopName = session?.business || "WashHub Laundry";
-      const safeLabel = label.replace(/[^a-z0-9]+/gi, "-");
-      await exportSalesExcel(inRange, {
-        title: "Sales Tracking",
-        subtitle: `${salesPeriod.charAt(0).toUpperCase() + salesPeriod.slice(1)} — ${label}`,
-        shopName,
-        filename: `${shopName.replace(/[^a-z0-9]+/gi, "-")}-sales-${salesPeriod}-${safeLabel}.xlsx`,
-      });
-    } finally {
-      setExporting(false);
-    }
-  }
 
   return (
     <div className="view active" id="view-sales">
@@ -231,9 +202,6 @@ export default function SalesView() {
           <div className="section-eyebrow">Analytics</div>
           <div className="section-title">Sales Tracking</div>
         </div>
-        <button className="btn btn-secondary btn-sm" onClick={handleExport} disabled={exporting}>
-          {exporting ? "⏳ Exporting…" : "📊 Export Excel (A4)"}
-        </button>
       </div>
 
       {/* Segmented control rather than loose pills: the four periods are one
@@ -400,35 +368,6 @@ export default function SalesView() {
           </div>
         </div>
       )}
-
-      <div className="report-card">
-        <div className="report-card-head">
-          <span className="report-card-title">🏆 Top Services</span>
-          <span className="report-card-hint">this period</span>
-        </div>
-        <div className="report-list">
-          {sortedSvc.length === 0 ? (
-            <div className="report-empty">No sales in this period.</div>
-          ) : (
-            sortedSvc.map((s, i) => (
-              <div className="report-row" key={`${s.id || s.name}-${i}`}>
-                <div className="report-row-top">
-                  <span className="report-row-label">
-                    {s.icon} {s.name}
-                  </span>
-                  <span className="report-row-val">{peso(s.rev)}</span>
-                </div>
-                <div className="report-bar-track">
-                  <div className="report-bar-fill" style={{ width: `${Math.round((s.rev / maxSvcRev) * 100)}%` }} />
-                </div>
-                <div className="report-row-sub">
-                  {s.qty} load{s.qty !== 1 ? "s" : ""}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </div>
     </div>
   );
 }

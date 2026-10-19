@@ -5,13 +5,6 @@ import { useApp } from "@/context/AppContext";
 import { SERVICES } from "@/lib/types";
 import { peso } from "@/lib/format";
 
-const CATS = [
-  { id: "all", label: "All" },
-  { id: "wash", label: "🫧 Wash" },
-  { id: "dry", label: "☀️ Dry" },
-  { id: "addon", label: "➕ Add-ons" },
-];
-
 const QUICK_AMOUNTS = [10, 20, 30, 40, 50];
 
 function AdditionalFeeCard() {
@@ -67,12 +60,12 @@ function AdditionalFeeCard() {
 
 export default function PosView() {
   const { cart, addToCart } = useApp();
-  const [cat, setCat] = useState("all");
 
+  // Every service, always on the field. The category filter was one more tap
+  // between a waiting customer and their order, on a list short enough to see
+  // whole — so the tiles stay grouped wash → dry → add-on, cheapest first.
   const CAT_ORDER: Record<string, number> = { wash: 0, dry: 1, addon: 2 };
-  const filtered = (cat === "all" ? SERVICES : SERVICES.filter((s) => s.cat === cat))
-    .slice()
-    .sort((a, b) => (cat === "all" ? CAT_ORDER[a.cat] - CAT_ORDER[b.cat] || a.price - b.price : a.price - b.price));
+  const filtered = SERVICES.slice().sort((a, b) => CAT_ORDER[a.cat] - CAT_ORDER[b.cat] || a.price - b.price);
 
   return (
     <div className="view active" id="view-pos">
@@ -83,15 +76,7 @@ export default function PosView() {
         </div>
       </div>
 
-      <div className="pills" id="categoryPills">
-        {CATS.map((c) => (
-          <div key={c.id} className={`pill${cat === c.id ? " active" : ""}`} onClick={() => setCat(c.id)}>
-            {c.label}
-          </div>
-        ))}
-      </div>
-
-      {(cat === "all" || cat === "wash") && <AdditionalFeeCard />}
+      <AdditionalFeeCard />
 
       <div className="product-grid" id="productGrid">
         {filtered.map((s) => {

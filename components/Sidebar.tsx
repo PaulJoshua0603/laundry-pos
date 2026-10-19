@@ -56,7 +56,6 @@ export default function Sidebar() {
   const methodRows = ([
     { id: "cash", icon: "💵", label: "Cash", cls: "m-cash" },
     { id: "gcash", icon: "📱", label: "GCash", cls: "m-gcash" },
-    { id: "maya", icon: "💜", label: "Maya", cls: "m-maya" },
   ] as const)
     .map((m) => ({ ...m, amount: byMethod[m.id] }))
     .filter((m) => m.amount > 0);
