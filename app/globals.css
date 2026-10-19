@@ -2282,56 +2282,78 @@ img.emoji{
 }
 .partial-pay-preview.full{color:var(--green)}
 
-/* Unpaid Customers — inline "record a payment" row */
-.unpaid-partial-row{
-  display:flex;align-items:center;gap:6px;flex-wrap:nowrap;
-}
-.unpaid-partial-row .fee-input{padding:7px 10px 7px 26px;font-size:12.5px;border-radius:8px}
-.unpaid-partial-row .fee-input-peso{font-size:12.5px;margin-right:-24px;padding-left:10px}
-.unpaid-partial-row .pay-mark-select{white-space:nowrap}
-.unpaid-partial-row .btn{white-space:nowrap;flex-shrink:0}
-
 /* ══════════════════════════════════════════
-   DAILY ORDERS — accordion day cards
+   UNPAID — taking a payment inline
 ══════════════════════════════════════════ */
-.daily-hint{font-size:11px;color:var(--text3);margin-top:-8px;margin-bottom:4px}
-.daily-empty{
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  padding:48px 20px;text-align:center;
+.paytake{display:flex;align-items:center;gap:7px;flex-wrap:nowrap}
+
+/* Amount box. Placeholder shows the balance, so an empty box visibly means
+   "the whole lot" rather than looking unfilled. */
+.paytake-amount{position:relative;flex:0 0 auto}
+.paytake-peso{
+  position:absolute;left:9px;top:50%;transform:translateY(-50%);
+  font-size:12px;font-weight:700;color:var(--text3);pointer-events:none;
 }
-.daily-empty-icon{font-size:34px;opacity:.3;margin-bottom:8px}
-.daily-empty-text{color:var(--text3);font-size:13px}
-.daily-day-list{display:flex;flex-direction:column;gap:10px}
-.daily-day-card{
-  background:var(--surface);border:1px solid var(--border);border-radius:16px;
-  overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.06);
+.paytake-input{
+  width:84px;padding:7px 9px 7px 22px;
+  font-family:var(--mono);font-size:12.5px;font-weight:700;
+  font-variant-numeric:tabular-nums;
+  color:var(--text);background:var(--surface2);
+  border:1.5px solid var(--border);border-radius:9px;
+  outline:none;transition:border-color var(--transition),box-shadow var(--transition),background var(--transition);
 }
-.daily-day-header{
-  padding:14px 16px;display:flex;justify-content:space-between;align-items:center;
-  cursor:pointer;transition:background var(--transition);
+.paytake-input::placeholder{color:var(--text3);font-weight:600}
+.paytake-input:hover{border-color:var(--border2)}
+.paytake-input:focus{
+  border-color:var(--blue);background:var(--surface);
+  box-shadow:0 0 0 3px var(--blue-muted);
 }
-.daily-day-header:hover{background:var(--surface2)}
-.daily-day-header.open{border-bottom:1px solid var(--border);background:var(--surface2)}
-.daily-day-title{font-size:14px;font-weight:800;color:var(--text);letter-spacing:-.01em}
-.daily-day-caret{color:var(--blue);display:inline-block;width:12px}
-.daily-day-meta{font-size:11px;color:var(--text3);margin-top:2px;margin-left:16px}
-.daily-day-total{font-family:var(--mono);font-size:15px;font-weight:800;color:var(--yellow)}
-.daily-day-paid{font-size:10.5px;color:var(--text3);margin-top:1px}
-.daily-order-row{
-  padding:10px 16px;display:flex;justify-content:space-between;align-items:center;
-  border-bottom:1px solid var(--border);gap:10px;transition:background var(--transition);
+/* The spinners steal width in a cell this tight and are useless on a till. */
+.paytake-input::-webkit-outer-spin-button,
+.paytake-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.paytake-input[type=number]{-moz-appearance:textfield;appearance:textfield}
+
+/* Segmented method picker — replaces a select, so the choice is visible
+   and one tap rather than open-scan-choose. */
+.paytake-methods{
+  display:flex;flex:0 0 auto;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:9px;padding:2px;gap:2px;
 }
-.daily-order-row:last-child{border-bottom:none}
-.daily-order-row:hover{background:var(--surface2)}
-.daily-order-info{cursor:pointer;flex:1;min-width:0}
-.daily-order-name{font-size:13px;font-weight:700;color:var(--text)}
-.daily-order-no{color:var(--text3);font-weight:400}
-.daily-order-meta{font-size:11px;color:var(--text3);margin-top:1px}
-.daily-order-end{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.daily-order-amount{
-  font-family:var(--mono);font-size:13px;font-weight:800;color:var(--yellow);cursor:pointer;
+.paytake-method{
+  display:inline-flex;align-items:center;gap:4px;
+  padding:4px 8px;border:none;background:transparent;
+  border-radius:7px;cursor:pointer;
+  font-family:var(--font);font-size:11px;font-weight:700;
+  color:var(--text3);white-space:nowrap;
+  transition:background var(--transition),color var(--transition);
 }
-.daily-order-amount.cancelled{color:var(--text3);font-weight:600}
+.paytake-method:hover{color:var(--text2);background:var(--surface)}
+.paytake-method.active{background:var(--blue);color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+.paytake-method:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+
+/* Primary action. States the amount it is about to take, and turns green
+   when that amount clears the balance outright. */
+.paytake-go{
+  flex:0 0 auto;padding:7px 13px;border:none;border-radius:9px;
+  font-family:var(--font);font-size:12px;font-weight:800;
+  font-variant-numeric:tabular-nums;
+  color:#fff;background:var(--blue);cursor:pointer;white-space:nowrap;
+  transition:background var(--transition),transform var(--transition),box-shadow var(--transition);
+}
+.paytake-go:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.2)}
+.paytake-go:active:not(:disabled){transform:translateY(0)}
+.paytake-go:disabled{opacity:.45;cursor:not-allowed}
+.paytake-go.full{background:var(--green)}
+.paytake-go:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+
+/* Narrow laptops: drop the method words, keep the icons. */
+@media(max-width:1500px){
+  .paytake-method-label{display:none}
+  .paytake-method{padding:4px 7px;font-size:12px}
+}
+
+
 
 /* ══════════════════════════════════════════
    REPORT CARD — Daily Summary / Sales Tracking
@@ -2564,20 +2586,9 @@ img.emoji{
 .svc-fill{height:100%;background:var(--blue);border-radius:999px}
 .svc-sub{font-size:10.5px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
 
-/* Daily Orders — per-day collection meter in the card header. */
-.daily-day-meter{
-  display:flex;align-items:center;gap:10px;
-  padding:0 16px 12px;
-}
-.daily-day-meter .svc-track{flex:1;min-width:0;height:5px}
-.daily-day-meter-label{
-  font-size:10.5px;color:var(--text3);font-family:var(--mono);
-  white-space:nowrap;flex-shrink:0;
-}
 
-/* Daily Summary — services and payment mix side by side on wide screens. */
-.summary-cols{display:grid;gap:14px;grid-template-columns:1.35fr 1fr;align-items:start}
-@media(max-width:900px){ .summary-cols{grid-template-columns:1fr} }
+
+
 
 /* Unpaid — aging emphasis. A stale row is tinted AND carries a "Nd old"
    label, so the state is never communicated by colour alone. */

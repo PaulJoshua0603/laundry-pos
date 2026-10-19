@@ -5,49 +5,88 @@ import { useApp } from "@/context/AppContext";
 import { peso } from "@/lib/format";
 import { buildDailyOrderNoMap, getBalance } from "@/lib/types";
 
-function PartialPayRow({ orderId, total, balance }: { orderId: string; total: number; balance: number }) {
+const PAY_METHODS = [
+  { id: "cash", icon: "💵", label: "Cash" },
+  { id: "gcash", icon: "📱", label: "GCash" },
+  { id: "maya", icon: "💜", label: "Maya" },
+] as const;
+
+/**
+ * Takes a payment against one order.
+ *
+ * The separate "Settle Full…" dropdown is gone. Leaving the box empty pays
+ * the whole balance — the overwhelmingly common case, now one click — and
+ * typing a figure pays that instead. The button states which of the two it
+ * is about to do and for how much, so there is no dropdown to read and no
+ * way to be unsure what pressing it costs the customer.
+ */
+function PartialPayRow({ orderId, balance }: { orderId: string; balance: number }) {
   const { addPartialPayment } = useApp();
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState<"cash" | "gcash" | "maya">("cash");
 
+  const typed = parseFloat(amount);
+  const hasTyped = amount.trim() !== "" && Number.isFinite(typed) && typed > 0;
+  // Never take more than is owed, whatever is typed.
+  const willPay = hasTyped ? Math.min(typed, balance) : balance;
+  const settlesInFull = willPay >= balance;
+
   function handleAdd() {
-    const n = parseFloat(amount);
-    if (!n || n <= 0) return;
-    addPartialPayment(orderId, Math.min(n, balance), method);
+    if (willPay <= 0) return;
+    addPartialPayment(orderId, willPay, method);
     setAmount("");
   }
 
   return (
-    <div className="unpaid-partial-row">
-      <div className="fee-input-row" style={{ flex: "0 0 auto" }}>
-        <span className="fee-input-peso">₱</span>
+    <div className="paytake">
+      <div className="paytake-amount">
+        <span className="paytake-peso">₱</span>
         <input
-          className="fee-input"
-          style={{ width: 78 }}
+          className="paytake-input"
           type="number"
           inputMode="decimal"
           min={0}
           max={balance}
-          placeholder={`e.g. ${Math.round(total / 2) || 0}`}
+          placeholder={String(balance)}
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+          aria-label={`Amount to pay, up to ${balance}`}
         />
       </div>
-      <select className="pay-mark-select" value={method} onChange={(e) => setMethod(e.target.value as any)}>
-        <option value="cash">💵 Cash</option>
-        <option value="gcash">📱 GCash</option>
-        <option value="maya">💜 Maya</option>
-      </select>
-      <button className="btn btn-primary btn-sm" onClick={handleAdd} disabled={!amount || parseFloat(amount) <= 0}>
-        Add Payment
+
+      {/* Segmented buttons rather than a select: three options, always worth
+          seeing, and one tap instead of open-scan-choose. */}
+      <div className="paytake-methods" role="group" aria-label="Payment method">
+        {PAY_METHODS.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            className={`paytake-method${method === m.id ? " active" : ""}`}
+            onClick={() => setMethod(m.id)}
+            title={m.label}
+            aria-pressed={method === m.id}
+          >
+            <span aria-hidden="true">{m.icon}</span>
+            <span className="paytake-method-label">{m.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <button
+        className={`paytake-go${settlesInFull ? " full" : ""}`}
+        onClick={handleAdd}
+        disabled={willPay <= 0}
+        title={settlesInFull ? "Pay off the whole balance" : "Record a part payment"}
+      >
+        {settlesInFull ? "Settle" : "Add"} {peso(willPay)}
       </button>
     </div>
   );
 }
 
 export default function UnpaidView() {
-  const { orders, markOrderPaid, switchView } = useApp();
+  const { orders, switchView } = useApp();
   const [q, setQ] = useState("");
   // One pass instead of a filter+sort of the whole list per rendered row.
   const dailyNos = useMemo(() => buildDailyOrderNoMap(orders), [orders]);
@@ -129,13 +168,12 @@ export default function UnpaidView() {
               <th>Balance</th>
               <th>Date</th>
               <th>Record Payment</th>
-              <th></th>
             </tr>
           </thead>
           <tbody>
             {unpaid.length === 0 ? (
               <tr>
-                <td colSpan={8} style={{ textAlign: "center", padding: "48px 20px" }}>
+                <td colSpan={7} style={{ textAlign: "center", padding: "48px 20px" }}>
                   <div style={{ fontSize: 34, opacity: 0.3, marginBottom: 8 }}>🎉</div>
                   <div style={{ color: "var(--text3)", fontSize: 13 }}>No unpaid customers. Everyone's settled up!</div>
                 </td>
@@ -188,23 +226,7 @@ export default function UnpaidView() {
                       </div>
                     </td>
                     <td>
-                      <PartialPayRow orderId={o.id} total={o.total} balance={balance} />
-                    </td>
-                    <td className="row-actions">
-                      <div className="row-actions-inner">
-                        <select
-                          className="pay-mark-select"
-                          value=""
-                          onChange={(e) => {
-                            if (e.target.value) markOrderPaid(o.id, e.target.value as any);
-                          }}
-                        >
-                          <option value="">✓ Settle Full…</option>
-                          <option value="cash">💵 Cash</option>
-                          <option value="gcash">📱 GCash</option>
-                          <option value="maya">💜 Maya</option>
-                        </select>
-                      </div>
+                      <PartialPayRow orderId={o.id} balance={balance} />
                     </td>
                   </tr>
                 );

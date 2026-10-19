@@ -33,9 +33,9 @@ export default function MobileBar({
         <span className="mobile-nav-icon">📋</span>
         Orders
       </button>
-      <button className={`mobile-nav-btn${active("summary") ? " active" : ""}`} onClick={() => onNav("summary")}>
-        <span className="mobile-nav-icon">📊</span>
-        Summary
+      <button className={`mobile-nav-btn${active("sales") ? " active" : ""}`} onClick={() => onNav("sales")}>
+        <span className="mobile-nav-icon">📈</span>
+        Sales
       </button>
       <button className="mobile-nav-btn" onClick={onToggleMore}>
         <span className="mobile-nav-icon">☰</span>

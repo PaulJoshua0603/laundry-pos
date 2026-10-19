@@ -73,7 +73,7 @@ import { findLegacyAccountsByEmail, LegacyAccountMatch, migrateLegacyAccountToCl
 import { isBusinessToday } from "@/lib/format";
 import { supabase } from "@/lib/supabaseClient";
 
-export type ViewId = "pos" | "orders" | "unpaid" | "daily" | "summary" | "sales" | "tools";
+export type ViewId = "pos" | "orders" | "unpaid" | "sales" | "tools";
 export type ToastType = "" | "success" | "error";
 
 interface ToastState {

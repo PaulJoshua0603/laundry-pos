@@ -47,15 +47,6 @@ export default function MobileMoreSheet({
         <div
           className="mobile-more-item"
           onClick={() => {
-            onNav("daily");
-            onClose();
-          }}
-        >
-          <span className="nav-icon">📅</span> Daily Orders
-        </div>
-        <div
-          className="mobile-more-item"
-          onClick={() => {
             onNav("sales");
             onClose();
           }}

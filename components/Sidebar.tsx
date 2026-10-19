@@ -11,8 +11,6 @@ const NAV: { id: ViewId; icon: string; label: string }[] = [
   { id: "orders", icon: "📋", label: "Orders" },
   { id: "unpaid", icon: "⏳", label: "Unpaid Customers" },
   { id: "sales", icon: "📈", label: "Sales Tracking" },
-  { id: "daily", icon: "📅", label: "Daily Orders" },
-  { id: "summary", icon: "📊", label: "Daily Summary" },
   // Payment Methods and All Data (Reference) merged into one Tools entry —
   // both were occasional-use settings screens taking a permanent nav slot.
   { id: "tools", icon: "🛠️", label: "Tools" },
