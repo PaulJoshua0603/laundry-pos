@@ -182,6 +182,32 @@ export default function SalesView() {
   const sortedSvc = Object.values(svcMap).sort((a, b) => b.rev - a.rev);
   const maxSvcRev = sortedSvc[0]?.rev || 1;
 
+  // How the period's money actually came in. Three named parts of one total,
+  // so: a single stacked bar for the shape, and a legend carrying the figures
+  // — never colour alone, and no number floating on every segment.
+  const payMix = useMemo(() => {
+    const sums = { cash: 0, gcash: 0, maya: 0 };
+    inRange.forEach((o) => {
+      const amt = o.amountPaid || 0;
+      if (amt <= 0) return;
+      const m = (o.paidMethod || "cash") as keyof typeof sums;
+      if (m in sums) sums[m] += amt;
+    });
+    const collected = sums.cash + sums.gcash + sums.maya;
+    const rows = ([
+      { id: "cash", icon: "💵", label: "Cash", cls: "m-cash" },
+      { id: "gcash", icon: "📱", label: "GCash", cls: "m-gcash" },
+      { id: "maya", icon: "💜", label: "Maya", cls: "m-maya" },
+    ] as const)
+      .map((m) => ({
+        ...m,
+        amount: sums[m.id],
+        pct: collected > 0 ? Math.round((sums[m.id] / collected) * 100) : 0,
+      }))
+      .filter((m) => m.amount > 0);
+    return { rows, collected };
+  }, [inRange]);
+
   async function handleExport() {
     setExporting(true);
     try {
@@ -210,18 +236,23 @@ export default function SalesView() {
         </button>
       </div>
 
-      <div className="pills" id="salesPeriodPills">
+      {/* Segmented control rather than loose pills: the four periods are one
+          choice, so they read as one control with one selection in it. */}
+      <div className="period-seg" role="tablist" aria-label="Reporting period">
         {(["today", "week", "month", "year"] as const).map((p) => (
-          <div
+          <button
             key={p}
-            className={`pill${salesPeriod === p ? " active" : ""}`}
+            type="button"
+            role="tab"
+            aria-selected={salesPeriod === p}
+            className={`period-opt${salesPeriod === p ? " active" : ""}`}
             onClick={() => {
               setSalesPeriod(p);
               setSalesOffset(0);
             }}
           >
             {p.charAt(0).toUpperCase() + p.slice(1)}
-          </div>
+          </button>
         ))}
       </div>
 
@@ -330,6 +361,45 @@ export default function SalesView() {
 
         {maxRev === 0 && <div className="report-empty">No revenue recorded in this period.</div>}
       </div>
+
+      {payMix.rows.length > 0 && (
+        <div className="report-card">
+          <div className="report-card-head">
+            <span className="report-card-title">💳 How You Got Paid</span>
+            <span className="report-card-hint">{peso(payMix.collected)} collected</span>
+          </div>
+          <div className="paymix">
+            <div
+              className="paymix-bar"
+              role="img"
+              aria-label={payMix.rows.map((m) => `${m.label} ${peso(m.amount)}, ${m.pct}%`).join("; ")}
+            >
+              {payMix.rows.map((m) => (
+                <span
+                  key={m.id}
+                  className={`paymix-seg ${m.cls}`}
+                  style={{ flexGrow: m.amount }}
+                  title={`${m.label} · ${peso(m.amount)} (${m.pct}%)`}
+                />
+              ))}
+            </div>
+            {/* The legend is also the value table: identity never rests on
+                colour alone, and the figures sit where they are read. */}
+            <div className="paymix-legend">
+              {payMix.rows.map((m) => (
+                <div className="paymix-item" key={m.id}>
+                  <span className={`paymix-key ${m.cls}`} aria-hidden="true" />
+                  <span className="paymix-name">
+                    {m.icon} {m.label}
+                  </span>
+                  <span className="paymix-pct">{m.pct}%</span>
+                  <span className="paymix-amt">{peso(m.amount)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="report-card">
         <div className="report-card-head">

@@ -29,6 +29,16 @@
   --red:        #EF4444;
   --red-dim:    rgba(239,68,68,.12);
 
+  /* Categorical series — payment methods, and any future chart with a
+     handful of named parts. Chosen by running the palette validator, not by
+     eye: the obvious blue/purple pairing was ΔE 0.9 under protanopia and only
+     9.8 with full colour vision, i.e. two shades nobody could tell apart.
+     These pass lightness, chroma, CVD separation, normal-vision separation
+     and contrast against this theme surface. */
+  --cat-cash:   #0DA87C;
+  --cat-gcash:  #6D5EF5;
+  --cat-maya:   #D94F8F;
+
   --text:       #F1F5F9;
   --text2:      #94A3B8;
   --text3:      #475569;
@@ -88,6 +98,16 @@
 
   --red:        #DC2626;
   --red-dim:    rgba(220,38,38,.10);
+
+  /* Categorical series — payment methods, and any future chart with a
+     handful of named parts. Chosen by running the palette validator, not by
+     eye: the obvious blue/purple pairing was ΔE 0.9 under protanopia and only
+     9.8 with full colour vision, i.e. two shades nobody could tell apart.
+     These pass lightness, chroma, CVD separation, normal-vision separation
+     and contrast against this theme surface. */
+  --cat-cash:   #059669;
+  --cat-gcash:  #5B4FE0;
+  --cat-maya:   #C2256F;
 
   --text:       #0F172A;
   --text2:      #55617A;
@@ -596,12 +616,12 @@ button, input{ color-scheme: inherit; }
 .rev-split-name{display:flex;align-items:center;gap:5px;font-weight:600;min-width:0}
 .rev-split-dot{width:6px;height:6px;border-radius:50%;flex:none}
 .rev-split-amt{font-family:var(--mono);font-weight:700;color:var(--text);white-space:nowrap}
-.m-cash{background:var(--green)}
-.m-gcash{background:var(--blue)}
-.m-maya{background:#A855F7}
-.rev-split-seg.m-cash{background:linear-gradient(90deg,var(--green-dim),var(--green))}
-.rev-split-seg.m-gcash{background:linear-gradient(90deg,var(--blue-dim),var(--blue))}
-.rev-split-seg.m-maya{background:linear-gradient(90deg,rgba(168,85,247,.5),#A855F7)}
+.m-cash{background:var(--cat-cash)}
+.m-gcash{background:var(--cat-gcash)}
+.m-maya{background:var(--cat-maya)}
+.rev-split-seg.m-cash{background:var(--cat-cash)}
+.rev-split-seg.m-gcash{background:var(--cat-gcash)}
+.rev-split-seg.m-maya{background:var(--cat-maya)}
 
 /* Rung up vs taken in — shown only when they differ. */
 .rev-billed{
@@ -2656,3 +2676,69 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
   box-shadow:0 -10px 18px -10px rgba(0,0,0,.6);
 }
 .receipt-footerbar .modal-actions{border-top:1px solid var(--border);margin-top:0}
+
+/* ══════════════════════════════════════════
+   PAYMENT MIX — one stacked bar + legend-as-table
+══════════════════════════════════════════ */
+.paymix{padding:14px 16px 16px}
+.paymix-bar{
+  display:flex;height:14px;border-radius:999px;overflow:hidden;
+  background:var(--surface2);
+  /* A 2px surface-coloured gap between segments, so two adjacent fills read
+     as two parts rather than one blended band. */
+  gap:2px;
+}
+.paymix-seg{
+  flex-basis:0;min-width:4px;border-radius:3px;
+  transition:flex-grow .45s cubic-bezier(.4,0,.2,1);
+}
+.paymix-seg:first-child{border-radius:999px 3px 3px 999px}
+.paymix-seg:last-child{border-radius:3px 999px 999px 3px}
+.paymix-seg:only-child{border-radius:999px}
+
+.paymix-legend{display:flex;flex-direction:column;margin-top:14px}
+.paymix-item{
+  display:grid;align-items:center;gap:10px;
+  grid-template-columns:10px 1fr auto auto;
+  padding:9px 0;border-bottom:1px solid var(--border);
+}
+.paymix-item:last-child{border-bottom:none}
+.paymix-key{width:10px;height:10px;border-radius:3px}
+.paymix-name{font-size:12.5px;font-weight:600;color:var(--text);min-width:0}
+.paymix-pct{
+  font-family:var(--mono);font-size:11px;font-weight:700;color:var(--text3);
+  font-variant-numeric:tabular-nums;min-width:38px;text-align:right;
+}
+.paymix-amt{
+  font-family:var(--mono);font-size:13px;font-weight:800;color:var(--text);
+  font-variant-numeric:tabular-nums;white-space:nowrap;min-width:72px;text-align:right;
+}
+@media(max-width:640px){
+  .paymix{padding:12px 13px 14px}
+  .paymix-amt{font-size:12px;min-width:62px}
+}
+
+/* ══════════════════════════════════════════
+   PERIOD SEGMENTED CONTROL — Sales Tracking
+══════════════════════════════════════════ */
+.period-seg{
+  display:inline-flex;gap:2px;padding:3px;
+  background:var(--surface2);border:1.5px solid var(--border);
+  border-radius:12px;
+}
+.period-opt{
+  padding:7px 18px;border:none;background:transparent;border-radius:9px;
+  font-family:var(--font);font-size:12.5px;font-weight:700;
+  color:var(--text3);cursor:pointer;white-space:nowrap;
+  transition:background var(--transition),color var(--transition);
+}
+.period-opt:hover:not(.active){background:var(--surface);color:var(--text2)}
+.period-opt.active{
+  background:var(--blue);color:#fff;
+  box-shadow:0 1px 5px rgba(0,0,0,.2);
+}
+.period-opt:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+@media(max-width:640px){
+  .period-seg{display:flex;width:100%}
+  .period-opt{flex:1;padding:8px 6px;font-size:12px}
+}
