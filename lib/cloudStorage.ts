@@ -38,7 +38,6 @@ function rowToOrder(row: any): Order {
         : 0,
     paidMethod: row.paid_method,
     paidAt: row.paid_at,
-    autoReady: row.auto_ready,
     shop: row.shop,
   };
 }
@@ -61,7 +60,6 @@ function orderToRow(userId: string, o: Order) {
     amount_paid: o.amountPaid ?? (o.paid ? o.total : 0),
     paid_method: o.paidMethod,
     paid_at: o.paidAt,
-    auto_ready: o.autoReady || false,
     shop: o.shop || null,
   };
 }

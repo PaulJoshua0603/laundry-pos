@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
 import { businessDayLabel, getBusinessDayKey, peso } from "@/lib/format";
-import { buildDailyOrderNoMap, BUSINESS_HOURS, getBalance, getLoadCount, Order, STATUS_MAP } from "@/lib/types";
+import { buildDailyOrderNoMap, BUSINESS_HOURS, getBalance, getLoadCount, Order } from "@/lib/types";
 import EditOrderModal from "@/components/EditOrderModal";
 
 export default function DailyOrdersView() {
@@ -99,7 +99,6 @@ export default function DailyOrdersView() {
                 {isOpen && (
                   <div>
                     {d.orders.map((o) => {
-                      const status = STATUS_MAP[o.status] || STATUS_MAP.washing;
                       const loadQty = getLoadCount(o.items);
                       const balance = getBalance(o);
                       return (
@@ -109,7 +108,7 @@ export default function DailyOrdersView() {
                               {o.name} <span className="daily-order-no">· #{dailyNos.get(o.id) ?? 0}</span>
                             </div>
                             <div className="daily-order-meta">
-                              {status.icon} {status.label} · 🧺 {loadQty} load{loadQty !== 1 ? "s" : ""} ·{" "}
+                              🧺 {loadQty} load{loadQty !== 1 ? "s" : ""} ·{" "}
                               {new Date(o.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                             </div>
                           </div>

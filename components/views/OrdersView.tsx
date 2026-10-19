@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { buildDailyOrderNoMap, getBalance, getLoadCount, isExtraLine, ORDER_TYPES, Order, OrderStatus, STATUS_MAP, STATUS_OPTIONS } from "@/lib/types";
+import { buildDailyOrderNoMap, getBalance, getLoadCount, isExtraLine, ORDER_TYPES, Order } from "@/lib/types";
 import { businessDayLabel, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 import EditOrderModal from "@/components/EditOrderModal";
 
@@ -14,7 +14,6 @@ export default function OrdersView() {
     switchView,
     showReceipt,
     sendPickupSms,
-    updateOrderStatus,
     markOrderPaid,
     cancelOrder,
     deleteOrder,
@@ -215,7 +214,6 @@ export default function OrdersView() {
                           <th>Type</th>
                           <th>Loads, Items</th>
                           <th>Total</th>
-                          <th>Status</th>
                           <th>Payment</th>
                           <th>Pickup</th>
                           <th>Order Time</th>
@@ -225,7 +223,6 @@ export default function OrdersView() {
                       <tbody>
                         {dayOrders.map((o) => {
                           const typeInfo = ORDER_TYPES[o.type] || ORDER_TYPES.walkin;
-                          const currentStatus = STATUS_MAP[o.status] || STATUS_MAP.washing;
                           const pickupText = o.pickup
                             ? new Date(o.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                             : "—";
@@ -277,19 +274,6 @@ export default function OrdersView() {
                                 </div>
                               </td>
                               <td>
-                                <select
-                                  className={`status-select ${currentStatus.cls}`}
-                                  value={o.status}
-                                  onChange={(e) => updateOrderStatus(o.id, e.target.value as OrderStatus)}
-                                >
-                                  {STATUS_OPTIONS.map((s) => (
-                                    <option key={s.id} value={s.id}>
-                                      {s.icon} {s.label}
-                                    </option>
-                                  ))}
-                                </select>
-                              </td>
-                              <td>
                                 {o.paid ? (
                                   <span className="pay-badge pay-badge-paid" title={`Paid via ${paidMethodLabel}`}>
                                     ✓ Paid{paidMethodLabel ? ` · ${paidMethodLabel}` : ""}
@@ -327,14 +311,11 @@ export default function OrdersView() {
                                 <button className="btn btn-ghost btn-sm" onClick={() => showReceipt(o)} title="View receipt">
                                   🧾
                                 </button>
-                                {o.status === "ready" && o.phone && (
+                                {/* Was gated on status "ready", which no longer happens. Offered
+                                    whenever there is a number to send to. */}
+                                {o.phone && (
                                   <button className="btn btn-sms btn-sm" onClick={() => sendPickupSms(o.id)} title={`Send pickup SMS to ${o.phone}`}>
                                     📲 SMS
-                                  </button>
-                                )}
-                                {o.status !== "completed" && o.status !== "cancelled" && (
-                                  <button className="btn btn-success btn-sm" onClick={() => updateOrderStatus(o.id, "completed")} title="Mark as completed">
-                                    ✓ Done
                                   </button>
                                 )}
                                 {o.status !== "cancelled" && (

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { getBalance, ORDER_TYPES, STATUS_MAP } from "@/lib/types";
+import { getBalance, ORDER_TYPES } from "@/lib/types";
 import { peso } from "@/lib/format";
 
 // The "POS58 Printer" Windows driver ships with a fixed list of custom
@@ -118,7 +118,6 @@ export default function ReceiptModal() {
   const payLabel = { cash: "Cash", gcash: "GCash", maya: "Maya", later: "Pay Later" }[order.payment] || order.payment;
   const paidLabel = order.paidMethod ? { cash: "Cash", gcash: "GCash", maya: "Maya" }[order.paidMethod] : "";
   const typeInfo = ORDER_TYPES[order.type] || ORDER_TYPES.walkin;
-  const statusInfo = STATUS_MAP[order.status];
   const payRefLine =
     order.payment !== "cash" && order.payment !== "later" && paySettings[order.payment as "gcash" | "maya"]?.number
       ? paySettings[order.payment as "gcash" | "maya"].number

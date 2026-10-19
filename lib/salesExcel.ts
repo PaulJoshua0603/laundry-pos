@@ -30,7 +30,6 @@ export async function exportSalesExcel(orders: Order[], opts: { title: string; s
     { header: "Type", key: "type", width: 10 },
     { header: "Items", key: "items", width: 40 },
     { header: "Payment", key: "payment", width: 12 },
-    { header: "Status", key: "status", width: 14 },
     { header: "Paid", key: "paid", width: 8 },
     { header: "Total (₱)", key: "total", width: 12 },
   ];
@@ -81,7 +80,6 @@ export async function exportSalesExcel(orders: Order[], opts: { title: string; s
       type: o.type === "walkin" ? "Walk-in" : "Delivery",
       items: itemsStr,
       payment: (o.paidMethod || o.payment || "").toUpperCase(),
-      status: o.status.charAt(0).toUpperCase() + o.status.slice(1),
       paid: o.paid ? "Yes" : "No",
       total: o.total,
     });

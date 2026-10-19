@@ -219,7 +219,6 @@ export interface ReceiptData {
   customer: string;
   phone?: string;
   type: string;
-  status: string;
   pickup?: string;
   time: string;
   /** Full date + time the order was placed (created), e.g. "Aug 23, 06:45 AM" —
@@ -264,7 +263,7 @@ function buildCompactTagEscPos(order: ReceiptData): Uint8Array {
   b.align("left").bold(true);
   b.line(padRow(order.orderId, order.placedAt, WIDTH));
   b.doubleSize(true).line(order.customer.toUpperCase()).doubleSize(false);
-  b.line(padRow(order.type, order.status, WIDTH));
+  b.line(order.type);
   b.bold(false);
   b.divider("-", WIDTH);
 
@@ -297,7 +296,6 @@ export function buildReceiptEscPos(order: ReceiptData, paperMm?: number): Uint8A
   if (order.phone) b.line(padRow("Phone", order.phone, WIDTH));
   b.line(padRow("Order ID", order.orderId, WIDTH));
   b.line(padRow("Type", order.type, WIDTH));
-  b.line(padRow("Status", order.status, WIDTH));
   b.line(padRow("Placed", order.placedAt, WIDTH));
   if (order.pickup) b.line(padRow("Pickup", order.pickup, WIDTH));
   b.divider("-", WIDTH);

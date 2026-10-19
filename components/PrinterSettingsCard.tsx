@@ -39,7 +39,6 @@ export default function PrinterSettingsCard() {
           orderId: "TEST-0001",
           customer: "Test Print",
           type: "Walk-in",
-          status: "Washing",
           time: new Date().toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" }),
           placedAt: new Date().toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }),
           itemCount: 1,

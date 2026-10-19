@@ -39,6 +39,15 @@ export function isFeeLine(c: CartLine): boolean {
   return c.service.id.startsWith("fee-");
 }
 
+/**
+ * Every value that may appear in a stored order.
+ *
+ * The till no longer writes a workflow: a new order is "washing" (which now
+ * just means live) and cancelling writes "cancelled", which is what keeps a
+ * voided order out of revenue. The middle states are here because orders
+ * taken before the workflow was removed still carry them, and the column is
+ * untouched so none of that history was rewritten.
+ */
 export type OrderStatus =
   | "washing"
   | "drying"
@@ -67,7 +76,6 @@ export interface Order {
   amountPaid: number; // running total actually collected (supports partial/downpayment)
   paidMethod: Exclude<PaymentMethod, "later"> | null;
   paidAt: string | null;
-  autoReady?: boolean;
   shop?: string;
 }
 
@@ -172,26 +180,12 @@ export const SERVICES: Service[] = [
   { id: "a6", cat: "addon", icon: "🧴", name: "Zonrox", desc: "Extra detergent scoop", price: 25 },
 ];
 
-export const STATUS_OPTIONS: { id: OrderStatus; label: string; icon: string; cls: string }[] = [
-  { id: "washing", label: "Washing", icon: "🫧", cls: "status-washing" },
-  { id: "drying", label: "Drying", icon: "☀️", cls: "status-drying" },
-  { id: "ready", label: "Ready for Pickup", icon: "✅", cls: "status-ready" },
-  { id: "storage", label: "On Storage", icon: "📦", cls: "status-storage" },
-  { id: "awaiting", label: "Awaiting Pickup", icon: "⏳", cls: "status-awaiting" },
-  { id: "completed", label: "Picked Up", icon: "🏁", cls: "status-completed" },
-  { id: "cancelled", label: "Cancelled", icon: "✕", cls: "status-cancelled" },
-];
-export const STATUS_MAP = Object.fromEntries(STATUS_OPTIONS.map((s) => [s.id, s])) as Record<
-  OrderStatus,
-  (typeof STATUS_OPTIONS)[number]
->;
 
 export const ORDER_TYPES: Record<OrderType, { label: string; icon: string }> = {
   walkin: { label: "Walk-in", icon: "🚶" },
   delivery: { label: "Delivery", icon: "🛵" },
 };
 
-export const AUTO_READY_MS = 60 * 60 * 1000;
 export const DEFAULT_SMS_TEMPLATE_PAID =
   "Hi {name}! Your laundry order {orderId} at {shop} is now ready for pickup. Total: {total} (paid). See you soon! 🫧";
 export const DEFAULT_SMS_TEMPLATE_UNPAID =

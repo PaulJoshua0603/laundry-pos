@@ -17,7 +17,6 @@ interface RawRow {
   name: string;
   total: number;
   time: string;
-  status: string;
   isDup: boolean;
 }
 
@@ -51,7 +50,6 @@ export default function DataToolsPanel() {
             name: o.name || "—",
             total: o.total || 0,
             time: o.time || "",
-            status: o.status || "",
             isDup: idCount[o.id] > 1,
           });
         });
@@ -291,7 +289,6 @@ export default function DataToolsPanel() {
               <th style={th}>Order ID</th>
               <th style={th}>Customer</th>
               <th style={th}>Total</th>
-              <th style={th}>Status</th>
               <th style={th}>Time</th>
               <th style={th}>Storage Key</th>
             </tr>
@@ -303,7 +300,6 @@ export default function DataToolsPanel() {
                 <td style={td}>{r.id}</td>
                 <td style={td}>{r.name}</td>
                 <td style={td}>{peso(r.total)}</td>
-                <td style={td}>{r.status}</td>
                 <td style={td}>{r.time ? new Date(r.time).toLocaleString() : "—"}</td>
                 <td style={{ ...td, opacity: 0.6, fontSize: 11 }}>{r.storageKey}</td>
               </tr>

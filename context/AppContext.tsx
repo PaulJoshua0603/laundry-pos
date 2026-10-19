@@ -2,16 +2,13 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import {
-  AUTO_READY_MS,
   CartLine,
   DEFAULT_SMS_TEMPLATE_PAID,
   DEFAULT_SMS_TEMPLATE_UNPAID,
   NotificationEntry,
   Order,
-  OrderStatus,
   PaySettings,
   PaymentMethod,
-  STATUS_MAP,
   SERVICES,
   Session,
   SmsTemplates,
@@ -157,7 +154,6 @@ interface AppContextValue {
   clearDayOrders: () => void;
   markOrderPaid: (id: string, method: "cash" | "gcash" | "maya") => void;
   addPartialPayment: (id: string, amount: number, method: "cash" | "gcash" | "maya") => void;
-  updateOrderStatus: (id: string, status: OrderStatus) => void;
   updateOrderDetails: (
     id: string,
     patch: {
@@ -240,7 +236,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const toastTimer = useRef<any>(null);
   const feeCounter = useRef(0);
-  const autoReadyNotice = useRef(0);
   // Persistence needs the *current* session, but must not re-create every
   // callback whenever the session object changes identity. A ref keeps the
   // callbacks stable while still reading fresh values.
@@ -608,48 +603,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [booted, session, cloudActive, refreshFromCloud]);
 
-  /* ─── Auto-advance washing/drying -> ready after 1hr ─── */
-  useEffect(() => {
-    if (!session) return;
-    const tick = () => {
-      const now = Date.now();
-      setOrders((prev) => {
-        const promoted: Order[] = [];
-        const next = prev.map((o) => {
-          if ((o.status === "washing" || o.status === "drying") && now - new Date(o.time).getTime() >= AUTO_READY_MS) {
-            const updated = { ...o, status: "ready" as OrderStatus, autoReady: true };
-            promoted.push(updated);
-            return updated;
-          }
-          return o;
-        });
-        if (promoted.length === 0) return prev;
-        // Only the orders promoted on THIS tick get uploaded. The old code
-        // re-uploaded every order ever auto-readied, every single tick.
-        if (cloudRef.current) promoted.forEach((o) => queueSaveOrder(session.userId, o));
-        autoReadyNotice.current = promoted.length;
-        return next;
-      });
-    };
-    tick();
-    const id = setInterval(tick, 60 * 1000);
-    return () => clearInterval(id);
-  }, [session]);
+  /* The washing → drying → ready → picked-up workflow lived here, with a
+     timer that woke every 60 seconds, swept the whole order list, promoted
+     anything an hour old to Ready and uploaded each promotion. Nobody used
+     the statuses, so that was a scan of every order ever taken plus a burst
+     of cloud writes, every minute the till was open, to move orders between
+     states no one read. Removed along with the rest of the workflow.
 
-  // Toasting from inside the updater above would fire twice under StrictMode,
-  // so the tick just records what happened and we announce it here.
-  useEffect(() => {
-    if (autoReadyNotice.current > 0) {
-      const n = autoReadyNotice.current;
-      autoReadyNotice.current = 0;
-      showToast(
-        n === 1
-          ? "✅ An order was auto-marked Ready for Pickup (1 hr elapsed)"
-          : `✅ ${n} orders were auto-marked Ready for Pickup (1 hr elapsed)`,
-        "success"
-      );
-    }
-  }, [orders, showToast]);
+     Cancellation stays — see cancelOrder. It is what keeps a voided order
+     out of revenue while still keeping its record. */
 
   const toggleTheme = useCallback(() => {
     setTheme((prev) => {
@@ -1140,15 +1102,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [mutateOrder, showToast]
   );
 
-  const updateOrderStatus = useCallback(
-    (id: string, status: OrderStatus) => {
-      if (!STATUS_MAP[status]) return;
-      mutateOrder(id, (o) => ({ ...o, status }));
-      showToast(`${id} marked as ${STATUS_MAP[status].label}`);
-    },
-    [mutateOrder, showToast]
-  );
-
   const updateOrderDetails = useCallback(
     (
       id: string,
@@ -1371,7 +1324,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     clearDayOrders,
     markOrderPaid,
     addPartialPayment,
-    updateOrderStatus,
     updateOrderDetails,
     receiptOrder,
     showReceipt,
@@ -1397,7 +1349,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notifications, unreadCount, markNotificationsRead, clearNotifications,
     activeView, switchView, cart, addToCart, addCustomFee, changeQty, removeFromCart,
     clearCart, cartTotal, payment, selectPayment, orders, checkout, cancelOrder,
-    deleteOrder, clearDayOrders, markOrderPaid, addPartialPayment, updateOrderStatus,
+    deleteOrder, clearDayOrders, markOrderPaid, addPartialPayment,
     updateOrderDetails, receiptOrder, showReceipt, closeReceipt, printerMm, printerH,
     setPrinterWidth, paySettings, saveGcashMaya, clearPayMethod, smsTemplates,
     saveSmsTemplate, resetSmsTemplate, sendPickupSms, salesPeriod, salesOffset,
