@@ -34,8 +34,55 @@ export default function Sidebar() {
   const rev = today.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const paidCount = today.filter((o) => o.paid).length;
   const loads = today.reduce((n, o) => n + getLoadCount(o.items), 0);
-  const target = 1000;
-  const pct = Math.max(0, Math.min(100, Math.round((rev / target) * 100)));
+
+  // What the day actually rang up, as opposed to what has been collected.
+  // The gap between the two is money still owed on today's work.
+  const billed = today.reduce((s, o) => s + o.total, 0);
+  // Average ORDER VALUE. This divided collected-so-far by the order count,
+  // which is not an average of anything: on a day with unpaid orders it
+  // reported a typical order as far cheaper than any order on the list.
+  const avgOrder = today.length ? Math.round(billed / today.length) : 0;
+
+  // Collected split by method — what should be in the drawer at closing
+  // versus what landed in an e-wallet. `paidMethod` holds the method of the
+  // most recent payment, so an order settled half in cash and half in GCash
+  // is attributed whole to the later one; part-payments are rare enough that
+  // this stays a straight answer to "how much cash should I have?".
+  const byMethod = { cash: 0, gcash: 0, maya: 0 };
+  today.forEach((o) => {
+    const amt = o.amountPaid || 0;
+    if (amt <= 0) return;
+    const m = o.paidMethod || "cash";
+    if (m in byMethod) byMethod[m as keyof typeof byMethod] += amt;
+  });
+  const methodRows = ([
+    { id: "cash", icon: "💵", label: "Cash", cls: "m-cash" },
+    { id: "gcash", icon: "📱", label: "GCash", cls: "m-gcash" },
+    { id: "maya", icon: "💜", label: "Maya", cls: "m-maya" },
+  ] as const)
+    .map((m) => ({ ...m, amount: byMethod[m.id] }))
+    .filter((m) => m.amount > 0);
+
+  // The target was a hardcoded ₱1,000 — below a normal day's takings here, so
+  // the bar read 100% every single day and measured nothing. Compare against
+  // what this shop actually does instead: the mean of its last 14 trading
+  // days. A quiet day now reads as a quiet day.
+  const todayKey = getBusinessDayKey(new Date().toISOString());
+  const perDay = new Map<string, number>();
+  orders.forEach((o) => {
+    if (o.status === "cancelled") return;
+    const k = getBusinessDayKey(o.time);
+    if (k === todayKey) return;
+    perDay.set(k, (perDay.get(k) || 0) + (o.amountPaid || 0));
+  });
+  const recentDays = Array.from(perDay.entries())
+    .sort((a, b) => (a[0] < b[0] ? 1 : -1))
+    .slice(0, 14)
+    .map(([, v]) => v);
+  const target = recentDays.length ? Math.round(recentDays.reduce((s, v) => s + v, 0) / recentDays.length) : 0;
+  // The label shows the true figure (a 132% day is worth seeing); the bar caps.
+  const pctRaw = target > 0 ? Math.round((rev / target) * 100) : 0;
+  const pct = Math.max(0, Math.min(100, pctRaw));
 
   // Same point in yesterday's business day, so the comparison is like-for-like
   // rather than today-so-far against yesterday's full total.
@@ -64,10 +111,16 @@ export default function Sidebar() {
   // figure on the Unpaid Customers screen.
   const unpaidTotal = unpaidOrders.reduce((s, o) => s + getBalance(o), 0);
 
-    return { today, rev, paidCount, loads, target, pct, yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal };
+    return {
+      today, rev, paidCount, loads, target, pct, pctRaw, billed, avgOrder, methodRows,
+      yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal,
+    };
   }, [orders]);
 
-  const { today, rev, paidCount, loads, target, pct, yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal } = stats;
+  const {
+    today, rev, paidCount, loads, target, pct, pctRaw, billed, avgOrder, methodRows,
+    yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal,
+  } = stats;
 
   return (
     <nav className="sidebar">
@@ -114,20 +167,53 @@ export default function Sidebar() {
           {today.length} order{today.length !== 1 ? "s" : ""} · {paidCount} paid
         </div>
 
+        {/* Where the money came in. The single most useful thing to see at
+            closing: how much of the day was cash, and so what should
+            physically be in the drawer. */}
+        {methodRows.length > 0 && (
+          <div className="rev-split">
+            <div className="rev-split-bar" title="Share of today's takings by payment method">
+              {methodRows.map((m) => (
+                <span key={m.id} className={`rev-split-seg ${m.cls}`} style={{ flexGrow: m.amount }} />
+              ))}
+            </div>
+            {methodRows.map((m) => (
+              <div key={m.id} className="rev-split-row">
+                <span className="rev-split-name">
+                  <span className={`rev-split-dot ${m.cls}`} /> {m.icon} {m.label}
+                </span>
+                <span className="rev-split-amt">{peso(m.amount)}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
         {/* At-a-glance shift numbers — what a till operator actually wants
             without leaving the current screen. */}
         <div className="sidebar-stat-chips">
           <span className="sidebar-chip">🧺 {loads} load{loads !== 1 ? "s" : ""}</span>
-          <span className="sidebar-chip">🧾 {today.length ? peso(Math.round(rev / today.length)) : peso(0)} avg</span>
+          <span className="sidebar-chip">🧾 {peso(avgOrder)} avg</span>
         </div>
 
-        <div className="sidebar-stat-progress" title={`${pct}% of the ${peso(target)} daily target`}>
-          <div className="sidebar-stat-progress-fill" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="sidebar-stat-target">
-          <span>{pct}% of daily target</span>
-          <span>{peso(target)}</span>
-        </div>
+        {/* Rung up versus taken in. Only worth the line when they differ. */}
+        {billed > rev && (
+          <div className="rev-billed">
+            <span>Billed {peso(billed)}</span>
+            <span className="rev-billed-gap">{peso(billed - rev)} still out</span>
+          </div>
+        )}
+
+        {target > 0 && (
+          <>
+            <div className="sidebar-stat-progress" title={`${pctRaw}% of a typical ${peso(target)} day`}>
+              <div className={`sidebar-stat-progress-fill${pctRaw >= 100 ? " over" : ""}`} style={{ width: `${pct}%` }} />
+            </div>
+            <div className="sidebar-stat-target">
+              <span>{pctRaw}% of your usual day</span>
+              <span>{peso(target)}</span>
+            </div>
+          </>
+        )}
         {unpaidTotal > 0 && (
           <div className="sidebar-stat-unpaid" onClick={() => switchView("unpaid")} role="button" tabIndex={0}>
             <span>⏳ Unpaid ({unpaidOrders.length})</span>

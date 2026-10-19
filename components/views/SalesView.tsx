@@ -120,7 +120,12 @@ export default function SalesView() {
       return t >= start && t < end && o.status !== "cancelled";
     });
     const r = list.reduce((s, o) => s + (o.amountPaid || 0), 0);
-    return { inRange: list, rev: r, avg: list.length ? Math.round(r / list.length) : 0 };
+    // "Avg order" is the value of a typical order, so it divides what was
+    // RUNG UP by the order count. Dividing collected-so-far instead made the
+    // average sag every time an order went out unpaid, which is a fact about
+    // collection, not about what customers spend.
+    const billedInRange = list.reduce((s, o) => s + o.total, 0);
+    return { inRange: list, rev: r, avg: list.length ? Math.round(billedInRange / list.length) : 0 };
   }, [orders, start, end]);
 
   // One pass per bucket, carrying the order count too so the tooltip can show

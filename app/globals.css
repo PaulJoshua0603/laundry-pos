@@ -48,6 +48,10 @@
      missing glyph. Emoji fonts carry no Latin glyphs, so putting them earlier
      does not affect normal text. */
   --emoji:      'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', 'Segoe UI Symbol';
+  /* Inter ships proportional figures, so a 1 is narrower than a 7 and a
+     column of peso amounts never lines up digit for digit — the single
+     biggest reason a table of numbers reads as crooked. Every figure in the
+     app opts into tabular (fixed-width) numerals; see the rule below. */
   --font:       'Inter', var(--emoji), sans-serif;
   --font-display: 'Fraunces', 'Inter', var(--emoji), serif;
   --mono:       'JetBrains Mono', var(--emoji), monospace;
@@ -576,6 +580,37 @@ button, input{ color-scheme: inherit; }
 .sidebar-stat-delta.up{color:var(--green);background:var(--green-dim);border-color:rgba(16,185,129,.3)}
 .sidebar-stat-delta.down{color:var(--yellow);background:rgba(234,179,8,.12);border-color:rgba(234,179,8,.3)}
 
+/* ─── Revenue breakdown by payment method ───
+   A proportional bar over an itemised list, so the shape of the day reads
+   at a glance and the exact drawer figure is still there to count against. */
+.rev-split{margin-top:11px}
+.rev-split-bar{
+  display:flex;gap:2px;height:5px;margin-bottom:8px;
+  border-radius:999px;overflow:hidden;background:var(--border);
+}
+.rev-split-seg{flex-basis:0;min-width:3px;border-radius:999px;transition:flex-grow .4s cubic-bezier(.4,0,.2,1)}
+.rev-split-row{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-size:10.5px;line-height:1.9;color:var(--text2);
+}
+.rev-split-name{display:flex;align-items:center;gap:5px;font-weight:600;min-width:0}
+.rev-split-dot{width:6px;height:6px;border-radius:50%;flex:none}
+.rev-split-amt{font-family:var(--mono);font-weight:700;color:var(--text);white-space:nowrap}
+.m-cash{background:var(--green)}
+.m-gcash{background:var(--blue)}
+.m-maya{background:#A855F7}
+.rev-split-seg.m-cash{background:linear-gradient(90deg,var(--green-dim),var(--green))}
+.rev-split-seg.m-gcash{background:linear-gradient(90deg,var(--blue-dim),var(--blue))}
+.rev-split-seg.m-maya{background:linear-gradient(90deg,rgba(168,85,247,.5),#A855F7)}
+
+/* Rung up vs taken in — shown only when they differ. */
+.rev-billed{
+  display:flex;justify-content:space-between;gap:8px;
+  font-size:10px;font-family:var(--mono);color:var(--text3);
+  margin-top:7px;padding-top:7px;border-top:1px dashed var(--border);
+}
+.rev-billed-gap{color:var(--yellow);font-weight:700}
+
 .sidebar-stat-chips{display:flex;gap:6px;margin:8px 0 2px;flex-wrap:wrap}
 .sidebar-chip{
   font-size:10.5px;font-weight:600;color:var(--text2);
@@ -597,6 +632,10 @@ button, input{ color-scheme: inherit; }
   height:100%;border-radius:999px;
   background:linear-gradient(90deg, var(--blue-dim), var(--blue), var(--blue-2));
   transition:width .4s cubic-bezier(.4,0,.2,1);
+}
+/* A day that beat the usual one should look like it did, not like a full bar. */
+.sidebar-stat-progress-fill.over{
+  background:linear-gradient(90deg, var(--green-dim), var(--green));
 }
 .sidebar-stat-unpaid{
   display:flex;align-items:center;justify-content:space-between;
@@ -829,6 +868,18 @@ td.row-actions{width:1%;white-space:nowrap;text-align:right}
   width:20px;height:20px;border-radius:50%;
   display:flex;align-items:center;justify-content:center;
   font-size:11px;font-weight:700;font-family:var(--mono);
+}
+
+/* Fixed-width digits wherever a figure is shown, so amounts stack in a true
+   column and a total doesn't shift sideways as it ticks over. Deliberately
+   not applied to body text, where tabular figures read worse. */
+.kpi-val,.kpi-sub,.kpi-delta,
+.sidebar-stat-val,.sidebar-stat-delta,.sidebar-stat-sub,.sidebar-chip,
+.orders-stat-val,.day-group-total,.day-group-count,
+.total-cell,.loads-chip,.items-chip,.rev-split-amt,.rev-billed,
+.mono,table td,table th{
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
 }
 
 .table-wrap{

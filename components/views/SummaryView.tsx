@@ -19,7 +19,11 @@ export default function SummaryView() {
   const unpaidOrders = today.filter((o) => !o.paid);
   const rev = today.reduce((s, o) => s + (o.amountPaid || 0), 0);
   const billed = today.reduce((s, o) => s + o.total, 0);
-  const avg = paidOrders.length ? Math.round(rev / paidOrders.length) : 0;
+  // Billed over order count. This divided `rev` — which includes
+  // part-payments made against orders that are still unpaid — by the count of
+  // FULLY paid orders only, so the two sides described different sets and a
+  // day with any down-payment on it reported an inflated average order.
+  const avg = today.length ? Math.round(billed / today.length) : 0;
   const unpaidTotal = unpaidOrders.reduce((s, o) => s + getBalance(o), 0);
   const loads = today.reduce((n, o) => n + getLoadCount(o.items), 0);
 
