@@ -50,21 +50,10 @@ create table if not exists sms_templates (
   unpaid text not null default ''
 );
 
-create table if not exists notifications (
-  id text not null,
-  user_id uuid references auth.users(id) on delete cascade not null,
-  message text not null,
-  type text not null default '',
-  time timestamptz not null default now(),
-  read boolean not null default false,
-  primary key (user_id, id)
-);
-
 alter table profiles enable row level security;
 alter table orders enable row level security;
 alter table pay_settings enable row level security;
 alter table sms_templates enable row level security;
-alter table notifications enable row level security;
 
 -- Each person can only ever read/write their own rows.
 -- Dropped first so this file can be re-run: Postgres has no
@@ -82,12 +71,9 @@ create policy "own pay_settings" on pay_settings for all using (auth.uid() = use
 drop policy if exists "own sms_templates" on sms_templates;
 create policy "own sms_templates" on sms_templates for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-drop policy if exists "own notifications" on notifications;
-create policy "own notifications" on notifications for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 -- Orders are read back filtered by user_id and sorted by time on every load.
 create index if not exists orders_user_time_idx on orders (user_id, time desc);
-create index if not exists notifications_user_time_idx on notifications (user_id, time desc);
 
 -- ══════════════════════════════════════════════════════════════════
 -- REALTIME (required for cross-device sync)

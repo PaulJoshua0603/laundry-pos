@@ -471,136 +471,128 @@ button, input{ color-scheme: inherit; }
 }
 .nav-badge-warn{background:var(--yellow);color:#1a1305}
 
-.sidebar-stats{
-  /* `margin-top:auto` used to dump every leftover pixel above this card,
-     leaving a large dead gap between the TODAY label and the card itself.
-     The sidebar now flows top-down and the leftover space collects at the
-     bottom, where it isn't read as a layout bug. */
-  margin:0 12px 12px;
-  background:var(--surface2);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:14px;
-}
-.sidebar-stat-label{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:4px}
-.sidebar-stat-val{font-family:var(--mono);font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.03em}
-.sidebar-stat-sub{font-size:11px;color:var(--green);margin-top:2px;font-weight:500}
+/* ══════════════════════════════════════════
+   REVENUE CARD (sidebar)
 
-/* ── SIDEBAR REVENUE — premium ── */
-.sidebar-stats-premium{
+   Rebuilt around three tiers and nothing else: the figure, how it was
+   taken, and how the day is going. The previous version stacked a delta
+   badge, a sub-line, two chips, a billed/outstanding row, a meter and its
+   caption — seven competing rows in a 240px column, so nothing led.
+══════════════════════════════════════════ */
+.revcard{
   position:relative;overflow:hidden;
-  padding:16px;
-  background:linear-gradient(160deg, var(--surface2) 0%, var(--surface) 100%);
-  border:1px solid var(--border2);
-  box-shadow:0 8px 24px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.04);
+  margin:0 12px 12px;padding:16px 15px 15px;
+  border-radius:16px;
+  background:
+    radial-gradient(130% 120% at 0% 0%, var(--blue-muted) 0%, transparent 58%),
+    var(--surface2);
+  border:1px solid var(--border);
 }
-.sidebar-stat-glow{
-  position:absolute;top:-40px;right:-40px;width:120px;height:120px;
-  background:radial-gradient(circle, var(--blue-glow) 0%, transparent 70%);
+.revcard-glow{
+  position:absolute;top:-55px;right:-45px;width:130px;height:130px;
+  border-radius:50%;background:var(--blue);opacity:.12;filter:blur(34px);
   pointer-events:none;
 }
-.sidebar-stat-top{
-  display:flex;align-items:center;justify-content:space-between;
-  margin-bottom:6px;position:relative;
+
+.revcard-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px}
+.revcard-eyebrow{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--text2);
 }
-.sidebar-stat-top .sidebar-stat-label{margin-bottom:0;display:flex;align-items:center;gap:6px}
-.sidebar-stat-dot{
-  width:6px;height:6px;border-radius:999px;
-  background:var(--green);
+.revcard-pulse{
+  width:6px;height:6px;border-radius:50%;background:var(--green);
   box-shadow:0 0 0 3px var(--green-dim);
 }
-.sidebar-stat-badge{
-  font-size:9px;font-weight:800;letter-spacing:.08em;
+.revcard-today{
+  font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
   color:var(--blue);background:var(--blue-muted);
-  padding:2px 7px;border-radius:999px;
+  padding:3px 8px;border-radius:999px;
 }
-.sidebar-stats-premium .sidebar-stat-val{
-  font-size:26px;position:relative;
-  background:linear-gradient(90deg, var(--text) 0%, var(--text2) 100%);
-  -webkit-background-clip:text;background-clip:text;
-}
-.sidebar-stat-check{
-  display:inline-flex;align-items:center;justify-content:center;
-  width:13px;height:13px;border-radius:999px;
-  background:var(--green-dim);color:var(--green);
-  font-size:9px;font-weight:700;margin-right:5px;
-}
-/* Revenue headline sits on a row with a trend pill comparing against the same
-   point in yesterday's business day — a till operator's most useful glance. */
-.sidebar-stat-valrow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
-.sidebar-stat-delta{
-  font-family:var(--mono);font-size:11px;font-weight:700;
-  padding:2px 7px;border-radius:999px;white-space:nowrap;
-  border:1px solid transparent;
-}
-.sidebar-stat-delta.up{color:var(--green);background:var(--green-dim);border-color:rgba(16,185,129,.3)}
-.sidebar-stat-delta.down{color:var(--yellow);background:rgba(234,179,8,.12);border-color:rgba(234,179,8,.3)}
 
-/* ─── Revenue breakdown by payment method ───
-   A proportional bar over an itemised list, so the shape of the day reads
-   at a glance and the exact drawer figure is still there to count against. */
-.rev-split{margin-top:11px}
-.rev-split-bar{
-  display:flex;gap:2px;height:5px;margin-bottom:8px;
-  border-radius:999px;overflow:hidden;background:var(--border);
+/* The figure. Tight tracking and a lighter peso sign so the digits lead. */
+.revcard-hero{display:flex;align-items:baseline;gap:3px;line-height:1}
+.revcard-cur{font-family:var(--mono);font-size:19px;font-weight:700;color:var(--text3)}
+.revcard-fig{
+  font-family:var(--mono);font-size:31px;font-weight:800;
+  color:var(--text);letter-spacing:-.035em;
+  font-variant-numeric:tabular-nums;
 }
-.rev-split-seg{flex-basis:0;min-width:3px;border-radius:999px;transition:flex-grow .4s cubic-bezier(.4,0,.2,1)}
-.rev-split-row{
-  display:flex;align-items:center;justify-content:space-between;gap:8px;
-  font-size:10.5px;line-height:1.9;color:var(--text2);
+
+.revcard-meta{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-top:9px;font-size:11px;font-weight:600;color:var(--text2);
+  font-variant-numeric:tabular-nums;
 }
-.rev-split-name{display:flex;align-items:center;gap:5px;font-weight:600;min-width:0}
-.rev-split-dot{width:6px;height:6px;border-radius:50%;flex:none}
-.rev-split-amt{font-family:var(--mono);font-weight:700;color:var(--text);white-space:nowrap}
+.revcard-sep{width:3px;height:3px;border-radius:50%;background:var(--text3);flex:none}
+
+/* A hairline rule opens each block, so the three tiers separate without
+   boxes inside a box. */
+.revcard-block{margin-top:14px;padding-top:13px;border-top:1px solid var(--border)}
+
+/* Shared payment-method series colours — one method is one colour in the
+   sidebar card and on Sales Tracking alike. Values validated in --cat-*. */
 .m-cash{background:var(--cat-cash)}
 .m-gcash{background:var(--cat-gcash)}
 .m-maya{background:var(--cat-maya)}
-.rev-split-seg.m-cash{background:var(--cat-cash)}
-.rev-split-seg.m-gcash{background:var(--cat-gcash)}
-.rev-split-seg.m-maya{background:var(--cat-maya)}
 
-/* Rung up vs taken in — shown only when they differ. */
-.rev-billed{
-  display:flex;justify-content:space-between;gap:8px;
-  font-size:10px;font-family:var(--mono);color:var(--text3);
-  margin-top:7px;padding-top:7px;border-top:1px dashed var(--border);
+.revcard-bar{display:flex;gap:2px;height:7px;border-radius:999px;overflow:hidden;background:var(--border)}
+.revcard-seg{flex-basis:0;min-width:4px;border-radius:2px;transition:flex-grow .45s cubic-bezier(.4,0,.2,1)}
+.revcard-seg:first-child{border-radius:999px 2px 2px 999px}
+.revcard-seg:last-child{border-radius:2px 999px 999px 2px}
+.revcard-seg:only-child{border-radius:999px}
+
+.revcard-row{
+  display:grid;grid-template-columns:8px 1fr auto;align-items:center;gap:8px;
+  margin-top:9px;
 }
-.rev-billed-gap{color:var(--yellow);font-weight:700}
-
-.sidebar-stat-chips{display:flex;gap:6px;margin:8px 0 2px;flex-wrap:wrap}
-.sidebar-chip{
-  font-size:10.5px;font-weight:600;color:var(--text2);
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:999px;padding:3px 9px;white-space:nowrap;
-}
-
-.sidebar-stat-target{
-  display:flex;justify-content:space-between;gap:8px;
-  font-size:10px;color:var(--text3);margin-top:5px;
-  font-family:var(--mono);letter-spacing:.01em;
+.revcard-key{width:8px;height:8px;border-radius:2px}
+.revcard-row-name{font-size:11.5px;font-weight:600;color:var(--text2);min-width:0}
+.revcard-row-amt{
+  font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--text);
+  font-variant-numeric:tabular-nums;white-space:nowrap;
 }
 
-.sidebar-stat-progress{
-  margin-top:10px;height:4px;border-radius:999px;
-  background:var(--border);overflow:hidden;position:relative;
+.revcard-pacerow{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:7px}
+.revcard-pacelabel{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.revcard-pacepct{
+  font-family:var(--mono);font-size:12px;font-weight:800;color:var(--text2);
+  font-variant-numeric:tabular-nums;
 }
-.sidebar-stat-progress-fill{
+.revcard-pace{height:5px;border-radius:999px;background:var(--border);overflow:hidden}
+.revcard-pacefill{
   height:100%;border-radius:999px;
-  background:linear-gradient(90deg, var(--blue-dim), var(--blue), var(--blue-2));
-  transition:width .4s cubic-bezier(.4,0,.2,1);
+  background:linear-gradient(90deg, var(--blue-dim), var(--blue));
+  transition:width .45s cubic-bezier(.4,0,.2,1);
 }
 /* A day that beat the usual one should look like it did, not like a full bar. */
-.sidebar-stat-progress-fill.over{
-  background:linear-gradient(90deg, var(--green-dim), var(--green));
+.revcard-pacefill.over{background:linear-gradient(90deg, var(--green-dim), var(--green))}
+
+.revcard-unpaid{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;
+  margin-top:14px;padding:9px 11px;border-radius:10px;
+  background:var(--yellow-dim);border:1px solid transparent;
+  font-family:var(--font);cursor:pointer;
+  transition:border-color var(--transition),transform var(--transition);
 }
-.sidebar-stat-unpaid{
-  display:flex;align-items:center;justify-content:space-between;
-  font-size:11px;color:var(--yellow);margin-top:10px;font-weight:700;
-  padding:6px 8px;border-radius:var(--radius-sm);
-  background:var(--yellow-dim);border:1px dashed transparent;
-  cursor:pointer;transition:border-color var(--transition), transform var(--transition);
+.revcard-unpaid:hover{border-color:var(--yellow);transform:translateY(-1px)}
+.revcard-unpaid:focus-visible{outline:2px solid var(--yellow);outline-offset:2px}
+.revcard-unpaid-label{font-size:11px;font-weight:700;color:var(--yellow)}
+.revcard-unpaid-amt{
+  font-family:var(--mono);font-size:12.5px;font-weight:800;color:var(--yellow);
+  font-variant-numeric:tabular-nums;
 }
-.sidebar-stat-unpaid:hover{border-color:var(--yellow);transform:translateY(-1px)}
+
+/* Shorter laptop screens: the card tightens rather than pushing the hours
+   line out of the column. */
+@media(min-width:961px) and (max-width:1400px) and (max-height:820px){
+  .revcard{padding:13px 13px 12px;margin:0 10px 10px}
+  .revcard-fig{font-size:26px}
+  .revcard-cur{font-size:16px}
+  .revcard-block{margin-top:11px;padding-top:10px}
+  .revcard-row{margin-top:7px}
+}
+
 .sidebar-hours{
   /* Sits directly under the stats card rather than being pinned to the very
      bottom of a tall column, which opened a second dead gap. */
@@ -830,9 +822,9 @@ td.row-actions{width:1%;white-space:nowrap;text-align:right}
    column and a total doesn't shift sideways as it ticks over. Deliberately
    not applied to body text, where tabular figures read worse. */
 .kpi-val,.kpi-sub,.kpi-delta,
-.sidebar-stat-val,.sidebar-stat-delta,.sidebar-stat-sub,.sidebar-chip,
+.revcard-fig,.revcard-meta,.revcard-row-amt,.revcard-pacepct,.revcard-unpaid-amt,
 .orders-stat-val,.day-group-total,.day-group-count,
-.total-cell,.loads-chip,.items-chip,.rev-split-amt,.rev-billed,
+.total-cell,.loads-chip,.items-chip,
 .mono,table td,table th{
   font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum" 1;
@@ -1988,12 +1980,6 @@ img.emoji{
   .sidebar-section-label{padding:10px 14px 4px;font-size:9.5px}
   .nav-item{padding:6px 12px;font-size:12.5px;margin:0 8px}
   .nav-icon{font-size:14px;width:18px}
-  .sidebar-stats{padding:11px 12px;margin:0 10px 8px}
-  .sidebar-stats-premium .sidebar-stat-val{font-size:21px}
-  .sidebar-stat-chips{margin:6px 0 0;gap:5px}
-  .sidebar-chip{font-size:9.5px;padding:2px 7px}
-  .sidebar-stat-target{font-size:9px;margin-top:4px}
-  .sidebar-stat-unpaid{margin-top:8px;padding:7px 9px}
   .sidebar-hours{padding:0 14px 10px;font-size:9.5px}
 
   /* ── Cart ── */

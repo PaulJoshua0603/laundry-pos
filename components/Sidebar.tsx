@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useApp, ViewId } from "@/context/AppContext";
 import { BUSINESS_HOURS, getBalance, getLoadCount } from "@/lib/types";
-import { BUSINESS_DAY_START_HOUR, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
+import { getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 
 // Order set by the shop owner to match how the till is actually used.
 const NAV: { id: ViewId; icon: string; label: string }[] = [
@@ -18,7 +18,7 @@ const NAV: { id: ViewId; icon: string; label: string }[] = [
 
 export default function Sidebar() {
   const { activeView, switchView, orders } = useApp();
-  // Business day (calendar day), matching Orders and Daily Summary. This used
+  // Business day (calendar day), matching Orders and Sales Tracking. This used
   // the raw calendar day, so the sidebar disagreed with every other screen.
   /* Every figure below is derived from the full order list, and this panel is
      mounted all day — so without memoisation it walked ~800 orders five times
@@ -33,13 +33,6 @@ export default function Sidebar() {
   const paidCount = today.filter((o) => o.paid).length;
   const loads = today.reduce((n, o) => n + getLoadCount(o.items), 0);
 
-  // What the day actually rang up, as opposed to what has been collected.
-  // The gap between the two is money still owed on today's work.
-  const billed = today.reduce((s, o) => s + o.total, 0);
-  // Average ORDER VALUE. This divided collected-so-far by the order count,
-  // which is not an average of anything: on a day with unpaid orders it
-  // reported a typical order as far cheaper than any order on the list.
-  const avgOrder = today.length ? Math.round(billed / today.length) : 0;
 
   // Collected split by method — what should be in the drawer at closing
   // versus what landed in an e-wallet. `paidMethod` holds the method of the
@@ -81,27 +74,6 @@ export default function Sidebar() {
   const pctRaw = target > 0 ? Math.round((rev / target) * 100) : 0;
   const pct = Math.max(0, Math.min(100, pctRaw));
 
-  // Same point in yesterday's business day, so the comparison is like-for-like
-  // rather than today-so-far against yesterday's full total.
-  const yesterdayKey = (() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 1);
-    return getBusinessDayKey(d.toISOString());
-  })();
-  const msIntoDay = (iso: string) => {
-    const t = new Date(iso);
-    const h = t.getHours(), m = t.getMinutes();
-    // Minutes since the business-day start, wrapping past midnight. Reads the
-    // shared constant rather than a hardcoded 6 — that literal was left over
-    // from the old 6AM boundary and would have offset this comparison by six
-    // hours, silently comparing the wrong slice of yesterday.
-    return ((h - BUSINESS_DAY_START_HOUR + 24) % 24) * 60 + m;
-  };
-  const nowInto = msIntoDay(new Date().toISOString());
-  const yesterdaySoFar = orders
-    .filter((o) => o.status !== "cancelled" && getBusinessDayKey(o.time) === yesterdayKey && msIntoDay(o.time) <= nowInto)
-    .reduce((s, o) => s + (o.amountPaid || 0), 0);
-  const deltaPct = yesterdaySoFar > 0 ? Math.round(((rev - yesterdaySoFar) / yesterdaySoFar) * 100) : null;
   const unpaidOrders = orders.filter((o) => o.status !== "cancelled" && !o.paid);
   // Only the outstanding balance is owed — summing the full order total
   // overstated the debt for any partially-paid order, and disagreed with the
@@ -109,14 +81,12 @@ export default function Sidebar() {
   const unpaidTotal = unpaidOrders.reduce((s, o) => s + getBalance(o), 0);
 
     return {
-      today, rev, paidCount, loads, target, pct, pctRaw, billed, avgOrder, methodRows,
-      yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal,
+      today, rev, paidCount, loads, target, pct, pctRaw, methodRows, unpaidOrders, unpaidTotal,
     };
   }, [orders]);
 
   const {
-    today, rev, paidCount, loads, target, pct, pctRaw, billed, avgOrder, methodRows,
-    yesterdaySoFar, deltaPct, unpaidOrders, unpaidTotal,
+    today, rev, paidCount, loads, target, pct, pctRaw, methodRows, unpaidOrders, unpaidTotal,
   } = stats;
 
   return (
@@ -140,82 +110,70 @@ export default function Sidebar() {
       <div className="sidebar-section-label" style={{ marginTop: 8 }}>
         Today
       </div>
-      <div className="sidebar-stats sidebar-stats-premium">
-        <div className="sidebar-stat-glow" />
-        <div className="sidebar-stat-top">
-          <div className="sidebar-stat-label">
-            <span className="sidebar-stat-dot" /> Revenue
-          </div>
-          <span className="sidebar-stat-badge">TODAY</span>
-        </div>
-        <div className="sidebar-stat-valrow">
-          <div className="sidebar-stat-val">{peso(rev)}</div>
-          {deltaPct !== null && (
-            <span
-              className={`sidebar-stat-delta${deltaPct >= 0 ? " up" : " down"}`}
-              title={`vs ${peso(yesterdaySoFar)} by this time yesterday`}
-            >
-              {deltaPct >= 0 ? "▲" : "▼"} {Math.abs(deltaPct)}%
-            </span>
-          )}
-        </div>
-        <div className="sidebar-stat-sub">
-          <span className="sidebar-stat-check">✓</span>
-          {today.length} order{today.length !== 1 ? "s" : ""} · {paidCount} paid
+      <div className="revcard">
+        <div className="revcard-glow" aria-hidden="true" />
+
+        <div className="revcard-head">
+          <span className="revcard-eyebrow"><span className="revcard-pulse" />Revenue</span>
+          <span className="revcard-today">Today</span>
         </div>
 
-        {/* Where the money came in. The single most useful thing to see at
-            closing: how much of the day was cash, and so what should
-            physically be in the drawer. */}
+        {/* The headline sits on its own line at full weight; the peso sign is
+            deliberately lighter so the digits carry the glance. */}
+        <div className="revcard-hero">
+          <span className="revcard-cur">₱</span>
+          <span className="revcard-fig">{rev.toLocaleString()}</span>
+        </div>
+
+        {/* One meta line instead of a sub-line plus a row of chips — the same
+            three facts, a third of the vertical space, and nothing competing
+            with the headline above it. */}
+        <div className="revcard-meta">
+          <span>{today.length} order{today.length !== 1 ? "s" : ""}</span>
+          <span className="revcard-sep" />
+          <span>{paidCount} paid</span>
+          <span className="revcard-sep" />
+          <span>{loads} load{loads !== 1 ? "s" : ""}</span>
+        </div>
+
+        {/* Where the money came in. The one thing worth knowing at closing:
+            how much of the day was cash, and so what should be in the drawer. */}
         {methodRows.length > 0 && (
-          <div className="rev-split">
-            <div className="rev-split-bar" title="Share of today's takings by payment method">
+          <div className="revcard-block">
+            <div className="revcard-bar" title="Share of today's takings by payment method">
               {methodRows.map((m) => (
-                <span key={m.id} className={`rev-split-seg ${m.cls}`} style={{ flexGrow: m.amount }} />
+                <span key={m.id} className={`revcard-seg ${m.cls}`} style={{ flexGrow: m.amount }} />
               ))}
             </div>
             {methodRows.map((m) => (
-              <div key={m.id} className="rev-split-row">
-                <span className="rev-split-name">
-                  <span className={`rev-split-dot ${m.cls}`} /> {m.icon} {m.label}
-                </span>
-                <span className="rev-split-amt">{peso(m.amount)}</span>
+              <div key={m.id} className="revcard-row">
+                <span className={`revcard-key ${m.cls}`} aria-hidden="true" />
+                <span className="revcard-row-name">{m.label}</span>
+                <span className="revcard-row-amt">{peso(m.amount)}</span>
               </div>
             ))}
           </div>
         )}
 
-        {/* At-a-glance shift numbers — what a till operator actually wants
-            without leaving the current screen. */}
-        <div className="sidebar-stat-chips">
-          <span className="sidebar-chip">🧺 {loads} load{loads !== 1 ? "s" : ""}</span>
-          <span className="sidebar-chip">🧾 {peso(avgOrder)} avg</span>
-        </div>
-
-        {/* Rung up versus taken in. Only worth the line when they differ. */}
-        {billed > rev && (
-          <div className="rev-billed">
-            <span>Billed {peso(billed)}</span>
-            <span className="rev-billed-gap">{peso(billed - rev)} still out</span>
-          </div>
-        )}
-
+        {/* Today against a normal day for this shop — the mean of its last 14
+            trading days, so a quiet day reads as quiet. */}
         {target > 0 && (
-          <>
-            <div className="sidebar-stat-progress" title={`${pctRaw}% of a typical ${peso(target)} day`}>
-              <div className={`sidebar-stat-progress-fill${pctRaw >= 100 ? " over" : ""}`} style={{ width: `${pct}%` }} />
+          <div className="revcard-block">
+            <div className="revcard-pacerow">
+              <span className="revcard-pacelabel">Usual day</span>
+              <span className="revcard-pacepct">{pctRaw}%</span>
             </div>
-            <div className="sidebar-stat-target">
-              <span>{pctRaw}% of your usual day</span>
-              <span>{peso(target)}</span>
+            <div className="revcard-pace" title={`${pctRaw}% of a typical ${peso(target)} day`}>
+              <div className={`revcard-pacefill${pctRaw >= 100 ? " over" : ""}`} style={{ width: `${pct}%` }} />
             </div>
-          </>
-        )}
-        {unpaidTotal > 0 && (
-          <div className="sidebar-stat-unpaid" onClick={() => switchView("unpaid")} role="button" tabIndex={0}>
-            <span>⏳ Unpaid ({unpaidOrders.length})</span>
-            <span>{peso(unpaidTotal)}</span>
           </div>
+        )}
+
+        {unpaidTotal > 0 && (
+          <button className="revcard-unpaid" onClick={() => switchView("unpaid")}>
+            <span className="revcard-unpaid-label">Unpaid · {unpaidOrders.length}</span>
+            <span className="revcard-unpaid-amt">{peso(unpaidTotal)}</span>
+          </button>
         )}
       </div>
       <div className="sidebar-hours">🕐 {BUSINESS_HOURS.label}</div>
