@@ -305,6 +305,7 @@ export default function OrdersView() {
                                 {new Date(o.time).toLocaleTimeString("en-PH", { hour: "2-digit", minute: "2-digit" })}
                               </td>
                               <td className="row-actions">
+                                <div className="row-actions-inner">
                                 <button className="btn btn-ghost btn-sm" onClick={() => setEditingId(o.id)} title="Edit order details">
                                   ✏️
                                 </button>
@@ -326,6 +327,7 @@ export default function OrdersView() {
                                 <button className="btn btn-danger btn-sm" onClick={() => confirmDelete(o)} title="Delete order permanently">
                                   🗑️
                                 </button>
+                                </div>
                               </td>
                             </tr>
                           );

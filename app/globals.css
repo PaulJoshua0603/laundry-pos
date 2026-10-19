@@ -768,7 +768,14 @@ button, input{ color-scheme: inherit; }
 .btn-sms{background:var(--blue-muted);color:var(--blue);border:1px solid var(--blue-glow)}
 .btn-sms:hover{background:var(--blue-glow)}
 .btn-sm{padding:6px 11px;font-size:12px;border-radius:9px}
-.row-actions{display:flex;gap:5px;justify-content:flex-end;align-items:center}
+/* `display:flex` here used to sit directly on the <td>, which takes the cell
+   out of the table layout algorithm entirely: the browser stops sizing it as
+   a column, so the buttons escaped the rounded card and the row borders
+   stopped short of them. The cell stays a cell; the flex lives on a wrapper.
+   `width:1%` + nowrap is the standard trick to shrink a column to its
+   content, so the actions hug the right edge instead of stretching. */
+td.row-actions{width:1%;white-space:nowrap;text-align:right}
+.row-actions-inner{display:flex;gap:5px;justify-content:flex-end;align-items:center}
 
 .pills{display:flex;gap:6px;flex-wrap:wrap}
 .pill{
@@ -841,7 +848,11 @@ thead th{
   text-align:left;background:var(--surface2);
   white-space:nowrap;position:sticky;top:0;z-index:1;
 }
-tbody td{padding:15px 16px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border);vertical-align:middle}
+/* A uniform row height keeps the table on one rhythm. Without it a row
+   carrying an extra chip or a settle control stood taller than its
+   neighbours, and the eye reads that unevenness as misalignment. Rows that
+   genuinely need two lines still grow past it. */
+tbody td{padding:13px 16px;height:62px;font-size:13px;color:var(--text2);border-bottom:1px solid var(--border);vertical-align:middle}
 tbody tr:last-child td{border-bottom:none}
 tbody tr{transition:background var(--transition)}
 tbody tr:hover{background:var(--surface2)}
@@ -855,7 +866,9 @@ tbody td:first-child{color:var(--text);font-weight:700;font-size:13px}
   background:linear-gradient(135deg,var(--blue),#7C3AED);
   box-shadow:0 2px 6px rgba(0,0,0,.18);
 }
-.loads-items-cell{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+/* Side by side rather than stacked: the two chips fit on one line, and
+   stacking them made every order with add-ons a taller row than the rest. */
+.loads-items-cell{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 .loads-chip,.items-chip{
   display:inline-flex;align-items:center;gap:5px;
   font-size:11px;font-weight:700;white-space:nowrap;
@@ -1123,7 +1136,10 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 }
 .pay-badge-paid{background:var(--green-dim);color:var(--green)}
 .pay-badge-unpaid{background:var(--yellow-dim);color:var(--yellow)}
-.pay-unpaid-cell{display:flex;flex-direction:column;gap:5px;align-items:flex-start}
+/* Wraps rather than always stacking, so on a wide screen the badge and the
+   settle control share one line and the row keeps the same height as its
+   neighbours; on a narrow one they stack as before. */
+.pay-unpaid-cell{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .pay-mark-select{
   font-size:10.5px;font-weight:600;color:var(--text2);
   background:var(--surface2);border:1px solid var(--border);
@@ -1434,7 +1450,7 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 
   table{font-size:12px}
   thead th{padding:8px 10px;font-size:9px}
-  tbody td{padding:8px 10px}
+  tbody td{padding:8px 10px;height:auto}
 
   .topbar-date{display:none}
   .auth-card{padding:26px 20px 22px}
@@ -1943,7 +1959,7 @@ img.emoji{
   .stats-row,.stats-row-4{gap:10px}
   .cart-total-val{font-size:19px}
   thead th{padding:11px 12px;font-size:9.5px}
-  tbody td{padding:11px 12px;font-size:12.5px}
+  tbody td{padding:11px 12px;height:54px;font-size:12.5px}
 }
 /* ══════════════════════════════════════════
    1366x768 LAPTOP (Acer Extensa 215-21G and similar)
@@ -2309,15 +2325,21 @@ img.emoji{
    only ever used together as a decorative gradient on one entity.
 ══════════════════════════════════════════ */
 
+/* Flex, not a fixed four-column grid. The grid was hard-coded to
+   `1.6fr 1fr 1fr 1fr`, so Unpaid — which has three cards, not four — left
+   a whole empty column of dead space against the right edge. Flexing fills
+   the row whatever the card count, keeps the hero proportionally wider, and
+   wraps instead of crushing when the window gets narrow. */
 .kpi-row{
-  display:grid;gap:12px;margin-bottom:16px;
-  grid-template-columns:1.6fr 1fr 1fr 1fr;
+  display:flex;flex-wrap:wrap;gap:12px;margin-bottom:16px;
 }
 .kpi-card{
   background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:16px 18px;min-width:0;
+  border-radius:var(--radius);padding:16px 18px;
+  flex:1 1 190px;min-width:0;
 }
 .kpi-card-hero{
+  flex-grow:1.7;
   background:
     radial-gradient(120% 140% at 0% 0%, var(--blue-muted) 0%, transparent 60%),
     var(--surface);

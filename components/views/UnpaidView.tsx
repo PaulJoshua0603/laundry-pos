@@ -172,7 +172,10 @@ export default function UnpaidView() {
                     <td className="mono" style={{ color: "var(--text2)" }}>
                       {peso(o.total)}
                     </td>
-                    <td className="mono" style={{ color: "var(--green)" }}>
+                    {/* The placeholder dash was painted green, the colour this
+                        table uses for money received — so "nothing paid yet"
+                        read at a glance as a payment. Only a real amount is green. */}
+                    <td className="mono" style={{ color: o.amountPaid > 0 ? "var(--green)" : "var(--text3)" }}>
                       {o.amountPaid > 0 ? peso(o.amountPaid) : "—"}
                     </td>
                     <td className="mono" style={{ color: "var(--yellow)", fontWeight: 700 }}>
@@ -188,18 +191,20 @@ export default function UnpaidView() {
                       <PartialPayRow orderId={o.id} total={o.total} balance={balance} />
                     </td>
                     <td className="row-actions">
-                      <select
-                        className="pay-mark-select"
-                        value=""
-                        onChange={(e) => {
-                          if (e.target.value) markOrderPaid(o.id, e.target.value as any);
-                        }}
-                      >
-                        <option value="">✓ Settle Full…</option>
-                        <option value="cash">💵 Cash</option>
-                        <option value="gcash">📱 GCash</option>
-                        <option value="maya">💜 Maya</option>
-                      </select>
+                      <div className="row-actions-inner">
+                        <select
+                          className="pay-mark-select"
+                          value=""
+                          onChange={(e) => {
+                            if (e.target.value) markOrderPaid(o.id, e.target.value as any);
+                          }}
+                        >
+                          <option value="">✓ Settle Full…</option>
+                          <option value="cash">💵 Cash</option>
+                          <option value="gcash">📱 GCash</option>
+                          <option value="maya">💜 Maya</option>
+                        </select>
+                      </div>
                     </td>
                   </tr>
                 );
