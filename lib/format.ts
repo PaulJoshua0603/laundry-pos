@@ -18,11 +18,6 @@ export function initialsOf(name: string): string {
   );
 }
 
-export function isToday(iso: string): boolean {
-  const d = new Date(iso);
-  const n = new Date();
-  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
-}
 
 // Business-day helpers. The boundary itself lives in lib/types, next to the
 // shop hours it derives from, and is re-exported at the top of this file.

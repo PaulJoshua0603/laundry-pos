@@ -75,9 +75,6 @@ export interface Order {
 export function getBalance(order: Order): number {
   return Math.max(0, Math.round((order.total - (order.amountPaid || 0)) * 100) / 100);
 }
-export function isPartiallyPaid(order: Order): boolean {
-  return !order.paid && (order.amountPaid || 0) > 0;
-}
 
 // Cosmetic, receipt-friendly order number — sequential per calendar day,
 // purely for display. The real `order.id` remains the unique key used for

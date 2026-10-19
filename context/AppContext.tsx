@@ -140,9 +140,7 @@ interface AppContextValue {
   cancelOrder: (id: string) => void;
   deleteOrder: (id: string) => void;
   /** Deletes every order from the current business day, locally AND in the cloud. */
-  clearDayOrders: () => void;
   markOrderPaid: (id: string, method: "cash" | "gcash" | "maya") => void;
-  addPartialPayment: (id: string, amount: number, method: "cash" | "gcash" | "maya") => void;
   updateOrderDetails: (
     id: string,
     patch: {
@@ -167,18 +165,12 @@ interface AppContextValue {
 
   // printer paper width
   printerMm: number;
-  printerH: number;
   setPrinterWidth: (mm: number, h?: number) => void;
 
   // pay settings
   paySettings: PaySettings;
-  saveGcashMaya: (method: "gcash" | "maya", number: string, qr?: string | null) => void;
-  clearPayMethod: (method: "gcash" | "maya") => void;
 
   // sms templates
-  smsTemplates: SmsTemplates;
-  saveSmsTemplate: (which: "paid" | "unpaid", value: string) => void;
-  resetSmsTemplate: (which: "paid" | "unpaid") => void;
   sendPickupSms: (id: string) => void;
 
   // sales tracking
@@ -980,35 +972,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [applyOrders, showToast]
   );
 
-  /**
-   * "Clear Day" — removes every order from the current business day.
-   *
-   * This used to write the trimmed list straight to localStorage and then
-   * `window.location.reload()`. In cloud mode that did nothing at all: the
-   * rows were never deleted server-side, so boot fetched them straight back
-   * and it looked like the button was broken. It also relied on a full page
-   * reload to update the UI, which is what made a hard refresh feel necessary.
-   */
-  const clearDayOrders = useCallback(() => {
-    const s = sessionRef.current;
-    if (!s) return;
-    const doomed = ordersRef.current.filter((o) => isBusinessToday(o.time));
-    if (doomed.length === 0) {
-      showToast("No orders from today to clear");
-      return;
-    }
-    applyOrders(ordersRef.current.filter((o) => !isBusinessToday(o.time)));
-    if (cloudRef.current) {
-      cloudDeleteOrders(
-        s.userId,
-        doomed.map((o) => o.id)
-      ).catch(() => {
-        // Fall back to the per-order retry queue so the deletes still land.
-        doomed.forEach((o) => queueDeleteOrder(s.userId, o.id));
-      });
-    }
-    showToast(`Cleared ${doomed.length} order${doomed.length !== 1 ? "s" : ""} from today`, "success");
-  }, [applyOrders, showToast]);
 
   const markOrderPaid = useCallback(
     (id: string, method: "cash" | "gcash" | "maya") => {
@@ -1021,33 +984,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [mutateOrder, showToast]
   );
 
-  const addPartialPayment = useCallback(
-    (id: string, amount: number, method: "cash" | "gcash" | "maya") => {
-      if (!amount || amount <= 0) return;
-      mutateOrder(id, (o) => {
-        const nextAmountPaid = Math.min(o.total, (o.amountPaid || 0) + amount);
-        const nowPaid = nextAmountPaid >= o.total;
-        return {
-          ...o,
-          amountPaid: nextAmountPaid,
-          paid: nowPaid,
-          paidMethod: method,
-          paidAt: o.paidAt || new Date().toISOString(),
-        };
-      });
-      // Read back the row we just wrote, rather than the pre-mutation copy
-      // from the render closure, so the balance in the toast is the real one.
-      const order = ordersRef.current.find((o) => o.id === id);
-      const remaining = order ? Math.max(0, order.total - (order.amountPaid || 0)) : 0;
-      showToast(
-        remaining > 0
-          ? `${id}: ₱${amount.toLocaleString()} payment recorded · ₱${remaining.toLocaleString()} balance left`
-          : `${id}: fully paid ✅`,
-        "success"
-      );
-    },
-    [mutateOrder, showToast]
-  );
 
   const updateOrderDetails = useCallback(
     (
@@ -1126,22 +1062,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setPaySettings(next);
   }, []);
 
-  const saveGcashMaya = useCallback(
-    (method: "gcash" | "maya", number: string, qr?: string | null) => {
-      const prev = paySettingsRef.current;
-      persistPay({ ...prev, [method]: { qr: qr !== undefined ? qr : prev[method].qr, number } });
-      showToast(`${method === "gcash" ? "GCash" : "Maya"} details saved`, "success");
-    },
-    [persistPay, showToast]
-  );
 
-  const clearPayMethod = useCallback(
-    (method: "gcash" | "maya") => {
-      persistPay({ ...paySettingsRef.current, [method]: { qr: null, number: "" } });
-      showToast("Removed");
-    },
-    [persistPay, showToast]
-  );
 
   /* ─── SMS TEMPLATES ─── */
   const persistSms = useCallback((next: SmsTemplates) => {
@@ -1156,25 +1077,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setSmsTemplates(next);
   }, []);
 
-  const saveSmsTemplate = useCallback(
-    (which: "paid" | "unpaid", value: string) => {
-      const prev = smsTemplatesRef.current;
-      persistSms({ ...prev, [which]: value.trim() || prev[which] });
-      showToast(`${which === "paid" ? "Paid" : "Unpaid"} SMS template saved`, "success");
-    },
-    [persistSms, showToast]
-  );
 
-  const resetSmsTemplate = useCallback(
-    (which: "paid" | "unpaid") => {
-      persistSms({
-        ...smsTemplatesRef.current,
-        [which]: which === "paid" ? DEFAULT_SMS_TEMPLATE_PAID : DEFAULT_SMS_TEMPLATE_UNPAID,
-      });
-      showToast(`${which === "paid" ? "Paid" : "Unpaid"} SMS template reset to default`);
-    },
-    [persistSms, showToast]
-  );
 
   const sendPickupSms = useCallback(
     (id: string) => {
@@ -1246,22 +1149,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     checkout,
     cancelOrder,
     deleteOrder,
-    clearDayOrders,
     markOrderPaid,
-    addPartialPayment,
     updateOrderDetails,
     receiptOrder,
     showReceipt,
     closeReceipt,
     printerMm,
-    printerH,
     setPrinterWidth,
     paySettings,
-    saveGcashMaya,
-    clearPayMethod,
-    smsTemplates,
-    saveSmsTemplate,
-    resetSmsTemplate,
     sendPickupSms,
     salesPeriod,
     setSalesPeriod,
@@ -1273,10 +1168,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     importLegacyAccount, importPastedOrders, theme, toggleTheme, toast, showToast,
     activeView, switchView, cart, addToCart, addCustomFee, changeQty, removeFromCart,
     clearCart, cartTotal, payment, selectPayment, orders, checkout, cancelOrder,
-    deleteOrder, clearDayOrders, markOrderPaid, addPartialPayment,
-    updateOrderDetails, receiptOrder, showReceipt, closeReceipt, printerMm, printerH,
-    setPrinterWidth, paySettings, saveGcashMaya, clearPayMethod, smsTemplates,
-    saveSmsTemplate, resetSmsTemplate, sendPickupSms, salesPeriod, salesOffset,
+    deleteOrder, markOrderPaid,
+    updateOrderDetails, receiptOrder, showReceipt, closeReceipt, printerMm,
+    setPrinterWidth, paySettings, sendPickupSms, salesPeriod, salesOffset,
   ]);
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

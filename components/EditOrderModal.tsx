@@ -20,8 +20,6 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
   const [name, setName] = useState(order.name);
   const [phone, setPhone] = useState(order.phone || "");
   const [addr, setAddr] = useState(order.addr || "");
-  const [type, setType] = useState<"walkin" | "delivery">(order.type);
-  const [pickup, setPickup] = useState(toDatetimeLocal(order.pickup));
   const [orderTime, setOrderTime] = useState(toDatetimeLocal(order.time));
   const [nameErr, setNameErr] = useState(false);
   const [paid, setPaid] = useState(order.paid);
@@ -44,8 +42,6 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
     setName(order.name);
     setPhone(order.phone || "");
     setAddr(order.addr || "");
-    setType(order.type);
-    setPickup(toDatetimeLocal(order.pickup));
     setOrderTime(toDatetimeLocal(order.time));
     setPaid(order.paid);
     setPaidMethod((order.paidMethod as any) || "cash");
@@ -121,8 +117,10 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
       // through unchanged so an order that already carries them keeps them.
       phone,
       addr,
-      type,
-      pickup,
+      // Neither is editable here any more; passed straight through so
+      // saving a name or a load cannot blank them on the stored order.
+      type: order.type,
+      pickup: order.pickup || "",
       time: orderTime,
       items: [...loads, ...extras],
       paid,
@@ -164,32 +162,19 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
             style={nameErr ? { borderColor: "var(--red)" } : undefined}
           />
         </div>
-        <div className="field-group">
-          <label className="field-label">Order type</label>
-          <select className="field-input" value={type} onChange={(e) => setType(e.target.value as any)}>
-            <option value="walkin">🚶 Walk-in</option>
-            <option value="delivery">🛵 Delivery</option>
-          </select>
-        </div>
 
         {/* Editing the order's OWN date and time is what moves a row between
             day groups. This is the correction path for an order filed under
             the wrong day, and it also lets a paper record be entered after
             the fact — neither was possible before. */}
-        <div className="field-row">
-          <div className="field-group">
-            <label className="field-label">Order date &amp; time</label>
-            <input
-              className="field-input"
-              type="datetime-local"
-              value={orderTime}
-              onChange={(e) => setOrderTime(e.target.value)}
-            />
-          </div>
-          <div className="field-group">
-            <label className="field-label">Pickup date &amp; time</label>
-            <input className="field-input" type="datetime-local" value={pickup} onChange={(e) => setPickup(e.target.value)} />
-          </div>
+        <div className="field-group">
+          <label className="field-label">Order date &amp; time</label>
+          <input
+            className="field-input"
+            type="datetime-local"
+            value={orderTime}
+            onChange={(e) => setOrderTime(e.target.value)}
+          />
         </div>
         {orderTime && toDatetimeLocal(order.time) !== orderTime && (
           <div className="field-group">
@@ -201,31 +186,22 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
 
         <div className="field-group">
           <label className="field-label">Payment status</label>
-          <div style={{ display: "flex", gap: 8 }}>
+          {/* Was two buttons carrying six inline style properties each, which
+              is why they sat a few pixels shorter than every input above
+              them. Styled by class now, same height as the fields. */}
+          <div className="edit-paid-toggle" role="group" aria-label="Payment status">
             <button
               type="button"
-              className="btn btn-sm"
-              style={{
-                flex: 1,
-                background: paid ? "var(--green)" : "var(--surface2)",
-                color: paid ? "#0a1a12" : "var(--text2)",
-                border: "1px solid var(--border)",
-                fontWeight: 700,
-              }}
+              className={`edit-paid-opt yes${paid ? " active" : ""}`}
+              aria-pressed={paid}
               onClick={() => setPaid(true)}
             >
               ✓ Paid
             </button>
             <button
               type="button"
-              className="btn btn-sm"
-              style={{
-                flex: 1,
-                background: !paid ? "var(--yellow)" : "var(--surface2)",
-                color: !paid ? "#2b1c00" : "var(--text2)",
-                border: "1px solid var(--border)",
-                fontWeight: 700,
-              }}
+              className={`edit-paid-opt no${!paid ? " active" : ""}`}
+              aria-pressed={!paid}
               onClick={() => setPaid(false)}
             >
               ⏳ Unpaid
@@ -377,7 +353,7 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
                 </option>
               ))}
             </select>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={addAddon} disabled={!addonPick}>
+            <button type="button" className="edit-extra-btn" onClick={addAddon} disabled={!addonPick}>
               Add
             </button>
           </div>
@@ -403,8 +379,8 @@ export default function EditOrderModal({ order, onClose }: { order: Order; onClo
                 onKeyDown={(e) => e.key === "Enter" && addFee()}
               />
             </div>
-            <button type="button" className="fee-add-btn" onClick={addFee} disabled={!feeAmount || parseFloat(feeAmount) <= 0}>
-              + Add fee
+            <button type="button" className="edit-extra-btn primary" onClick={addFee} disabled={!feeAmount || parseFloat(feeAmount) <= 0}>
+              Add fee
             </button>
           </div>
         </div>

@@ -189,8 +189,6 @@ button, input{ color-scheme: inherit; }
 .auth-brand-name{font-family:var(--font-display);font-size:25px;font-weight:700;letter-spacing:-.01em;color:var(--text)}
 .auth-brand-name em{color:var(--blue);font-style:italic;font-weight:600}
 .auth-tagline{text-align:center;font-size:12px;color:var(--text3);margin-bottom:26px;letter-spacing:.01em}
-
-.google-btn-wrap{display:flex;justify-content:center;min-height:44px}
 .btn-google-fallback{
   display:none;align-items:center;justify-content:center;gap:10px;
   width:100%;padding:11px;border-radius:999px;
@@ -295,13 +293,6 @@ button, input{ color-scheme: inherit; }
   color:#22c55e;font-size:12px;font-weight:500;
   border-radius:var(--radius-sm);padding:10px 12px;
   text-align:center;
-}
-
-.auth-hint{text-align:center;font-size:11px;color:var(--text3);margin-top:16px}
-.auth-demo-note{
-  margin-top:18px;padding:10px 12px;background:var(--surface2);
-  border:1px solid var(--border);border-radius:var(--radius-sm);
-  font-size:10.5px;line-height:1.5;color:var(--text3);
 }
 
 /* ══════════════════════════════════════════
@@ -494,7 +485,7 @@ button, input{ color-scheme: inherit; }
   pointer-events:none;
 }
 
-.revcard-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:11px}
+.revcard-head{display:flex;align-items:center;gap:7px;margin-bottom:10px}
 .revcard-eyebrow{
   display:inline-flex;align-items:center;gap:6px;
   font-size:10px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
@@ -503,11 +494,6 @@ button, input{ color-scheme: inherit; }
 .revcard-pulse{
   width:6px;height:6px;border-radius:50%;background:var(--green);
   box-shadow:0 0 0 3px var(--green-dim);
-}
-.revcard-today{
-  font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--blue);background:var(--blue-muted);
-  padding:3px 8px;border-radius:999px;
 }
 
 /* The figure. Tight tracking and a lighter peso sign so the digits lead. */
@@ -534,7 +520,6 @@ button, input{ color-scheme: inherit; }
    sidebar card and on Sales Tracking alike. Values validated in --cat-*. */
 .m-cash{background:var(--cat-cash)}
 .m-gcash{background:var(--cat-gcash)}
-.m-maya{background:var(--cat-maya)}
 
 .revcard-bar{display:flex;gap:2px;height:7px;border-radius:999px;overflow:hidden;background:var(--border)}
 .revcard-seg{flex-basis:0;min-width:4px;border-radius:2px;transition:flex-grow .45s cubic-bezier(.4,0,.2,1)}
@@ -643,21 +628,6 @@ button, input{ color-scheme: inherit; }
 .section-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--blue);opacity:.85;margin-bottom:3px}
 .section-title{font-family:var(--font-display);font-size:22px;font-weight:600;letter-spacing:-.01em;color:var(--text)}
 
-.stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-.stats-row-4{grid-template-columns:repeat(4,1fr)}
-.stat-card{
-  background:var(--surface);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:16px;
-  transition:border-color var(--transition);
-}
-.stat-card:hover{border-color:var(--border2)}
-.stat-card-label{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
-.stat-card-val{font-family:var(--mono);font-size:24px;font-weight:700;color:var(--text);letter-spacing:-.04em;margin-bottom:2px}
-.stat-card-sub{font-size:11px;color:var(--text2)}
-.stat-card-sub b{color:var(--green)}
-
 .filter-bar{display:flex;gap:8px;align-items:center}
 .sort-select{
   appearance:none;-webkit-appearance:none;
@@ -750,8 +720,6 @@ button, input{ color-scheme: inherit; }
 .btn-secondary:hover{background:rgba(99,102,241,.12);box-shadow:0 0 10px var(--blue-glow)}
 .btn-danger{background:var(--red-dim);color:var(--red);border:1px solid rgba(239,68,68,.2)}
 .btn-danger:hover{background:rgba(239,68,68,.2)}
-.btn-success{background:var(--green-dim);color:var(--green);border:1px solid rgba(16,185,129,.2)}
-.btn-success:hover{background:rgba(16,185,129,.2)}
 .btn-sms{background:var(--blue-muted);color:var(--blue);border:1px solid var(--blue-glow)}
 .btn-sms:hover{background:var(--blue-glow)}
 .btn-sm{padding:6px 11px;font-size:12px;border-radius:9px}
@@ -993,8 +961,6 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   background:linear-gradient(90deg, transparent, var(--border2), transparent);
 }
 .cart-line{display:flex;justify-content:space-between;align-items:center}
-.cart-line-label{font-size:12px;color:var(--text2)}
-.cart-line-val{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:600}
 .cart-divider{height:1px;background:var(--border);margin:2px 0}
 .cart-total-label{font-size:13.5px;font-weight:700;color:var(--text)}
 .cart-total-val{font-family:var(--mono);font-size:22px;font-weight:800;color:var(--yellow);letter-spacing:-.03em}
@@ -1041,32 +1007,8 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   border-radius:var(--radius);padding:8px 10px;
 }
 .sales-nav-label{font-size:13px;font-weight:700;color:var(--text);text-align:center;flex:1}
-.sales-chart{
-  padding:20px 16px 8px;
-  display:flex;align-items:flex-end;gap:4px;
-  min-height:160px;overflow-x:auto;
-  scrollbar-width:thin;scrollbar-color:var(--border2) transparent;
-}
-.sales-bar-col{
-  display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-  gap:6px;flex:1;min-width:22px;height:100%;position:relative;
-}
-.sales-bar{
-  width:100%;max-width:34px;border-radius:4px 4px 0 0;
-  background:linear-gradient(180deg,var(--blue),var(--blue-dim));
-  transition:height .4s cubic-bezier(.4,0,.2,1);
-  min-height:2px;position:relative;
-  cursor:default;
-}
 .sales-bar.empty{background:var(--surface2)}
 .sales-bar-col.is-peak .sales-bar{background:linear-gradient(180deg,var(--yellow),#B45309)}
-.sales-bar-label{font-size:9px;color:var(--text3);font-weight:600;white-space:nowrap}
-.sales-bar-val{
-  position:absolute;top:-18px;left:50%;transform:translateX(-50%);
-  font-family:var(--mono);font-size:9px;color:var(--text2);white-space:nowrap;
-  opacity:0;transition:opacity var(--transition);pointer-events:none;
-}
-.sales-bar-col:hover .sales-bar-val{opacity:1}
 
 /* ══════════════════════════════════════════
    PAYMENT METHOD SETTINGS
@@ -1080,31 +1022,12 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   background:var(--surface2);border:1px solid var(--border);
   border-radius:4px;padding:1px 5px;font-family:var(--mono);font-size:11px;color:var(--blue);
 }
-.sms-template-card{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:16px;margin-top:10px;
-}
-.sms-template-label{margin-bottom:10px}
-.sms-template-textarea{
-  width:100%;resize:vertical;min-height:80px;
-  font-family:var(--font);line-height:1.5;
-}
-.paysettings-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
 .paysettings-card{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);padding:16px;
   display:flex;flex-direction:column;gap:10px;
 }
 .paysettings-head{font-size:14px;font-weight:800;color:var(--text)}
-.paysettings-qr-wrap{
-  aspect-ratio:1;width:100%;max-width:220px;margin:0 auto;
-  background:var(--surface2);border:1.5px dashed var(--border2);
-  border-radius:var(--radius-sm);
-  display:flex;align-items:center;justify-content:center;overflow:hidden;
-}
-.paysettings-qr-img{width:100%;height:100%;object-fit:contain;background:#fff}
-.paysettings-qr-empty{font-size:11px;color:var(--text3);text-align:center;padding:12px}
-.paysettings-upload-btn{justify-content:center;width:100%;cursor:pointer}
 
 /* QR preview shown in cart when GCash / Maya selected */
 .qr-preview{
@@ -1118,16 +1041,6 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 .qr-preview-sub{font-size:11px;color:var(--text2);word-break:break-word}
 .qr-preview-empty{font-size:11px;color:var(--text3);line-height:1.5}
 .qr-preview-empty a{color:var(--blue);cursor:pointer;text-decoration:underline}
-
-/* ══════════════════════════════════════════
-   ORDER TYPE BADGES (Orders table)
-══════════════════════════════════════════ */
-.type-badge{
-  display:inline-flex;align-items:center;gap:5px;
-  font-size:11.5px;font-weight:600;color:var(--text2);white-space:nowrap;
-  background:var(--surface2);border:1px solid var(--border);
-  padding:4px 10px;border-radius:999px;
-}
 .pay-badge{
   display:inline-flex;align-items:center;gap:4px;
   font-size:11.5px;font-weight:700;white-space:nowrap;
@@ -1203,41 +1116,16 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   box-shadow:var(--shadow-lg);
 }
 .modal-overlay.show .modal{transform:translateY(0)}
-/* Paper picker — three equal segments. The old pills sat on one flex row and
-   wrapped the third option onto its own line at the modal's width. */
-.paper-picker{padding:16px 20px 0}
-.paper-picker-label{
-  font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
-  color:var(--text3);margin-bottom:8px;
-}
-.paper-seg{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
-}
-.paper-opt{
-  display:flex;flex-direction:column;align-items:center;gap:2px;
-  padding:9px 6px;border-radius:var(--radius-sm);
-  background:var(--surface2);border:1px solid var(--border);
-  color:var(--text2);cursor:pointer;font-family:var(--font);
-  transition:all var(--transition);text-align:center;min-width:0;
-}
-.paper-opt:hover{border-color:var(--text3);color:var(--text)}
 .paper-opt.active{
   background:var(--blue-muted);border-color:var(--blue);
   color:var(--blue);box-shadow:0 0 0 1px var(--blue) inset;
 }
-.paper-opt-name{font-size:12.5px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
-.paper-opt-sub{font-size:9.5px;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.printer-size-warn{margin:10px 20px 0}
 .receipt{padding:24px;font-family:var(--mono);position:relative}
 .receipt::before{
   content:'';position:absolute;top:0;left:0;right:0;height:10px;
   background-image:radial-gradient(circle at 7px 0, transparent 5px, var(--surface) 5.5px);
   background-size:14px 10px;background-repeat:repeat-x;
 }
-.receipt-header{text-align:center;margin-bottom:20px;padding-top:6px}
-.receipt-logo{font-size:26px;margin-bottom:4px}
-.receipt-biz{font-family:var(--font-display);font-size:17px;font-weight:600;color:var(--text)}
-.receipt-sub{font-size:11px;color:var(--text2);margin-top:2px}
 .receipt-divider{border:none;border-top:1px dashed var(--border2);margin:16px 0}
 .receipt-row{display:flex;justify-content:space-between;margin-bottom:4px;font-size:12px;color:var(--text2)}
 .receipt-row.total{color:var(--yellow);font-size:14px;font-weight:700;margin-top:8px}
@@ -1246,10 +1134,6 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
 /* Customer headline — the name is the thing everyone reads first, so it gets
    real size instead of being a small right-aligned value. */
 .receipt-customer-block{text-align:center;margin:2px 0 6px}
-.receipt-customer-label{
-  font-size:9px;letter-spacing:.18em;text-transform:uppercase;
-  color:var(--text3);font-weight:700;margin-bottom:3px;
-}
 .receipt-customer-name{
   font-family:var(--font-display);font-size:26px;font-weight:700;
   line-height:1.1;color:var(--text);text-transform:uppercase;
@@ -1261,16 +1145,6 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   text-transform:uppercase;text-align:center;color:var(--text);
   word-break:break-word;overflow-wrap:anywhere;
 }
-.receipt-customer-meta{
-  display:flex;align-items:center;justify-content:center;gap:8px;
-  margin-top:5px;font-size:11px;color:var(--text2);flex-wrap:wrap;
-}
-.receipt-order-no{
-  font-family:var(--mono);font-weight:700;color:var(--text);
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:999px;padding:1px 8px;
-}
-.receipt-customer-phone{font-size:11px;color:var(--text3);margin-top:3px;font-family:var(--mono)}
 
 /* Line items: name + amount on top, qty × unit price beneath. */
 .receipt-item{margin-bottom:7px}
@@ -1325,9 +1199,6 @@ select.customer-field{cursor:pointer;appearance:none;-webkit-appearance:none;
   padding:20px;font-family:var(--mono);position:relative;
   border:1.5px dashed var(--border2);border-radius:10px;margin:0 4px;
 }
-.fixed-tag-header{text-align:center;margin-bottom:10px}
-.fixed-tag-biz{font-family:var(--font-display);font-size:16px;font-weight:700;color:var(--text);letter-spacing:-.01em}
-.fixed-tag-sub{font-size:9.5px;color:var(--yellow);margin-top:2px;letter-spacing:.08em;font-weight:700}
 .fixed-tag-rule{border:none;margin:7px 0}
 .fixed-tag-rule.thick{border-top:2px solid var(--text2)}
 .fixed-tag-rule.dash{border-top:1px dashed var(--border2)}
@@ -1852,7 +1723,6 @@ img.emoji{
 .pickup-field::-webkit-datetime-edit-fields-wrapper{ padding: 0; }
 .pickup-field::-webkit-datetime-edit-text{ padding: 0 1px; }
 .pickup-field::-webkit-calendar-picker-indicator{ margin-left: 3px; padding: 1px; transform: scale(.8) }
-.pickup-field-wrap-full{ flex: 1 1 100%; }
 .pickup-field-label{
   position: absolute;
   left: 12px;
@@ -2024,21 +1894,6 @@ img.emoji{
 }
 
 /* ══════════════════════════════════════════
-   ORDERS — TOTAL LOADS FOOTER
-══════════════════════════════════════════ */
-.orders-loads-footer{
-  display:flex;align-items:center;gap:8px;
-  justify-content:flex-end;
-  font-size:13px;font-weight:700;color:var(--text2);
-  letter-spacing:.02em;
-}
-.orders-loads-icon{font-size:15px}
-.orders-loads-val{
-  font-family:var(--mono);font-size:15px;font-weight:800;
-  color:var(--yellow);margin-left:2px;
-}
-
-/* ══════════════════════════════════════════
    EDIT ORDER — loads editor
 ══════════════════════════════════════════ */
 .edit-loads-list{display:flex;flex-direction:column;gap:8px}
@@ -2053,7 +1908,6 @@ img.emoji{
 .edit-loads-name{font-size:12.5px;font-weight:700;color:var(--text)}
 .edit-loads-price{font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:1px}
 .edit-loads-controls{display:flex;align-items:center;gap:8px;flex-shrink:0}
-.edit-loads-note{font-size:11px;color:var(--text3);margin-top:8px;line-height:1.4}
 .edit-order-total{
   display:flex;justify-content:space-between;align-items:center;
   padding:11px 14px;border-radius:10px;
@@ -2062,20 +1916,78 @@ img.emoji{
 }
 .edit-order-total-val{font-family:var(--mono);font-size:16px;font-weight:800;color:var(--yellow)}
 
-/* Wider, scrollable premium variant for the edit-order modal */
+/* ══════════════════════════════════════════
+   EDIT ORDER MODAL
+
+   One gutter and one vertical rhythm for the whole panel. Every block used
+   to carry its own `padding:0 20px` plus an ad-hoc margin, so the fields
+   lined up only by coincidence and the gaps between them varied.
+══════════════════════════════════════════ */
 .modal-edit-order{
   max-width:460px;
   max-height:90vh;
   overflow-y:auto;
   scrollbar-width:thin;
   scrollbar-color:var(--border2) transparent;
-  padding-bottom:22px;
+  display:flex;flex-direction:column;gap:13px;
+  padding-bottom:0;
 }
-.modal-edit-order .field-group{padding:0 20px}
-.modal-edit-order .field-row{padding:0 20px;gap:10px}
+/* The single gutter. Children set their own vertical spacing via the gap. */
+.modal-edit-order > *{padding-left:20px;padding-right:20px}
+.modal-edit-order .forgot-header{margin-bottom:0;padding-top:4px}
+.modal-edit-order .field-group,
+.modal-edit-order .field-row{padding-left:20px;padding-right:20px}
 .modal-edit-order .field-row .field-group{padding:0}
-.modal-edit-order .edit-order-total{margin:4px 20px 0}
-.modal-edit-order .modal-actions{padding:0 20px}
+.modal-edit-order .edit-order-total{margin:2px 20px 0;padding:11px 14px}
+.modal-edit-order .modal-actions{padding:13px 20px 18px;margin-top:2px}
+
+/* Paid / Unpaid pair — equal halves, and tall enough to match the inputs
+   above them rather than sitting a few pixels short. */
+.edit-paid-toggle{display:flex;gap:8px}
+.edit-paid-opt{
+  flex:1;padding:10px 12px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:var(--surface2);
+  font-family:var(--font);font-size:12.5px;font-weight:700;
+  color:var(--text2);cursor:pointer;
+  transition:background var(--transition),color var(--transition),border-color var(--transition);
+}
+.edit-paid-opt:hover:not(.active){border-color:var(--border2);color:var(--text)}
+.edit-paid-opt.active.yes{background:var(--green);border-color:var(--green);color:#0a1a12}
+.edit-paid-opt.active.no{background:var(--yellow);border-color:var(--yellow);color:#2b1c00}
+.edit-paid-opt:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+/* Add-on and fee rows share one grid, so the two action buttons sit in the
+   same column and the inputs end at the same edge. The amount box was
+   80px wide with a ₱ prefix eating 32px of it, which clipped its own
+   placeholder to "Amou". */
+.edit-extra-add-row,
+.edit-extra-fee-row{display:grid;grid-template-columns:1fr 96px;gap:8px;margin-top:10px}
+.edit-extra-add-row{grid-template-columns:1fr 96px}
+.edit-extra-add-select{font-size:12.5px;cursor:pointer;min-width:0}
+.edit-extra-fee-label{min-width:0}
+.edit-extra-fee-amount{width:100%}
+.edit-extra-fee-row .fee-input-row{grid-column:1 / -1;order:-1;display:none}
+
+/* The fee row is label + amount + button, and wraps to two lines only when
+   the panel is genuinely too narrow for three. */
+.edit-extra-fee-row{grid-template-columns:1fr 104px 96px}
+.edit-extra-fee-row .fee-input-row{display:flex;grid-column:auto;order:0;min-width:0}
+.edit-extra-btn{
+  padding:10px 12px;border-radius:var(--radius-sm);
+  border:1px solid var(--border);background:var(--surface2);
+  font-family:var(--font);font-size:12.5px;font-weight:700;color:var(--text2);
+  cursor:pointer;white-space:nowrap;
+  transition:background var(--transition),color var(--transition),border-color var(--transition);
+}
+.edit-extra-btn:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.edit-extra-btn:disabled{opacity:.45;cursor:not-allowed}
+.edit-extra-btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.edit-extra-btn.primary:hover:not(:disabled){filter:brightness(1.08);color:#fff}
+
+@media(max-width:520px){
+  .edit-extra-fee-row{grid-template-columns:1fr 96px}
+  .edit-extra-fee-row .edit-extra-btn{grid-column:1 / -1}
+}
 
 .edit-extra-row{
   display:flex;align-items:flex-start;gap:10px;
@@ -2109,11 +2021,6 @@ img.emoji{
 }
 .extra-remove-btn:hover{opacity:1;transform:scale(1.1)}
 
-.edit-extra-add-row{display:flex;gap:8px;margin-top:10px}
-.edit-extra-add-select{flex:1;font-size:12px;cursor:pointer}
-.edit-extra-fee-row{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-.edit-extra-fee-label{flex:1 1 120px;min-width:100px}
-.edit-extra-fee-amount{width:80px}
 
 /* ══════════════════════════════════════════
    CLOUD BACKUP CARD
@@ -2231,29 +2138,7 @@ img.emoji{
 
 /* Amount box. Placeholder shows the balance, so an empty box visibly means
    "the whole lot" rather than looking unfilled. */
-.paytake-amount{position:relative;flex:0 0 auto}
-.paytake-peso{
-  position:absolute;left:9px;top:50%;transform:translateY(-50%);
-  font-size:12px;font-weight:700;color:var(--text3);pointer-events:none;
-}
-.paytake-input{
-  width:84px;padding:7px 9px 7px 22px;
-  font-family:var(--mono);font-size:12.5px;font-weight:700;
-  font-variant-numeric:tabular-nums;
-  color:var(--text);background:var(--surface2);
-  border:1.5px solid var(--border);border-radius:9px;
-  outline:none;transition:border-color var(--transition),box-shadow var(--transition),background var(--transition);
-}
-.paytake-input::placeholder{color:var(--text3);font-weight:600}
-.paytake-input:hover{border-color:var(--border2)}
-.paytake-input:focus{
-  border-color:var(--blue);background:var(--surface);
-  box-shadow:0 0 0 3px var(--blue-muted);
-}
-/* The spinners steal width in a cell this tight and are useless on a till. */
-.paytake-input::-webkit-outer-spin-button,
-.paytake-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.paytake-input[type=number]{-moz-appearance:textfield;appearance:textfield}
+.paytake-amount/* Amount box. Placeholder shows the balance{position:relative;flex:0 0 auto}
 
 /* Segmented method picker — replaces a select, so the choice is visible
    and one tap rather than open-scan-choose. */
@@ -2313,21 +2198,7 @@ img.emoji{
 }
 .report-card-title{font-size:13.5px;font-weight:800;color:var(--text);letter-spacing:-.01em}
 .report-card-hint{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;font-weight:600}
-.report-list{padding:8px 0}
-.report-list-padded{padding:16px;display:flex;flex-direction:column;gap:14px}
 .report-empty{padding:28px 16px;color:var(--text3);font-size:13px;text-align:center}
-.report-row{padding:10px 16px;display:flex;flex-direction:column;gap:6px;border-bottom:1px solid var(--border)}
-.report-row:last-child{border-bottom:none}
-.report-row-top{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.report-row-label{font-size:13px;font-weight:600;color:var(--text)}
-.report-row-label-plain{font-size:13px;color:var(--text2);font-weight:600}
-.report-row-desc{font-size:11px;color:var(--text3);font-weight:400}
-.report-row-val{font-family:var(--mono);font-size:13px;color:var(--yellow);font-weight:700}
-.report-row-val-plain{font-family:var(--mono);font-size:13px;color:var(--text);font-weight:700}
-.report-row-sub{font-size:11px;color:var(--text3)}
-.report-bar-track{height:5px;background:var(--surface2);border-radius:3px;overflow:hidden}
-.report-bar-fill{height:100%;background:var(--blue);border-radius:3px;transition:width .4s cubic-bezier(.4,0,.2,1)}
-.report-pay-row{display:flex;flex-direction:column;gap:6px}
 
 /* ══════════════════════════════════════════
    SALES TRACKING — KPI row + revenue chart
@@ -2443,16 +2314,6 @@ img.emoji{
   .kpi-val{font-size:22px}
 }
 
-/* Shown only when the computed receipt height exceeds the 210mm page the
-   POS58 driver defaults to — the case where Windows would silently split the
-   receipt across two pages. */
-.printer-size-warn{
-  margin:8px 0 0;padding:8px 10px;
-  background:var(--yellow-dim);border:1px solid rgba(227,164,56,.35);
-  border-radius:var(--radius-sm);
-  font-size:11.5px;line-height:1.45;color:var(--yellow);
-}
-
 /* ══════════════════════════════════════════
    TOOLS — tabbed settings & maintenance
 ══════════════════════════════════════════ */
@@ -2468,30 +2329,12 @@ img.emoji{
 .tool-tab.active{background:var(--blue-muted);border-color:var(--blue-dim);color:var(--blue)}
 .tool-tab-icon{font-size:14px}
 .tool-tab-hint{font-size:11.5px;color:var(--text3);margin:0 0 16px 2px}
-
-.tool-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));margin-top:12px}
 .tool-card{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);padding:16px;
 }
-.tool-card-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
-.tool-card-icon{font-size:20px;flex-shrink:0}
 .tool-card-title{font-size:14px;font-weight:700;color:var(--text)}
-.tool-card-sub{font-size:11px;color:var(--text3);margin-top:1px}
-.tool-badge{
-  margin-left:auto;font-size:10px;font-weight:700;padding:2px 8px;
-  border-radius:999px;white-space:nowrap;
-}
 .tool-badge.ok{color:var(--green);background:var(--green-dim);border:1px solid rgba(16,185,129,.3)}
-.tool-note{
-  background:var(--surface);border:1px solid var(--border);
-  border-radius:var(--radius);padding:13px 15px;
-  font-size:12px;line-height:1.6;color:var(--text2);
-}
-.tool-note code{
-  background:var(--surface2);padding:1px 5px;border-radius:4px;
-  font-family:var(--mono);font-size:11px;color:var(--blue);
-}
 
 /* ══════════════════════════════════════════
    SHARED PANEL / LIST LANGUAGE
@@ -2502,31 +2345,12 @@ img.emoji{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius);overflow:hidden;margin-bottom:14px;
 }
-.panel-head{
-  display:flex;align-items:center;justify-content:space-between;gap:10px;
-  padding:13px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;
-}
-.panel-title{font-size:13px;font-weight:700;color:var(--text);letter-spacing:.01em}
-.panel-hint{font-size:11px;color:var(--text3)}
-.panel-body{padding:14px 16px}
 
 /* A compact horizontal meter used for shares (payment mix, service mix). */
 .meter{display:flex;height:8px;border-radius:999px;overflow:hidden;background:var(--surface2);gap:2px}
-.meter-seg{height:100%}
-.meter-key{display:flex;flex-wrap:wrap;gap:14px;margin-top:11px}
-.meter-key-item{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text2)}
-.meter-dot{width:9px;height:9px;border-radius:3px;flex-shrink:0}
-.meter-key-val{font-family:var(--mono);font-weight:700;color:var(--text)}
 
 /* Progress row used in Top Services — single hue, value at the end. */
-.svc-row{padding:9px 0;border-bottom:1px solid var(--border)}
-.svc-row:last-child{border-bottom:none}
-.svc-row-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;margin-bottom:6px}
-.svc-name{font-size:12.5px;color:var(--text);font-weight:500;min-width:0}
-.svc-val{font-family:var(--mono);font-size:12.5px;font-weight:700;color:var(--text);white-space:nowrap}
-.svc-track{height:6px;border-radius:999px;background:var(--surface2);overflow:hidden}
-.svc-fill{height:100%;background:var(--blue);border-radius:999px}
-.svc-sub{font-size:10.5px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
+.svc-row/* Progress row used in Top Services — single hue{padding:9px 0;border-bottom:1px solid var(--border)}
 
 
 

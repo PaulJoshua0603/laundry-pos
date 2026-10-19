@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useApp } from "@/context/AppContext";
-import { buildDailyOrderNoMap, getBalance, getLoadCount, isExtraLine, ORDER_TYPES, Order } from "@/lib/types";
+import { buildDailyOrderNoMap, getBalance, getLoadCount, isExtraLine, Order } from "@/lib/types";
 import { businessDayLabel, getBusinessDayKey, isBusinessToday, peso } from "@/lib/format";
 import EditOrderModal from "@/components/EditOrderModal";
 
@@ -211,7 +211,6 @@ export default function OrdersView() {
                         <tr>
                           <th>Customer</th>
                           <th>Order ID</th>
-                          <th>Type</th>
                           <th>Loads, Items</th>
                           <th>Total</th>
                           <th>Payment</th>
@@ -222,7 +221,6 @@ export default function OrdersView() {
                       </thead>
                       <tbody>
                         {dayOrders.map((o) => {
-                          const typeInfo = ORDER_TYPES[o.type] || ORDER_TYPES.walkin;
                           const pickupText = o.pickup
                             ? new Date(o.pickup).toLocaleString("en-PH", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })
                             : "—";
@@ -249,11 +247,6 @@ export default function OrdersView() {
                               <td className="order-id-cell" title={o.id}>
                                 <div style={{ fontWeight: 600 }}>#{dailyNoOf(o)}</div>
                                 <div style={{ fontSize: 10, opacity: 0.6 }}>{o.id}</div>
-                              </td>
-                              <td>
-                                <span className="type-badge">
-                                  {typeInfo.icon} {typeInfo.label}
-                                </span>
                               </td>
                               <td>
                                 <div className="loads-items-cell">

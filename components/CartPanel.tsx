@@ -159,10 +159,6 @@ export default function CartPanel({ mobileOpen, onCartClose }: { mobileOpen: boo
       </div>
 
       <div className="cart-footer">
-        <div className="cart-line">
-          <span className="cart-line-label">Subtotal</span>
-          <span className="cart-line-val">{peso(cartTotal)}</span>
-        </div>
         {/* The standalone Change row is gone: change is only meaningful once
             cash has been tendered, and it is already stated right under the
             Cash received field where that happens. Up here it sat as a

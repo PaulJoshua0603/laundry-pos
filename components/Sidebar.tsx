@@ -113,9 +113,11 @@ export default function Sidebar() {
       <div className="revcard">
         <div className="revcard-glow" aria-hidden="true" />
 
+        {/* One line: the badge said TODAY beside a label that already
+           meant today, on two rows of a narrow column. */}
         <div className="revcard-head">
-          <span className="revcard-eyebrow"><span className="revcard-pulse" />Revenue</span>
-          <span className="revcard-today">Today</span>
+          <span className="revcard-pulse" />
+          <span className="revcard-eyebrow">Sales Today</span>
         </div>
 
         {/* The headline sits on its own line at full weight; the peso sign is

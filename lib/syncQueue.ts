@@ -80,14 +80,6 @@ export function pendingOps(userId: string): PendingOp[] {
   return read(userId);
 }
 
-/**
- * Operations that have failed repeatedly. These are still queued and still
- * being retried — they are surfaced so a stuck sync becomes visible instead
- * of quietly sitting there.
- */
-export function failingOps(userId: string): PendingOp[] {
-  return read(userId).filter((o) => o.attempts >= WARN_AFTER_ATTEMPTS);
-}
 
 /** Queues an order upsert. The newest write for an id replaces any older one. */
 export function queueSaveOrder(userId: string, order: Order) {
@@ -181,11 +173,6 @@ export function stopRetries() {
   retryTimer = null;
 }
 
-/** Clears the queue for a user — used on sign-out. */
-export function clearQueue(userId: string) {
-  write(userId, []);
-  notify(userId);
-}
 
 /* ══════════════════════════════════════════════════════════════════
    CONFIRMED-IN-CLOUD LEDGER
