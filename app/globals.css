@@ -1445,14 +1445,25 @@ a:focus-visible, button:focus-visible, input:focus-visible,
      originally tuned for. */
   /* Class, not id — the receipt block is repeated when more than one copy
      is printed, and ids must stay unique. */
+  /* WIDTH ARITHMETIC — why the side padding is 2.5mm, not 1mm.
+     The head is 384 dots at 203dpi = 48mm, and the page is set to exactly
+     that. Rendering the content at 46mm left nothing for the printer's own
+     edge loss, so the right-hand column — the price, the total, the payment
+     method — was shaved off the paper.
+
+     Content is now 43mm: 48 less 2.5mm a side. Courier advances a fixed
+     0.6em, so at 12px that is 7.2px a character and 43mm (162.5px at 96dpi)
+     holds 22 characters. The widest real line, a 16-character service name
+     plus a 1.5mm gap plus a four-character price, comes to 21. It fits with
+     a character to spare instead of overflowing by three. */
   .receipt-body{
     display:block !important;
     width:var(--receipt-w, 48mm) !important;max-width:var(--receipt-w, 48mm) !important;
     box-sizing:border-box !important;
-    margin:0 !important;padding:1mm 1mm !important;
+    margin:0 !important;padding:1mm 2.5mm !important;
     font-family:'Courier New',monospace !important;
     color:#000 !important;background:#fff !important;
-    font-size:12.5px !important;line-height:1.5 !important;font-weight:900 !important;
+    font-size:12px !important;line-height:1.45 !important;font-weight:900 !important;
     -webkit-print-color-adjust:exact !important;print-color-adjust:exact !important;color-adjust:exact !important;
     -webkit-font-smoothing:none !important;text-rendering:optimizeSpeed !important;
     overflow:hidden !important;
@@ -1511,7 +1522,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
   }
   .receipt-row{
     display:flex !important;justify-content:space-between !important;
-    margin-bottom:2.5px !important;font-size:12.5px !important;
+    margin-bottom:2.5px !important;font-size:12px !important;
     color:#000 !important;font-family:'Courier New',monospace !important;font-weight:900 !important;
     gap:4px !important;
   }
@@ -1526,7 +1537,7 @@ a:focus-visible, button:focus-visible, input:focus-visible,
     white-space:nowrap !important;
     text-align:right !important;
   }
-  .receipt-row.customer{font-size:12.5px !important;color:#000 !important}
+  .receipt-row.customer{font-size:12px !important;color:#000 !important}
 
   /* Customer headline on paper. Thermal heads render thin strokes badly, so
      everything here is heavy-weight pure black. The name is the largest thing
@@ -1552,7 +1563,7 @@ font-weight:900 !important;line-height:1.1 !important;
   .receipt-item{margin-bottom:1.6mm !important;color:#000 !important}
   .receipt-item-top{
     display:flex !important;justify-content:space-between !important;
-    gap:2mm !important;font-size:12.5px !important;font-weight:900 !important;
+    gap:1.5mm !important;font-size:12px !important;font-weight:900 !important;
     color:#000 !important;
   }
   .receipt-item-name{
@@ -2156,23 +2167,39 @@ img.emoji{
   transition:background var(--transition),color var(--transition);
 }
 .paytake-method:hover{color:var(--text2);background:var(--surface)}
-.paytake-method.active{background:var(--blue);color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18)}
+/* Toned to match Settle — a solid blue chip on every row was the second
+   loudest thing in the table. */
+.paytake-method.active{background:var(--blue-muted);color:var(--blue);box-shadow:inset 0 0 0 1px rgba(109,94,245,.3)}
 .paytake-method:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 
 /* Primary action. States the amount it is about to take, and turns green
    when that amount clears the balance outright. */
+/* Settle. A saturated green fill on every row of a dark table was the
+   loudest thing on the screen and pulled the eye away from the balances,
+   which are what the screen is for. Dark fill, green text and a green
+   hairline: still obviously the action, no longer shouting. */
 .paytake-go{
-  flex:0 0 auto;padding:7px 13px;border:none;border-radius:9px;
+  flex:0 0 auto;padding:7px 13px;border-radius:9px;
   font-family:var(--font);font-size:12px;font-weight:800;
   font-variant-numeric:tabular-nums;
-  color:#fff;background:var(--blue);cursor:pointer;white-space:nowrap;
-  transition:background var(--transition),transform var(--transition),box-shadow var(--transition);
+  color:var(--text2);background:var(--surface2);
+  border:1px solid var(--border);cursor:pointer;white-space:nowrap;
+  transition:background var(--transition),color var(--transition),border-color var(--transition);
 }
-.paytake-go:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 3px 10px rgba(0,0,0,.2)}
-.paytake-go:active:not(:disabled){transform:translateY(0)}
+.paytake-go:hover:not(:disabled){background:var(--bg);border-color:var(--border2);color:var(--text)}
+.paytake-go:active:not(:disabled){background:var(--surface2)}
 .paytake-go:disabled{opacity:.45;cursor:not-allowed}
-.paytake-go.full{background:var(--green)}
-.paytake-go:focus-visible{outline:2px solid var(--text);outline-offset:2px}
+.paytake-go.full{
+  background:var(--green-dim);
+  border-color:rgba(16,185,129,.34);
+  color:var(--green);
+}
+.paytake-go.full:hover:not(:disabled){
+  background:rgba(16,185,129,.2);
+  border-color:var(--green);
+  color:var(--green);
+}
+.paytake-go:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 
 /* Narrow laptops: drop the method words, keep the icons. */
 @media(max-width:1500px){

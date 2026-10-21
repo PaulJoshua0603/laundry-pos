@@ -10,7 +10,6 @@ import { peso } from "@/lib/format";
 // dialog). We snap our computed receipt height up to the smallest one
 // that fits the content, so the dialog auto-selects the right length
 // instead of defaulting to 210mm and clipping longer orders.
-const POS58_PAGE_LENGTHS_MM = [210, 297, 600, 1200];
 
 export default function ReceiptModal() {
   const { receiptOrder, closeReceipt, printerMm, setPrinterWidth, paySettings, session, showToast } = useApp();
@@ -62,11 +61,12 @@ export default function ReceiptModal() {
    *
    *     width = chars x 0.6 x fontSize  <=  usable width
    *
-   * Usable width inside the tag is 48mm less its 1mm padding and 3px border
-   * on each side, ~165px at 96dpi. The 0.92 factor is headroom for the
+   * Usable width inside the tag is 48mm less its 2.5mm side padding and
+   * 3px border, ~155px at 96dpi — the column narrowed when the receipt was
+   * pulled in from the paper edge. The 0.92 factor is headroom for the
    * 0.6px text-stroke the print styles add to every glyph.
    */
-  const nameFontPx = (name: string, max: number, usablePx = 165) => {
+  const nameFontPx = (name: string, max: number, usablePx = 155) => {
     const n = Math.max(1, (name || "").trim().length);
     return Math.max(9, Math.min(max, Math.floor((usablePx * 0.92) / (0.6 * n))));
   };
@@ -89,19 +89,16 @@ export default function ReceiptModal() {
       const el = contentRef.current;
       if (!el) return;
       const pxToMm = 25.4 / 96;
-      // The trailing feed and the tag's extra bottom padding only exist in
-      // print, so they contribute nothing to the measurement above — and they
-      // repeat once per copy. A flat buffer over-counted a single receipt and
-      // under-counted several, which pushed two copies onto a 600mm page when
-      // they fit 297mm.
-      const bufferMm = 8 + 34 * copies;
+      // Trailing feed, so the driver — which trims to the last printed pixel
+      // — leaves enough paper past the basket tag to tear without cutting
+      // through the name. It repeats once per copy.
+      const bufferMm = 8 + 22 * copies;
       const rawMm = Math.ceil(el.scrollHeight * pxToMm) + bufferMm;
-      if (printerMm === 58) {
-        const bucket = POS58_PAGE_LENGTHS_MM.find((mm) => mm >= rawMm) ?? rawMm;
-        setAutoHeightMm(bucket);
-      } else {
-        setAutoHeightMm(Math.max(80, rawMm));
-      }
+      // Snug. This used to round up to the driver's own page presets
+      // (210/297/600mm), which on a receipt measuring ~150mm fed out some
+      // 60mm of blank roll every print. The @page size is explicit either
+      // way, so there is nothing to round to.
+      setAutoHeightMm(Math.max(80, rawMm));
     };
     measure();
     const ro = new ResizeObserver(measure);
