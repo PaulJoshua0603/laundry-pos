@@ -1655,6 +1655,26 @@ font-weight:900 !important;line-height:1.1 !important;
     color:#000 !important;letter-spacing:0 !important;
     -webkit-font-smoothing:none !important;
   }
+
+  /* Between copies: 10mm of clear tape either side of a scissors line, so
+     two receipts can be torn apart. The gap is real paper here rather than
+     trailing whitespace, so unlike the end-of-page feed it does not need
+     ink to survive — the rule is there as the cut guide, not to force the
+     printer to advance. */
+  .copy-sep{
+    display:block !important;width:100% !important;
+    box-sizing:border-box !important;
+    padding:10mm 0 !important;margin:0 !important;
+    text-align:center !important;
+    page-break-inside:avoid !important;break-inside:avoid !important;
+  }
+  .copy-sep-rule{
+    font-family:'Courier New',monospace !important;
+    font-size:10px !important;font-weight:900 !important;
+    color:#000 !important;letter-spacing:.05em !important;
+    -webkit-text-stroke:.5px #000 !important;
+    white-space:nowrap !important;
+  }
   .basket-tag,.basket-tag *{
     color:#000 !important;box-sizing:border-box !important;font-weight:900 !important;
     -webkit-font-smoothing:none !important;
@@ -2411,6 +2431,8 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
 /* On-screen stand-in for the printed trailing feed, so the preview shows
    that blank tape follows the tag. */
 .receipt-feed{padding:34px 0 6px;text-align:center}
+.copy-sep{padding:20px 0;text-align:center}
+.copy-sep-rule{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
 .receipt-feed-rule{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:1px}
 
 

@@ -92,7 +92,12 @@ export default function ReceiptModal() {
       // Trailing feed, so the driver — which trims to the last printed pixel
       // — leaves enough paper past the basket tag to tear without cutting
       // through the name. It repeats once per copy.
-      const bufferMm = 8 + 22 * copies;
+      // Per copy: the trailing feed, which is print-only and so absent from
+      // the measurement above. Per GAP between copies: the separator, which
+      // renders at ~5mm on screen but 20mm plus a rule on paper — the
+      // difference has to be added or two copies overflow the page they
+      // were measured for and the second one gets cut short.
+      const bufferMm = 8 + 22 * copies + 16 * Math.max(0, copies - 1);
       const rawMm = Math.ceil(el.scrollHeight * pxToMm) + bufferMm;
       // Snug. This used to round up to the driver's own page presets
       // (210/297/600mm), which on a receipt measuring ~150mm fed out some
@@ -279,6 +284,16 @@ export default function ReceiptModal() {
             <div className="receipt-feed" aria-hidden="true">
               <span className="receipt-feed-rule">- - - - - - - - - - - - - -</span>
             </div>
+            {/* Separator between copies. Each copy ended with its feed rule
+                and the next began 4mm later, so two receipts came off the
+                tape butted together with nowhere to cut. Only between
+                copies — never after the last, where the trailing feed
+                already does the job. */}
+            {copyIndex < copies - 1 && (
+              <div className="copy-sep" aria-hidden="true">
+                <span className="copy-sep-rule">✂ - - - - - - - - - - - - -</span>
+              </div>
+            )}
             </div>
             ))}
           </div>
