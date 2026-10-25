@@ -66,7 +66,7 @@ export default function ReceiptModal() {
    * pulled in from the paper edge. The 0.92 factor is headroom for the
    * 0.6px text-stroke the print styles add to every glyph.
    */
-  const nameFontPx = (name: string, max: number, usablePx = 155) => {
+  const nameFontPx = (name: string, max: number, usablePx = 150) => {
     const n = Math.max(1, (name || "").trim().length);
     return Math.max(9, Math.min(max, Math.floor((usablePx * 0.92) / (0.6 * n))));
   };
