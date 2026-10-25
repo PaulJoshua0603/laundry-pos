@@ -13,7 +13,9 @@ function toDatetimeLocal(iso: string | null): string {
   return new Date(d.getTime() - tzOffsetMs).toISOString().slice(0, 16);
 }
 
-const ADDON_SERVICES = SERVICES.filter((s) => s.cat === "addon");
+// Delivery is addable after the fact too — a customer who decides on pickup
+// once the order is already in the system should not need a new order.
+const ADDON_SERVICES = SERVICES.filter((s) => s.cat === "addon" || s.cat === "delivery");
 
 export default function EditOrderModal({ order, onClose }: { order: Order; onClose: () => void }) {
   const { updateOrderDetails, orders } = useApp();

@@ -2515,3 +2515,33 @@ tr.is-stale td{background:rgba(227,164,56,.05)}
   .period-seg{display:flex;width:100%}
   .period-opt{flex:1;padding:8px 6px;font-size:12px}
 }
+
+/* ══════════════════════════════════════════
+   SERVICE GROUPS (New Order)
+
+   Seventeen tiles in one block meant scanning the whole board to find a
+   detergent. A quiet rule and a name give the eye somewhere to land
+   without the headings competing with the tiles themselves.
+══════════════════════════════════════════ */
+.svc-group{margin-top:16px}
+.svc-group:first-of-type{margin-top:4px}
+.svc-group-head{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.svc-group-name{
+  font-size:11px;font-weight:800;letter-spacing:.13em;text-transform:uppercase;
+  color:var(--text2);white-space:nowrap;
+}
+.svc-group-rule{flex:1;height:1px;background:var(--border);min-width:12px}
+.svc-group-count{
+  font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text3);
+  font-variant-numeric:tabular-nums;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:999px;padding:1px 7px;
+}
+@media(min-width:961px) and (max-width:1400px) and (max-height:820px){
+  .svc-group{margin-top:12px}
+  .svc-group-head{margin-bottom:7px}
+}
+@media(max-width:640px){
+  .svc-group{margin-top:13px}
+  .svc-group-name{font-size:10px}
+}

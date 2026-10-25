@@ -1,6 +1,6 @@
 # WashHub POS — Next.js
 
-A Next.js 14 (App Router + TypeScript) rebuild of the original static WashHub
+2`1wA Next.js 14 (App Router + TypeScript) rebuild of the original static WashHub
 POS: take orders, track payments, print receipts on a PR21 58mm thermal
 printer, and see daily/weekly/monthly revenue — with accounts, dark/light
 mode, and per-user order history. Installable as a mobile app on Android and

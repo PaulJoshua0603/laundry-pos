@@ -1,7 +1,7 @@
 
 export interface Service {
   id: string;
-  cat: "wash" | "dry" | "addon";
+  cat: "wash" | "dry" | "addon" | "delivery";
   icon: string;
   name: string;
   desc: string;
@@ -26,7 +26,10 @@ export function getLoadCount(items: CartLine[]): number {
   return washQty > 0 ? washQty : dryQty;
 }
 export function isExtraLine(c: CartLine): boolean {
-  return c.service.cat === "addon";
+  // Delivery counts here, not as a load: it is money on the order rather
+  // than a basket to wash, so it belongs with the add-ons everywhere that
+  // splits an order into loads and extras.
+  return c.service.cat === "addon" || c.service.cat === "delivery";
 }
 export function isFeeLine(c: CartLine): boolean {
   return c.service.id.startsWith("fee-");
@@ -161,13 +164,13 @@ export const SERVICES: Service[] = [
   { id: "w6", cat: "wash", icon: "🌨️", name: "Premium Wash (3)", desc: "7 kg and up", price: 210 },
   { id: "d1", cat: "dry", icon: "☀️", name: "Regular Dry", desc: "Max 7 kgs / load", price: 80 },
   { id: "d2", cat: "dry", icon: "🌤️", name: "Heavy Dry", desc: "Max 8 kgs / load", price: 100 },
-  { id: "d3", cat: "addon", icon: "⏱️", name: "Add Dry", desc: "+10 minutes dry only", price: 30 },
   { id: "a1", cat: "addon", icon: "🌸", name: "Downy Fabric Conditioner", desc: "Added to final rinse", price: 10 },
   { id: "a2", cat: "addon", icon: "✨", name: "Surf Fabric Softener", desc: "Added to final rinse", price: 10 },
   { id: "a3", cat: "addon", icon: "✨", name: "Del Fabric Softener", desc: "Added to final rinse", price: 10 },
   { id: "a4", cat: "addon", icon: "🧼", name: "Ariel Liquid Detergent", desc: "Extra detergent scoop", price: 15 },
   { id: "a5", cat: "addon", icon: "🌊", name: "Wings Liquid Detergent", desc: "Extra detergent scoop", price: 10 },
   { id: "a6", cat: "addon", icon: "🧴", name: "Zonrox", desc: "Extra detergent scoop", price: 25 },
+  { id: "dl1", cat: "delivery", icon: "🛵", name: "Pick Up & Delivery", desc: "Collected and returned", price: 40 },
 ];
 
 
